@@ -1,5 +1,5 @@
 ---
-description: "Run agent: /run | /run AITSAI-N | /run pipeline | /run all | /run dev | /run <area/role>"
+description: "Run agent: /run | /run <ISSUE-KEY> | /run pipeline | /run all | /run dev | /run <area/role>"
 ---
 
 Launch a subagent to work on a Jira task.
@@ -11,16 +11,16 @@ Launch a subagent to work on a Jira task.
 | Command | What it does |
 |---------|-------------|
 | `/run` | Auto-find highest priority task, run one step |
-| `/run AITSAI-5` | Run the responsible agent for this issue (role from label) |
+| `/run <ISSUE-KEY>` | Run the responsible agent for this issue (role from label) |
 | `/run pipeline` | Find highest priority task, run full cycle (dev → qa → reviewer → done) |
-| `/run pipeline AITSAI-5` | Run full cycle for a specific task |
+| `/run pipeline <ISSUE-KEY>` | Run full cycle for a specific task |
 | `/run all` | Run tasks until the board is clear (each task = full pipeline) |
 | `/run dev` | First available To Do task for **any** area's dev |
 | `/run qa` | First available QA task for **any** area's qa |
 | `/run reviewer` | First available Code Review task for **any** area's reviewer |
-| `/run core/dev` | First available To Do task for core/dev |
-| `/run ai/dev AITSAI-5` | Run dev on specific issue (override role) |
-| `/run AITSAI-5 AITSAI-6` | Two separate parallel agents (roles from labels) |
+| `/run <area>/dev` | First available To Do task for that area's dev |
+| `/run <area>/<role> <ISSUE-KEY>` | Run a specific role on a specific issue (override role) |
+| `/run <KEY-1> <KEY-2>` | Two separate parallel agents (roles from labels) |
 
 **Role → queue mapping** (each role picks from one queue and claims by transitioning to `In Progress`):
 
@@ -87,7 +87,7 @@ Run tasks until the board is clear.
    - If empty: auto-mode (see above).
    - If `pipeline` [+ optional key]: pipeline mode.
    - If `all`: all mode.
-   - If argument matches an issue key pattern (e.g. `AITSAI-5`): issue-key mode — resolve role from `agent:` label, area from `area:` label.
+   - If argument matches an issue key pattern (e.g. `<ISSUE-KEY>`): issue-key mode — resolve role from `agent:` label, area from `area:` label.
    - If `dev`, `qa`, or `reviewer`: role-only shortcut.
    - Multiple issue keys: launch parallel agents.
 

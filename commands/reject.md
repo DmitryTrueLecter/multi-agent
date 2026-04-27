@@ -1,5 +1,5 @@
 ---
-description: "Reject task result: /reject AITSAI-<N> <reason>. Reverts code, returns to To Do"
+description: "Reject task result: /reject <ISSUE-KEY> <reason>. Reverts code, returns to To Do"
 ---
 
 Reject a completed task and revert its changes.
@@ -8,7 +8,7 @@ Reject a completed task and revert its changes.
 
 **Usage:** `/reject <ISSUE-KEY> <reason>`
 
-Example: `/reject AITSAI-5 models don't follow existing patterns from rag_chunk.py`
+Example: `/reject <ISSUE-KEY> implementation doesn't follow existing patterns from <similar-file>`
 
 **Steps:**
 
