@@ -130,7 +130,7 @@ Use `jira_link_to_epic` to attach tasks to their parent epic.
    git checkout -b feature/<epic-slug>
    git push -u origin feature/<epic-slug>
    ```
-   The slug should be short and descriptive (e.g. `feature/reddit-vendor-detection`). Record the branch name in the Epic description.
+   The slug should be short and descriptive (e.g. `feature/<epic-slug>`). Record the branch name in the Epic description.
 5. Create Task issues, set labels, descriptions, link dependencies. Include the epic branch name in each task description.
 6. Present the decomposition to user for approval.
 7. User launches agents via `/run`. You report progress.
@@ -201,7 +201,7 @@ For each such Epic:
 When spawning a subagent, use the generic agent name with area in the prompt:
 
 ```
-Agent(subagent_type="dev", prompt="Your area: core. Your Jira issue: AITSAI-123 — read your area config, then read the issue and do the work.")
+Agent(subagent_type="dev", prompt="Your area: <area>. Your Jira issue: <ISSUE-KEY> — read your area config, then read the issue and do the work.")
 ```
 
 ## Consulting the architect
