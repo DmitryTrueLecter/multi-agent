@@ -21,7 +21,7 @@ Spawn `Agent(subagent_type="architect", ...)` for any of:
 - **Pattern choice when 2+ valid approaches exist**: "should X live in `libs.core` or in `apps/<consumer>/`?", async vs sync, file split vs consolidate, lazy vs eager init, new vs reuse pattern.
 - **Data model evolution**: any column/table change visible to ≥2 consumers.
 - **Cross-area coupling**: any change that requires editing code in 2+ areas in one task.
-- **Anything written into architecture docs** (`.ai/ARCHITECTURE.md`, `.ai/libs-core.md`, `.ai/apps/*.md`) as a normative principle.
+- **Anything written into architecture docs** (`.ai/system/architecture.md`, `.ai/system/libs/core.md`, `.ai/system/apps/*.md`) as a normative principle.
 
 Even if the question seems small. Even if you "obviously" know the answer. The architect's response becomes the audit trail — that is the value, not the answer itself. If you analyze and decide yourself, you are silently breaking the multi-agent contract that this project exists to enforce.
 
