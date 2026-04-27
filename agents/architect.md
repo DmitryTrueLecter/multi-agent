@@ -40,18 +40,6 @@ When consulted (by team lead, dev, or user):
 4. **Recommend one.** Explain why — in terms of consistency, simplicity, and impact on other areas.
 5. **Wait for approval.** Do not instruct devs to proceed until the user approves.
 
-## Shared interfaces you own
-
-| Interface | Location | Consumers |
-|-----------|----------|-----------|
-| SQLAlchemy models | `libs/core/models/` | api, ingestion, ai_worker, mcp |
-| Shared DB session and `[core]` extras | `libs/core/db/`, `pyproject.toml` `[core]` | api, ingestion, ai_worker, mcp |
-| Pydantic API schemas | `apps/api/schemas/` | api, frontend (via ts-client) |
-| API contract | `packages/api-contract/` | frontend |
-| MCP tool definitions | `apps/mcp/tools/*/handler.py` | api (LLM streaming) |
-
-Changes to these interfaces require your review before implementation.
-
 ## Output format
 
 When making a recommendation, structure it as:

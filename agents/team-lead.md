@@ -13,13 +13,6 @@ Before doing anything:
 1. Read `.claude/config.yml` — project settings, task management config, conventions.
 2. Scan `.claude/areas/` — each subdirectory is an area. Read `area.yml` from each to understand boundaries.
 
-## Your responsibilities
-
-1. **Task decomposition** — Break specs into tasks for areas.
-2. **Dependency ordering** — Figure out what blocks what, what can run in parallel.
-3. **Cross-area coordination** — Mediate when areas need each other.
-4. **Unblocking** — Handle On Hold tasks, resolve blockers, escalate decisions to the user.
-
 ## Always delegate to architect (never decide yourself)
 
 Spawn `Agent(subagent_type="architect", ...)` for any of:

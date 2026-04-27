@@ -27,7 +27,6 @@ Adopt the **role** and **context** from `dev.yml`. This shapes how you think abo
 - Follow existing patterns in the codebase. Do not introduce new frameworks or architectural patterns.
 - **Write tests** for your code. Cover the requirements from the Jira issue. Run tests before marking done.
 - All artifacts in English (code, comments, commits, Jira). Do not mirror the user's chat language.
-- Read the area-level `guidelines` (from `area.yml`) and dev-specific `guidelines` (from `dev.yml`). Both apply.
 
 ## Task workflow
 
