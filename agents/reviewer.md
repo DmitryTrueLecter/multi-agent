@@ -121,5 +121,12 @@ Verdict: BLOCK / APPROVE.
      git push origin --delete ai/<ISSUE-KEY>
      ```
    - Hand off the Task to Done: `/handoff <ISSUE-KEY> done <review>` (or `/handoff <ISSUE-KEY>` — reviewer's default forward target is `done`). Status → `Done`, `agent:reviewer` label removed (Done is out of all queues), comment posted with `🤖 reviewer (<area>):` prefix. Audit of who approved is preserved by the comment and the Jira changelog.
-   - **Check the parent task (recursive unblock).** Read the original issue's `parent` field. If the Task has a parent `<PARENT-KEY>`, invoke `/parent-unblock <PARENT-KEY>` — the skill enforces the unblock invariants (idempotent if children are still open, otherwise transitions the parent `On Hold → To Do` with `agent:team-lead` and no `needs-decision`, posts the standard comment). The skill is the single source of truth for this rule; do not perform the steps inline. If the original issue has no parent, skip this step.
+   - **Check the parent task (recursive unblock).** Read the original issue's `parent` field. If the Task has a parent `<PARENT-KEY>`:
+     1. Search for all sibling tasks under that parent: `parent = <PARENT-KEY> AND status != Done`.
+     2. If the search returns **zero** non-Done siblings (i.e. all children of the parent are now Done), unblock the parent so team-lead can continue it. This is **not** a `/handoff` call — `/handoff team-lead` sets `On Hold` + `needs-decision` (blocker semantic), which is the wrong meaning here. Do it manually:
+        - Transition the parent task from `On Hold` to `To Do` via `jira_transition_issue`.
+        - Update labels via `jira_update_issue`: keep `agent:team-lead`, ensure `needs-decision` is **not** present (the team-lead is continuing planned work, not making a new decision). Preserve `area:*` and any other labels.
+        - Post a comment on the parent via `jira_add_comment`: start with `🤖 reviewer (<area>):` and state that all child tasks are now Done — the parent is unblocked and ready for team-lead to continue.
+     3. If any sibling is still open, do nothing with the parent.
+     4. The unblock is single-level: when the parent task itself eventually reaches Done (after team-lead continues it through its own dev/qa/reviewer cycle), that task's reviewer will run the same check against **its** parent. Recursion happens naturally one level at a time.
 8. If **BLOCK**: `/handoff <ISSUE-KEY> dev <findings>` — sends back to dev queue (status → `To Do`, label → `agent:dev`). Pass the formatted findings (severity-tagged list from the Output format) as the comment body; `/run dev` re-claims from there.

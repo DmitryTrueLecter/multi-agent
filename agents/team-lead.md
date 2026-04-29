@@ -192,7 +192,7 @@ For each such task:
    - to dev → status `To Do`, label `agent:dev` (remove `agent:team-lead`)
    - to qa → status `QA`, label `agent:qa` (remove `agent:team-lead`)
    - to reviewer → status `Code Review`, label `agent:reviewer` (remove `agent:team-lead`)
-   - to done → status `Done`, remove `agent:team-lead` (no `agent:` label on Done). If the task itself has a parent `<PARENT-KEY>`, invoke `/parent-unblock <PARENT-KEY>` after the transition — the skill enforces the same recursive unblock rule the reviewer would run on a normal APPROVE. If the task has no parent, skip this step.
+   - to done → status `Done`, remove `agent:team-lead` (no `agent:` label on Done). If the task itself has a parent, the reviewer of this task would normally run the parent-unblock check on approve — for a direct team-lead → done transition, you must run that check yourself: if all siblings of this task under its parent are now Done, unblock the parent (transition `On Hold` → `To Do`, keep parent's `agent:team-lead`, ensure parent's `needs-decision` is not set, post a comment with `🤖 team-lead:` prefix).
    - decompose further → create child Tasks with `parent: <THIS-KEY>`, transition this task back to `On Hold`, keep `agent:team-lead`, do not add `needs-decision`.
 8. Post a comment with the `🤖 team-lead:` prefix summarizing what you did and why.
 
