@@ -121,9 +121,11 @@ Use `jira_link_to_epic` to attach tasks to their parent epic.
 
 ## Workflow
 
-1. Read the spec and relevant architecture docs.
+**Spec storage.** The canonical spec lives in the Jira Epic description — never in the repo. Whatever the user provides (chat paste, scratch file, link) is a draft input; once you create the Epic, its description is authoritative and all later edits (clarifications, scope changes, follow-ups) land there or as Epic comments. Do **not** create, read, or reference epic markdown files under `.ai/`, `docs/`, or any tracked path.
+
+1. Read the spec the user provided and relevant architecture docs.
 2. Read `.claude/config.yml` for conventions and `.claude/areas/` for area boundaries.
-3. Create an Epic in Jira for the feature.
+3. Create an Epic in Jira for the feature — copy/expand the user-provided spec into the Epic description (this becomes the canonical spec).
 4. **Create the epic branch** from the `dev_branch` (see `config.yml` → `vcs.dev_branch`):
    ```
    git checkout <dev_branch>
@@ -209,7 +211,7 @@ Agent(subagent_type="dev", prompt="Your area: <area>. Your Jira issue: <ISSUE-KE
 When you encounter a technical question during decomposition (shared interface design, pattern choice, data model changes affecting multiple areas), spawn the architect:
 
 ```
-Agent(subagent_type="architect", prompt="Technical question: <describe the question and context>. Relevant spec: <path>. Affected areas: <list>.")
+Agent(subagent_type="architect", prompt="Technical question: <describe the question and context>. Relevant Epic: <ISSUE-KEY> (spec lives in the Epic description). Affected areas: <list>.")
 ```
 
 Present the architect's recommendation to the user for approval before proceeding.
