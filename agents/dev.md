@@ -34,18 +34,17 @@ Adopt the **role** and **context** from `dev.yml`. This shapes how you think abo
 
 ## Task workflow
 
-1. Read your Jira issue with `jira_get_issue`. The description contains Purpose, Requirements, References. The issue's `parent` field (if set) points to the parent task. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:dev`).
-2. **Determine the parent branch** and create your task branch from it:
-   - If the issue has a `parent` field set to `<PARENT-KEY>`, the parent branch is `ai/<PARENT-KEY>`.
-   - If the issue has no parent, the parent branch is the `dev_branch` from `.claude/config.yml` → `vcs.dev_branch` (typically `development`).
+1. Read your Jira issue with `jira_get_issue`. The description contains Purpose, Requirements, References — including the **epic branch** name. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:dev`).
+2. **Create a task branch** from the epic branch:
    ```
-   git checkout <parent-branch>
+   git checkout <epic-branch>
    git pull
    git checkout -b ai/<ISSUE-KEY>
    ```
+   Example: `git checkout feature/<epic-slug> && git checkout -b ai/<ISSUE-KEY>`.
 3. Do the work described in the issue.
 4. Run tests using the `test_command` from `dev.yml`.
-5. **Commit your changes.** Commit message format:
+5. **Commit your changes** (do NOT push). Commit message format:
    ```
    ISSUE-KEY subject line
 
@@ -63,13 +62,12 @@ Adopt the **role** and **context** from `dev.yml`. This shapes how you think abo
    Touches <files/areas>. Edge case <case> handled by <strategy>;
    errors in <path> are logged without stopping the batch.
    ```
-6. **Push the task branch:** `git push -u origin ai/<ISSUE-KEY>`. Always push before handoff (QA, team-lead, or otherwise).
-7. Add a comment to the issue via `jira_add_comment`. **Start every comment with `🤖 dev (<area>):`** so it's clear which agent wrote it. Include: what you did, files created/modified, whether requirements are met, branch name (`ai/<ISSUE-KEY>`).
-8. **If there are gaps, missing prerequisites, or decisions needed from team lead/other areas:**
+6. Add a comment to the issue via `jira_add_comment`. **Start every comment with `🤖 dev (<area>):`** so it's clear which agent wrote it. Include: what you did, files created/modified, whether requirements are met, branch name (`ai/<ISSUE-KEY>`).
+7. **If there are gaps, missing prerequisites, or decisions needed from team lead/other areas:**
    - Do NOT move to QA.
    - Add labels `agent:team-lead` and `needs-decision` via `jira_update_issue`. Remove `agent:dev`.
    - Transition to `On Hold` via `jira_transition_issue`.
    - Comment must clearly describe what's missing and what decision is needed.
-9. **If work is complete with no gaps:**
+8. **If work is complete with no gaps:**
    - Update the issue label from `agent:dev` to `agent:qa` via `jira_update_issue`.
    - Transition the issue to `QA` via `jira_transition_issue`.

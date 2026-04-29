@@ -107,26 +107,24 @@ Verdict: BLOCK / APPROVE.
 ## Task workflow
 
 1. Read the Jira issue with `jira_get_issue` for context. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:reviewer`).
-2. **Switch to the task branch**: `git checkout ai/<ISSUE-KEY>`. Determine the parent branch: if the issue has a `parent` field set to `<PARENT-KEY>`, the parent branch is `ai/<PARENT-KEY>`; otherwise it is `dev_branch` from `.claude/config.yml` → `vcs.dev_branch` (typically `development`). Use `git diff <parent-branch>...HEAD` to see only this task's changes.
+2. **Switch to the task branch**: `git checkout ai/<ISSUE-KEY>`. Read the epic branch name from the issue description. Use `git diff <epic-branch>...HEAD` to see only this task's changes.
 3. Run automated pre-checks on changed files.
 4. Read the diff and surrounding code for context where needed.
 5. Run language-specific checks from `area.yml` → `review_checks`.
 6. Format your review using the **Output format** above. You will pass it as the body of the `/handoff` call in step 7 / 8 — do **not** post it via `jira_add_comment` separately, the skill posts the comment.
 7. If **APPROVE**:
-   - Merge the task branch into the parent branch and clean up the remote task branch. The parent branch is `ai/<PARENT-KEY>` if the task has a parent, otherwise `dev_branch` from `.claude/config.yml` → `vcs.dev_branch` (typically `development`).
+   - Merge the task branch into the epic branch:
      ```
-     git checkout <parent-branch>
+     git checkout <epic-branch>
      git merge ai/<ISSUE-KEY>
      git push
-     git push origin --delete ai/<ISSUE-KEY>
      ```
    - Hand off the Task to Done: `/handoff <ISSUE-KEY> done <review>` (or `/handoff <ISSUE-KEY>` — reviewer's default forward target is `done`). Status → `Done`, `agent:reviewer` label removed (Done is out of all queues), comment posted with `🤖 reviewer (<area>):` prefix. Audit of who approved is preserved by the comment and the Jira changelog.
-   - **Check the parent task (recursive unblock).** Read the original issue's `parent` field. If the Task has a parent `<PARENT-KEY>`:
-     1. Search for all sibling tasks under that parent: `parent = <PARENT-KEY> AND status != Done`.
-     2. If the search returns **zero** non-Done siblings (i.e. all children of the parent are now Done), unblock the parent so team-lead can continue it. This is **not** a `/handoff` call — `/handoff team-lead` sets `On Hold` + `needs-decision` (blocker semantic), which is the wrong meaning here. Do it manually:
-        - Transition the parent task from `On Hold` to `To Do` via `jira_transition_issue`.
-        - Update labels via `jira_update_issue`: keep `agent:team-lead`, ensure `needs-decision` is **not** present (the team-lead is continuing planned work, not making a new decision). Preserve `area:*` and any other labels.
-        - Post a comment on the parent via `jira_add_comment`: start with `🤖 reviewer (<area>):` and state that all child tasks are now Done — the parent is unblocked and ready for team-lead to continue.
-     3. If any sibling is still open, do nothing with the parent.
-     4. The unblock is single-level: when the parent task itself eventually reaches Done (after team-lead continues it through its own dev/qa/reviewer cycle), that task's reviewer will run the same check against **its** parent. Recursion happens naturally one level at a time.
+   - **Check the parent Epic.** Read the original issue's `parent` field. If the Task has a parent Epic:
+     1. Search for all sibling tasks in that Epic: `parent = <EPIC-KEY> AND status != Done`.
+     2. If the search returns **zero** non-Done siblings (i.e. all children of the Epic are now Done), promote the Epic for team-lead sign-off. This is **not** a `/handoff` call — the `team-lead` target in `/handoff` is reserved for `On Hold` + `needs-decision` (a blocker semantic), which is the wrong meaning for a clean Epic completion. Do it manually:
+        - Add `agent:team-lead` label to the Epic via `jira_update_issue` (preserve any existing labels on the Epic).
+        - Transition the Epic to `Code Review` via `jira_transition_issue`.
+        - Post a comment on the Epic via `jira_add_comment`: start with `🤖 reviewer (<area>):` and state that all child tasks are Done — the Epic is ready for team-lead final review and closure.
+     3. If any sibling is still open, do nothing with the Epic.
 8. If **BLOCK**: `/handoff <ISSUE-KEY> dev <findings>` — sends back to dev queue (status → `To Do`, label → `agent:dev`). Pass the formatted findings (severity-tagged list from the Output format) as the comment body; `/run dev` re-claims from there.

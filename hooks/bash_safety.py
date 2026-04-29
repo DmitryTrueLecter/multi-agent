@@ -43,7 +43,7 @@ DENY = [
         re.compile(
             r"\bgit\s+push\s+(?:-[\w-]+(?:=\S+)?\s+)*(?:\S+\s+)?(?:HEAD:)?(?:main|master|development)(?:\s|$|;|&|\|)"
         ),
-        "Direct push to main / master / development is blocked. Push to an ai/<TASK-KEY> branch and merge through the workflow.",
+        "Direct push to main / master / development is blocked. Push to a feature/epic branch and merge through the workflow.",
     ),
     (
         re.compile(r"\bgit\s+push\s+\S+\s+:(?:main|master|development)\b"),

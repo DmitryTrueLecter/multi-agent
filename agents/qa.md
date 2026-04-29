@@ -58,7 +58,7 @@ Read `qa.yml` → `checks` (and `migration_checks` if present). Execute each che
 ## Task workflow
 
 1. Read your Jira issue with `jira_get_issue`. The description contains Purpose and Requirements — this is what you verify against. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:qa`).
-2. **Switch to the task branch**: `git checkout ai/<ISSUE-KEY>`. Determine the parent branch: if the issue has a `parent` field set to `<PARENT-KEY>`, the parent branch is `ai/<PARENT-KEY>`; otherwise it is `dev_branch` from `.claude/config.yml` → `vcs.dev_branch` (typically `development`). Use `git diff <parent-branch>...HEAD` to see only this task's changes.
+2. **Switch to the task branch**: `git checkout ai/<ISSUE-KEY>`. Read the epic branch name from the issue description. Use `git diff <epic-branch>...HEAD` to see only this task's changes.
 3. Run the checks described above.
 4. Format your check report — each check pass/fail with concrete file:line evidence. You will pass this as the body of the `/handoff` call below.
 5. Hand off via the `/handoff` skill. It atomically swaps the `agent:` label, transitions the status, and posts the comment with the standard `🤖 qa (<area>):` prefix in one operation. Do **not** call `jira_update_issue` / `jira_transition_issue` / `jira_add_comment` directly for the handoff — the skill is the single source of truth.
