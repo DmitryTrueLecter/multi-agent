@@ -1,0 +1,180 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__atlassian__jira_get_issue",
+      "mcp__atlassian__jira_get_transitions",
+      "mcp__atlassian__jira_search",
+      "mcp__atlassian__jira_get_user_profile",
+      "mcp__atlassian__jira_get_all_projects",
+      "mcp__atlassian__jira_get_link_types",
+      "mcp__atlassian__jira_get_project_components",
+      "mcp__atlassian__jira_get_project_versions",
+      "mcp__atlassian__jira_get_agile_boards",
+      "mcp__atlassian__jira_get_board_issues",
+      "mcp__atlassian__jira_get_sprints_from_board",
+      "mcp__atlassian__jira_get_sprint_issues",
+      "mcp__atlassian__jira_search_fields",
+      "mcp__atlassian__jira_get_field_options",
+      "mcp__atlassian__jira_batch_get_changelogs",
+      "mcp__atlassian__jira_get_issue_watchers",
+      "mcp__atlassian__jira_get_issue_dates",
+      "mcp__atlassian__jira_get_issue_development_info",
+      "mcp__atlassian__jira_get_issue_sla",
+      "mcp__atlassian__jira_get_worklog",
+
+      "mcp__atlassian__jira_add_comment",
+      "mcp__atlassian__jira_edit_comment",
+      "mcp__atlassian__jira_update_issue",
+      "mcp__atlassian__jira_transition_issue",
+      "mcp__atlassian__jira_create_issue",
+      "mcp__atlassian__jira_batch_create_issues",
+      "mcp__atlassian__jira_create_issue_link",
+      "mcp__atlassian__jira_remove_issue_link",
+      "mcp__atlassian__jira_create_remote_issue_link",
+      "mcp__atlassian__jira_link_to_epic",
+      "mcp__atlassian__jira_add_watcher",
+      "mcp__atlassian__jira_remove_watcher",
+      "mcp__atlassian__jira_add_worklog",
+
+      "Bash(*pytest*)",
+      "Bash(*-m pytest*)",
+      "Bash(*vitest*)",
+      "Bash(*jest*)",
+
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git blame:*)",
+
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git stash:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git rebase:*)",
+      "Bash(git merge:*)",
+      "Bash(git mv:*)",
+      "Bash(git rm:*)",
+      "Bash(git restore:*)",
+      "Bash(git tag:*)",
+      "Bash(git submodule:*)",
+      "Bash(git cherry-pick:*)",
+      "Bash(git remote:*)",
+      "Bash(git apply:*)",
+      "Bash(git reset:*)",
+      "Bash(git clean:*)",
+      "Bash(git branch:*)",
+
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(ln:*)",
+      "Bash(chmod:*)",
+      "Bash(rm:*)",
+
+      "Bash(ruff:*)",
+      "Bash(black:*)",
+      "Bash(isort:*)",
+      "Bash(mypy:*)",
+      "Bash(pyright:*)",
+      "Bash(eslint:*)",
+      "Bash(prettier:*)",
+      "Bash(tsc:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx prettier:*)",
+      "Bash(npx vitest:*)",
+
+      "Bash(pip:*)",
+      "Bash(uv pip:*)",
+      "Bash(uv add:*)",
+      "Bash(uv remove:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv lock:*)",
+      "Bash(uv run:*)",
+      "Bash(uvx:*)",
+      "Bash(python -c:*)",
+      "Bash(python3 -c:*)",
+      "Bash(npm:*)",
+      "Bash(pnpm:*)",
+      "Bash(yarn:*)",
+      "Bash(npx:*)",
+      "Bash(bunx:*)",
+      "Bash(bun:*)",
+
+      "Bash(psql:*)",
+      "Bash(PGPASSWORD=*)",
+      "Bash(LOG_FILE=*)",
+      "Bash(OPENAI_LOG_FILE=*)",
+      "Bash(alembic:*)",
+      "Bash(* alembic *)",
+      "Bash(DATABASE_URL=* alembic *)",
+      "Bash(DATABASE_URL=* python *)",
+
+      "Bash(docker compose:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker inspect:*)",
+      "Bash(docker images:*)",
+      "Bash(docker image:*)",
+      "Bash(docker info:*)",
+      "Bash(docker version:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker start:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker rmi:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker build:*)",
+      "Bash(docker run:*)",
+      "Bash(docker network:*)",
+      "Bash(docker volume ls:*)",
+      "Bash(docker --version)",
+
+      "Bash(curl:*)",
+      "Bash(http:*)",
+      "Bash(httpie:*)",
+      "Bash(jq:*)",
+      "Bash(yq:*)",
+      "Bash(tail:*)",
+      "Bash(head:*)",
+      "Bash(ls:*)",
+      "Bash(command:*)",
+      "Bash(which:*)",
+      "Bash(echo:*)",
+
+      "Bash(just:*)",
+      "Bash(make:*)"
+    ],
+    "deny": [
+      "Read(**/.env)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/bash_safety.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/skill_acl.py"
+          }
+        ]
+      }
+    ]
+  }
+}
