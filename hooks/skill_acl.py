@@ -25,7 +25,7 @@ ALLOWED: dict[str, set[str] | str] = {
     "team-lead": "*",
     "dev":       {"handoff"},
     "qa":        {"handoff"},
-    "reviewer":  {"handoff"},
+    "reviewer":  {"handoff", "parent-unblock"},
     "architect": set(),
 
     # Built-in research / utility agents — no ACL needed
