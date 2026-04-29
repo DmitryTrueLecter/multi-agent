@@ -75,9 +75,11 @@ Read task provider settings from `.claude/config.yml` → `tasks`.
 Use `jira_create_issue` with:
 - `project_key`: from `config.yml` → `tasks.project_key`
 - `summary`: specific task name
-- `issue_type`: "Task" (or "Epic" for the parent feature)
+- `issue_type`: always `"Task"`. The `Epic` issue type is **not** used in this workflow — hierarchy is expressed via the `parent` field on Tasks.
 - `description`: Markdown with Purpose, Requirements, References sections
-- `additional_fields`: `{"labels": ["area:<area>", "agent:dev"]}`
+- `additional_fields`:
+  - For a root task (no parent): `{"labels": ["area:<area>", "agent:dev"]}`
+  - For a subtask of an existing task `<PARENT-KEY>`: `{"labels": ["area:<area>", "agent:dev"], "parent": {"key": "<PARENT-KEY>"}}`
 
 **Both labels are REQUIRED on every Task issue. Never skip any.**
 - `area:<area>` — permanent area label, never changes (e.g. `area:ai`, `area:core`, `area:api`)
@@ -103,9 +105,11 @@ After creating issues, link them with `jira_create_issue_link`:
 - `inward_issue_key`: the blocking issue
 - `outward_issue_key`: the blocked issue
 
-### Linking to epic
+### Hierarchy via `parent`
 
-Use `jira_link_to_epic` to attach tasks to their parent epic.
+Hierarchy between tasks is expressed via the `parent` field on `jira_create_issue` (or via `jira_update_issue` for an existing task). Do **not** use `jira_link_to_epic` — Epic issue type is not part of this workflow.
+
+A task's `parent` determines its branch base and merge target: dev branches `ai/<TASK-KEY>` from `ai/<PARENT-KEY>` (or from `dev_branch` if the task has no parent), and reviewer merges back into the same parent branch on approval.
 
 ## How to decompose
 
@@ -123,78 +127,74 @@ Use `jira_link_to_epic` to attach tasks to their parent epic.
 
 1. Read the spec and relevant architecture docs.
 2. Read `.claude/config.yml` for conventions and `.claude/areas/` for area boundaries.
-3. Create an Epic in Jira for the feature.
-4. **Create the epic branch** from the `dev_branch` (see `config.yml` → `vcs.dev_branch`):
-   ```
-   git checkout <dev_branch>
-   git checkout -b feature/<epic-slug>
-   git push -u origin feature/<epic-slug>
-   ```
-   The slug should be short and descriptive (e.g. `feature/<epic-slug>`). Record the branch name in the Epic description.
-5. Create Task issues, set labels, descriptions, link dependencies. Include the epic branch name in each task description.
-6. Present the decomposition to user for approval.
-7. User launches agents via `/run`. You report progress.
+3. **Create a root Task** for the feature (no `parent`). This task represents the feature itself; if it ends up needing decomposition later (a dev hits a gap), you will add child Tasks to it via the `parent` field.
+4. **Do not create branches.** Branches are always created by the dev who picks up a task: `dev` will branch `ai/<TASK-KEY>` from the parent branch (`ai/<PARENT-KEY>` if the task has a parent, otherwise `dev_branch`).
+5. If you already know the feature requires multiple discrete pieces of work up front, create child Tasks for each, with `parent: <ROOT-KEY>`. Otherwise leave the root task as-is and let decomposition happen when (and if) needed.
+6. Set labels, descriptions, link dependencies. The issue's `parent` field is the source of truth for hierarchy — do not duplicate the parent key into the description.
+7. Present the decomposition to user for approval.
+8. User launches agents via `/run`. You report progress.
 
-## Handling On Hold tasks
+## Handling On Hold tasks (decision needed)
 
-**Always check On Hold tasks first** when invoked:
+**Always check On Hold tasks with `needs-decision` first** when invoked. These are tasks where a dev/qa/reviewer escalated for your judgment:
 
 ```
-project = <project_key> AND status = "On Hold" AND labels = "agent:team-lead"
+project = <project_key> AND status = "On Hold" AND labels = "agent:team-lead" AND labels = "needs-decision"
 ```
 
-For each On Hold task:
+(Tasks in `On Hold` with `agent:team-lead` but **without** `needs-decision` are not in this queue — those are tasks waiting for their own children to finish; see "Continuing decomposed tasks" below.)
+
+For each On Hold task with `needs-decision`:
 1. **Claim the task**: `jira_transition_issue` → `In Progress`. If rejected, another runner already claimed it — skip and try the next On Hold task. (When you are launched as a subagent via `/run`, the claim is already done for you; in that case `jira_get_issue` should show status `In Progress` and `agent:team-lead`.)
-2. Read the issue and its comments to understand what the dev flagged.
-3. **Read the entire epic** — all tasks, their descriptions, statuses, dependencies, and comments. Understand the full picture before reacting.
-4. **Investigate the root cause.** Do NOT blindly create a task from the dev's comment. Ask yourself:
-   - Is this already covered by another task in the epic?
+2. Read the issue and its comments to understand what the agent flagged.
+3. **Read the surrounding context** — the parent task (if any), all sibling tasks under the same parent, their descriptions, statuses, and comments. Understand the full picture before reacting.
+4. **Investigate the root cause.** Do NOT blindly create a task from the agent's comment. Ask yourself:
+   - Is this already covered by another task?
    - Is the spec wrong or incomplete?
-   - Did the dev misunderstand the requirement?
-   - Is this a real gap that needs new work?
+   - Did the agent misunderstand the requirement?
+   - Is this a real gap that needs new work (decomposition into subtasks)?
 5. Read the spec and relevant architecture docs to verify.
 6. Present your analysis and proposed action to the user:
-   - What the dev flagged
+   - What the agent flagged
    - What you found after reviewing the full context
-   - Your recommendation (fix spec, update existing task, create new task, tell dev to proceed differently)
+   - Your recommendation (fix spec, update existing task, decompose into subtasks, tell the agent to proceed differently)
 7. **Wait for user approval before making any changes.**
-8. After approval, execute: update tasks, add comments, remove `agent:team-lead` + `needs-decision` labels, set the appropriate `agent:` label, and transition into the queue of the next role:
-   - back to dev → status `To Do`, label `agent:dev`
-   - to qa → status `QA`, label `agent:qa`
-   - to reviewer → status `Code Review`, label `agent:reviewer`
+8. After approval, execute one of:
+   - **Decompose into subtasks.** Create one or more new Tasks with `parent: <THIS-KEY>`, area, and `agent:dev` labels. On the parent task, **remove `needs-decision`** (decision has been made), keep `agent:team-lead`, and transition the parent **back to `On Hold`** — it now waits for its children. When the last child reaches Done, the reviewer of that child will unblock the parent automatically (transition to `To Do`, keep `agent:team-lead`, no `needs-decision`); see "Continuing decomposed tasks" below.
+   - **Return to a worker role without decomposition.** Update labels (remove `agent:team-lead` and `needs-decision`, add the new `agent:` label) and transition status:
+     - back to dev → status `To Do`, label `agent:dev`
+     - to qa → status `QA`, label `agent:qa`
+     - to reviewer → status `Code Review`, label `agent:reviewer`
 
-## Closing Epics (Epic in Code Review with `agent:team-lead`)
+## Continuing decomposed tasks
 
-When the reviewer closes the **last** Task of an Epic, it promotes the Epic to `Code Review` with `agent:team-lead` — that is your signal to do the final epic-level review and close it.
-
-Search:
+When a parent task's last child has been approved, the reviewer of that child unblocks the parent: status `On Hold` → `To Do`, keeps `agent:team-lead`, ensures `needs-decision` is **not** set. The parent then sits in this queue for you to continue:
 
 ```
-project = <project_key> AND issuetype = Epic AND status = "Code Review" AND labels = "agent:team-lead"
+project = <project_key> AND status = "To Do" AND labels = "agent:team-lead"
 ```
 
-For each such Epic:
-1. **Claim the Epic**: `jira_transition_issue` Epic → `In Progress`. If rejected, another runner already claimed it — skip. (When launched as a subagent via `/run`, the claim is already done.)
-2. Read the Epic and its full child list:
+For each such task:
+1. **Claim the task**: `jira_transition_issue` → `In Progress`. (When launched as a subagent via `/run`, the claim is already done.)
+2. **Read the task and its full child list** to understand what was delivered:
    ```
-   parent = <EPIC-KEY>
+   parent = <THIS-KEY>
    ```
-3. Verify every child Task is in `Done`. If any child is not Done, the reviewer made a mistake — comment on the Epic, remove `agent:team-lead`, transition the Epic back to its previous queue (`Code Review` if children still need work to reach Done; otherwise leave in `In Progress` for re-evaluation), and stop.
-4. Re-read the Epic description and recent comments. Check for any open follow-ups, deferred items, or "out of scope" notes that should become new tasks before the Epic closes:
-   - Search comments and descriptions for `TODO`, `follow-up`, `deferred`, `out of scope`, etc.
-   - Cross-check with the spec — anything the spec required that isn't covered by an existing Done child?
+   Verify every child Task is in `Done`. If any child is not actually Done, the unblock was premature — comment on the task, transition it back to `On Hold`, keep `agent:team-lead`, and stop.
+3. Switch to the task's branch (`git checkout ai/<THIS-KEY>`) — all children's work has already been merged into it by their reviewers. Re-read the task's description, the original gap that triggered decomposition, and the children's review comments.
+4. Cross-check with the spec and the task's requirements. Anything required that isn't covered by the merged children? Any open follow-ups in comments (`TODO`, `follow-up`, `deferred`, `out of scope`)?
 5. Present your assessment to the user:
    - Confirmation that all N children are Done.
    - List of any follow-ups you found (or "none found").
-   - Recommendation: **close** the Epic, or **hold** it pending follow-up tasks.
+   - Recommendation: hand off to dev (more code needed on top of the merged children), to qa (only verification left), straight to done (nothing left to do — the task itself was a pure container), or another decomposition (rare).
 6. **Wait for user approval.**
-7. On approval to close:
-   - Remove `agent:team-lead` from the Epic via `jira_update_issue` (preserve `area:*` and any other labels).
-   - Transition the Epic to `Done` via `jira_transition_issue`.
-   - Post a closing comment via `jira_add_comment`: start with `🤖 team-lead:` and summarize what was delivered.
-8. On hold (follow-ups required):
-   - Create the follow-up Tasks (linked to the Epic) per the normal task-creation flow.
-   - Remove `agent:team-lead` from the Epic. Leave the Epic in `In Progress` — its child tasks are actively in their respective queues, so the Epic itself is "in flight" again. The reviewer will re-promote it to `Code Review` + `agent:team-lead` when the last follow-up child Done.
+7. On approval, execute the chosen handoff via the standard label/status transitions:
+   - to dev → status `To Do`, label `agent:dev` (remove `agent:team-lead`)
+   - to qa → status `QA`, label `agent:qa` (remove `agent:team-lead`)
+   - to reviewer → status `Code Review`, label `agent:reviewer` (remove `agent:team-lead`)
+   - to done → status `Done`, remove `agent:team-lead` (no `agent:` label on Done). If the task itself has a parent, the reviewer of this task would normally run the parent-unblock check on approve — for a direct team-lead → done transition, you must run that check yourself: if all siblings of this task under its parent are now Done, unblock the parent (transition `On Hold` → `To Do`, keep parent's `agent:team-lead`, ensure parent's `needs-decision` is not set, post a comment with `🤖 team-lead:` prefix).
+   - decompose further → create child Tasks with `parent: <THIS-KEY>`, transition this task back to `On Hold`, keep `agent:team-lead`, do not add `needs-decision`.
+8. Post a comment with the `🤖 team-lead:` prefix summarizing what you did and why.
 
 ## Agent launch
 

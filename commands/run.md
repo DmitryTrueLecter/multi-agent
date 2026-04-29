@@ -22,17 +22,17 @@ Launch a subagent to work on a Jira task.
 | `/run <area>/<role> <ISSUE-KEY>` | Run a specific role on a specific issue (override role) |
 | `/run <KEY-1> <KEY-2>` | Two separate parallel agents (roles from labels) |
 
-**Role → queue mapping** (each role picks from one queue and claims by transitioning to `In Progress`):
+**Role → queue mapping** (each role picks from one queue and claims by transitioning to `In Progress`). All issues are Tasks; hierarchy is via the `parent` field on the Task, not via Epic issue type:
 
-| Role | Picks from status | Issue type |
-|------|------------------|------------|
-| `team-lead` | `On Hold` | Task (decision needed) |
-| `team-lead` | `Code Review` | Epic (final epic close-out) |
-| `reviewer` | `Code Review` | Task |
-| `qa` | `QA` | Task |
-| `dev` | `To Do` | Task |
+| Role | Picks from status | Required labels | Notes |
+|------|------------------|-----------------|-------|
+| `team-lead` | `On Hold` | `agent:team-lead` AND `needs-decision` | decision escalated by dev/qa/reviewer |
+| `team-lead` | `To Do` | `agent:team-lead` | continuation: parent task whose children are all Done |
+| `reviewer` | `Code Review` | `agent:reviewer` | |
+| `qa` | `QA` | `agent:qa` | |
+| `dev` | `To Do` | `agent:dev` | |
 
-The `agent:` label disambiguates `Code Review`: `agent:reviewer` → reviewer (Task), `agent:team-lead` → team-lead (Epic close-out).
+The `agent:` label combined with `needs-decision` disambiguates the team-lead queues. A task in `On Hold` with `agent:team-lead` but **without** `needs-decision` is waiting for its own child tasks to finish — it is not in any role's queue.
 
 **Claim model.** Pickup = `jira_transition_issue` → `In Progress`. This is the atomic claim — Jira rejects the second runner because the workflow disallows transition from `In Progress` to `In Progress`. Every queue JQL filters by pre-claim status (`To Do` / `QA` / `Code Review` / `On Hold`), so a claimed task disappears from every queue automatically.
 
@@ -40,11 +40,11 @@ The `agent:` label disambiguates `Code Review`: `agent:reviewer` → reviewer (T
 
 Search for the first available issue in priority order. Stop at the first match:
 
-1. **On Hold** — Tasks with `agent:team-lead` label. Launch `team-lead` agent.
-2. **Code Review (Epic)** — Epics with `agent:team-lead` label. Launch `team-lead` agent for epic close-out.
-3. **Code Review (Task)** — Tasks with `agent:reviewer` label. Launch `reviewer` agent.
+1. **On Hold (decision needed)** — Tasks with `agent:team-lead` AND `needs-decision` labels. Launch `team-lead` agent.
+2. **To Do (team-lead continuation)** — Tasks with `agent:team-lead` label (no `needs-decision`). Launch `team-lead` agent for continuation of a decomposed parent task.
+3. **Code Review** — Tasks with `agent:reviewer` label. Launch `reviewer` agent.
 4. **QA** — Tasks with `agent:qa` label. Launch `qa` agent.
-5. **To Do** — Tasks with `agent:dev` label (whose blockers are all Done). Launch `dev` agent.
+5. **To Do (dev)** — Tasks with `agent:dev` label (whose blockers are all Done). Launch `dev` agent.
 
 If nothing found at any level, report that the board is clear.
 
@@ -124,7 +124,7 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
 
 6. Verify blocked-by issues are all Done (for dev tasks). If not, report and stop.
 
-7. **Claim the task**: `jira_transition_issue` → `In Progress` (for every role, including `team-lead` on On Hold tasks and Epic close-out). If the transition is rejected (Jira returns an error because the issue already left the source status — another runner claimed it), drop this task and pick the next one from the queue. If the queue is now empty, report "board contended, nothing else to take" and stop.
+7. **Claim the task**: `jira_transition_issue` → `In Progress` (for every role, including both `team-lead` queues — On Hold with `needs-decision` and To Do continuation). If the transition is rejected (Jira returns an error because the issue already left the source status — another runner claimed it), drop this task and pick the next one from the queue. If the queue is now empty, report "board contended, nothing else to take" and stop.
 
 8. Launch **one Agent tool per task**, in **background mode**, so this main session stays responsive to the user (see "Stop semantics" below).
    - Before spawning, report a one-line status to the user: `▶ <role> on <ISSUE-KEY> (<area>)`.
@@ -137,19 +137,19 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
        run_in_background=true,
      )
      ```
-   - For `team-lead` on a Task in `On Hold`:
+   - For `team-lead` on a Task in `On Hold` with `needs-decision` (decision escalation):
      ```
      Agent(
        subagent_type="team-lead",
-       prompt="Handle On Hold task: <ISSUE-KEY> — read it with jira_get_issue, investigate, and present your analysis.",
+       prompt="Handle On Hold task with needs-decision: <ISSUE-KEY> — read it with jira_get_issue, investigate per the 'Handling On Hold tasks' section of your role, and present your analysis.",
        run_in_background=true,
      )
      ```
-   - For `team-lead` on an Epic in `Code Review`:
+   - For `team-lead` on a Task in `To Do` with `agent:team-lead` (continuation of a decomposed parent whose children are now all Done):
      ```
      Agent(
        subagent_type="team-lead",
-       prompt="Final review of Epic <ISSUE-KEY> — all child tasks are Done. Read the Epic and its children with jira_get_issue / jira_search, verify nothing is missing, and follow the 'Closing Epics' section of your role.",
+       prompt="Continue decomposed task <ISSUE-KEY> — all child tasks are Done. Follow the 'Continuing decomposed tasks' section of your role: read the task and its children, switch to ai/<ISSUE-KEY>, verify everything is integrated, and present your assessment.",
        run_in_background=true,
      )
      ```
