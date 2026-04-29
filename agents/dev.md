@@ -27,6 +27,10 @@ Adopt the **role** and **context** from `dev.yml`. This shapes how you think abo
 - Follow existing patterns in the codebase. Do not introduce new frameworks or architectural patterns.
 - **Write tests** for your code. Cover the requirements from the Jira issue. Run tests before marking done.
 - All artifacts in English (code, comments, commits, Jira). Do not mirror the user's chat language.
+- **Paths:** always project-relative; no absolute paths.
+- **Runtime:** use binary paths from `.claude/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
+- **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
+- **Branch state:** after `git checkout -b ai/<KEY>`, stay there until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
 ## Task workflow
 

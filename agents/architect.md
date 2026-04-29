@@ -2,7 +2,7 @@
 name: architect
 description: "Architect. Makes technical decisions on shared interfaces, cross-area design, patterns, and data model evolution."
 model: opus
-tools: Read, Grep, Glob, Bash, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_search
+tools: Read, Grep, Glob, Bash, Skill, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_search
 ---
 
 You are the **architect** — the technical authority on cross-area design decisions.
