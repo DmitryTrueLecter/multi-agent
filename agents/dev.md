@@ -27,7 +27,10 @@ Adopt the **role** and **context** from `dev.yml`. This shapes how you think abo
 - Follow existing patterns in the codebase. Do not introduce new frameworks or architectural patterns.
 - **Write tests** for your code. Cover the requirements from the Jira issue. Run tests before marking done.
 - All artifacts in English (code, comments, commits, Jira). Do not mirror the user's chat language.
-- Read the area-level `guidelines` (from `area.yml`) and dev-specific `guidelines` (from `dev.yml`). Both apply.
+- **Paths:** always project-relative; no absolute paths.
+- **Runtime:** use binary paths from `.claude/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
+- **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
+- **Branch state:** after `git checkout -b ai/<KEY>`, stay there until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
 ## Task workflow
 
@@ -38,7 +41,7 @@ Adopt the **role** and **context** from `dev.yml`. This shapes how you think abo
    git pull
    git checkout -b ai/<ISSUE-KEY>
    ```
-   Example: `git checkout feature/reddit-vendor-detection && git checkout -b ai/AITSAI-125`.
+   Example: `git checkout feature/<epic-slug> && git checkout -b ai/<ISSUE-KEY>`.
 3. Do the work described in the issue.
 4. Run tests using the `test_command` from `dev.yml`.
 5. **Commit your changes** (do NOT push). Commit message format:
@@ -51,15 +54,13 @@ Adopt the **role** and **context** from `dev.yml`. This shapes how you think abo
 
    Example:
    ```
-   AITSAI-6 classify reddit threads into verticals via gpt-4o-mini
+   <ISSUE-KEY> subject line summarizing the change
 
-   Sequential OpenAI calls (not Batch API) — simpler for v1, cost
-   still under $4 for 10K threads. Static vendor+verticals block
-   placed first in prompt for OpenAI prompt caching benefit.
+   Chose approach X over Y because of <constraint> — simpler / cheaper /
+   fewer moving parts. Trade-off: <limitation>, acceptable for current scope.
 
-   Threads selected by status/version join on classified subreddits.
-   Results written in one transaction: classifier_runs + reddit_threads
-   update. Parse errors set status='error' without stopping the batch.
+   Touches <files/areas>. Edge case <case> handled by <strategy>;
+   errors in <path> are logged without stopping the batch.
    ```
 6. Add a comment to the issue via `jira_add_comment`. **Start every comment with `🤖 dev (<area>):`** so it's clear which agent wrote it. Include: what you did, files created/modified, whether requirements are met, branch name (`ai/<ISSUE-KEY>`).
 7. **If there are gaps, missing prerequisites, or decisions needed from team lead/other areas:**

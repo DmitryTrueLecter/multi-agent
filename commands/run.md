@@ -1,5 +1,5 @@
 ---
-description: "Run agent: /run | /run AITSAI-N | /run pipeline | /run all | /run dev | /run <area/role>"
+description: "Run agent: /run | /run <ISSUE-KEY> | /run pipeline | /run all | /run dev | /run <area/role>"
 ---
 
 Launch a subagent to work on a Jira task.
@@ -11,16 +11,16 @@ Launch a subagent to work on a Jira task.
 | Command | What it does |
 |---------|-------------|
 | `/run` | Auto-find highest priority task, run one step |
-| `/run AITSAI-5` | Run the responsible agent for this issue (role from label) |
+| `/run <ISSUE-KEY>` | Run the responsible agent for this issue (role from label) |
 | `/run pipeline` | Find highest priority task, run full cycle (dev → qa → reviewer → done) |
-| `/run pipeline AITSAI-5` | Run full cycle for a specific task |
+| `/run pipeline <ISSUE-KEY>` | Run full cycle for a specific task |
 | `/run all` | Run tasks until the board is clear (each task = full pipeline) |
 | `/run dev` | First available To Do task for **any** area's dev |
 | `/run qa` | First available QA task for **any** area's qa |
 | `/run reviewer` | First available Code Review task for **any** area's reviewer |
-| `/run core/dev` | First available To Do task for core/dev |
-| `/run ai/dev AITSAI-5` | Run dev on specific issue (override role) |
-| `/run AITSAI-5 AITSAI-6` | Two separate parallel agents (roles from labels) |
+| `/run <area>/dev` | First available To Do task for that area's dev |
+| `/run <area>/<role> <ISSUE-KEY>` | Run a specific role on a specific issue (override role) |
+| `/run <KEY-1> <KEY-2>` | Two separate parallel agents (roles from labels) |
 
 **Role → queue mapping** (each role picks from one queue and claims by transitioning to `In Progress`):
 
@@ -81,13 +81,29 @@ Run tasks until the board is clear.
 
 **Guard**: after **3 consecutive On Hold** results, stop and report — the board likely needs human attention.
 
+## Stop semantics
+
+Subagents launched by `/run` always run in **background mode** (see step 8 in "Steps"), so this main session is responsive to user messages while a subagent works. The user can interrupt the loop at any time.
+
+**Stop intent.** A user message containing `stop`, `остановись`, `abort`, `cancel`, `отмена`, or equivalent phrasing means "kill the current subagent and exit the loop". Be conservative: a permission approval (`yes`, `ok`), a follow-up question, or any other message is **not** stop intent — only act on explicit signals.
+
+**On stop:**
+
+1. Call `TaskStop` with `task_id` set to the `agentId` you captured when spawning the current background subagent.
+2. Do **not** spawn the next subagent. Exit pipeline / all-mode cleanly.
+3. Report to the user: `Stopped <ISSUE-KEY> mid-flight. Completed in this run: <list of issues that reached Done or terminal state>.`
+
+**Fallback** if `TaskStop` fails or returns an error: do not spawn the next agent, let the current one finish on its own, then exit the loop. Tell the user explicitly: "TaskStop failed — waiting for current subagent to complete, then will exit. New subagents will not be started."
+
+**Kill latency.** `TaskStop` interrupts the subagent at its next decision point — between tool calls, not in the middle of one. If the subagent is currently inside a long-running Bash command (e.g. a slow test suite), it finishes that command first and exits afterwards. In typical multi-agent flows (many short Jira / git / file operations) the kill takes seconds.
+
 ## Steps (for single-step modes)
 
 1. Parse `$ARGUMENTS`:
    - If empty: auto-mode (see above).
    - If `pipeline` [+ optional key]: pipeline mode.
    - If `all`: all mode.
-   - If argument matches an issue key pattern (e.g. `AITSAI-5`): issue-key mode — resolve role from `agent:` label, area from `area:` label.
+   - If argument matches an issue key pattern (e.g. `<ISSUE-KEY>`): issue-key mode — resolve role from `agent:` label, area from `area:` label.
    - If `dev`, `qa`, or `reviewer`: role-only shortcut.
    - Multiple issue keys: launch parallel agents.
 
@@ -110,18 +126,35 @@ Run tasks until the board is clear.
 
 7. **Claim the task**: `jira_transition_issue` → `In Progress` (for every role, including `team-lead` on On Hold tasks and Epic close-out). If the transition is rejected (Jira returns an error because the issue already left the source status — another runner claimed it), drop this task and pick the next one from the queue. If the queue is now empty, report "board contended, nothing else to take" and stop.
 
-8. Launch **one Agent tool per task**:
+8. Launch **one Agent tool per task**, in **background mode**, so this main session stays responsive to the user (see "Stop semantics" below).
+   - Before spawning, report a one-line status to the user: `▶ <role> on <ISSUE-KEY> (<area>)`.
+   - Use `run_in_background=true`. **Capture the `agentId` returned by the spawn** — you need it to call `TaskStop` if the user asks to stop.
    - For `dev`/`qa`/`reviewer`:
      ```
-     Agent(subagent_type="<role>", prompt="Your area: <area>. Your Jira issue: <ISSUE-KEY> — read your area config from .claude/areas/<area>/, then read the issue with jira_get_issue and do the work.")
+     Agent(
+       subagent_type="<role>",
+       prompt="Your area: <area>. Your Jira issue: <ISSUE-KEY> — read your area config from .claude/areas/<area>/, then read the issue with jira_get_issue and do the work.",
+       run_in_background=true,
+     )
      ```
    - For `team-lead` on a Task in `On Hold`:
      ```
-     Agent(subagent_type="team-lead", prompt="Handle On Hold task: <ISSUE-KEY> — read it with jira_get_issue, investigate, and present your analysis.")
+     Agent(
+       subagent_type="team-lead",
+       prompt="Handle On Hold task: <ISSUE-KEY> — read it with jira_get_issue, investigate, and present your analysis.",
+       run_in_background=true,
+     )
      ```
    - For `team-lead` on an Epic in `Code Review`:
      ```
-     Agent(subagent_type="team-lead", prompt="Final review of Epic <ISSUE-KEY> — all child tasks are Done. Read the Epic and its children with jira_get_issue / jira_search, verify nothing is missing, and follow the 'Closing Epics' section of your role.")
+     Agent(
+       subagent_type="team-lead",
+       prompt="Final review of Epic <ISSUE-KEY> — all child tasks are Done. Read the Epic and its children with jira_get_issue / jira_search, verify nothing is missing, and follow the 'Closing Epics' section of your role.",
+       run_in_background=true,
+     )
      ```
 
-9. After the agent returns, report to the user what was done and what's next.
+9. **End your turn after the spawn** — do **not** poll, do **not** sleep. The harness will notify you automatically when the background subagent completes. When the notification arrives:
+   - Process the subagent's final result.
+   - Report a one-line status to the user: `✓ <ISSUE-KEY> done — <one-sentence summary>` or `✗ <ISSUE-KEY> blocked — <reason>`.
+   - Continue per the active mode: next stage in pipeline mode, next task in all mode, or stop in single-step modes.

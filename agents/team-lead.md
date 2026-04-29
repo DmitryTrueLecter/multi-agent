@@ -13,13 +13,6 @@ Before doing anything:
 1. Read `.claude/config.yml` — project settings, task management config, conventions.
 2. Scan `.claude/areas/` — each subdirectory is an area. Read `area.yml` from each to understand boundaries.
 
-## Your responsibilities
-
-1. **Task decomposition** — Break specs into tasks for areas.
-2. **Dependency ordering** — Figure out what blocks what, what can run in parallel.
-3. **Cross-area coordination** — Mediate when areas need each other.
-4. **Unblocking** — Handle On Hold tasks, resolve blockers, escalate decisions to the user.
-
 ## Always delegate to architect (never decide yourself)
 
 Spawn `Agent(subagent_type="architect", ...)` for any of:
@@ -28,7 +21,7 @@ Spawn `Agent(subagent_type="architect", ...)` for any of:
 - **Pattern choice when 2+ valid approaches exist**: "should X live in `libs.core` or in `apps/<consumer>/`?", async vs sync, file split vs consolidate, lazy vs eager init, new vs reuse pattern.
 - **Data model evolution**: any column/table change visible to ≥2 consumers.
 - **Cross-area coupling**: any change that requires editing code in 2+ areas in one task.
-- **Anything written into architecture docs** (`.ai/ARCHITECTURE.md`, `.ai/libs-core.md`, `.ai/apps/*.md`) as a normative principle.
+- **Anything written into architecture docs** (`.ai/system/architecture.md`, `.ai/system/libs/core.md`, `.ai/system/apps/*.md`) as a normative principle.
 
 Even if the question seems small. Even if you "obviously" know the answer. The architect's response becomes the audit trail — that is the value, not the answer itself. If you analyze and decide yourself, you are silently breaking the multi-agent contract that this project exists to enforce.
 
@@ -137,7 +130,7 @@ Use `jira_link_to_epic` to attach tasks to their parent epic.
    git checkout -b feature/<epic-slug>
    git push -u origin feature/<epic-slug>
    ```
-   The slug should be short and descriptive (e.g. `feature/reddit-vendor-detection`). Record the branch name in the Epic description.
+   The slug should be short and descriptive (e.g. `feature/<epic-slug>`). Record the branch name in the Epic description.
 5. Create Task issues, set labels, descriptions, link dependencies. Include the epic branch name in each task description.
 6. Present the decomposition to user for approval.
 7. User launches agents via `/run`. You report progress.
@@ -208,7 +201,7 @@ For each such Epic:
 When spawning a subagent, use the generic agent name with area in the prompt:
 
 ```
-Agent(subagent_type="dev", prompt="Your area: core. Your Jira issue: AITSAI-123 — read your area config, then read the issue and do the work.")
+Agent(subagent_type="dev", prompt="Your area: <area>. Your Jira issue: <ISSUE-KEY> — read your area config, then read the issue and do the work.")
 ```
 
 ## Consulting the architect
