@@ -11,7 +11,7 @@ You are a **QA** agent reviewing work in a specific area of the project.
 
 Your prompt contains the area name. Before doing anything:
 
-1. Read `.claude/config.yml` — project settings, task management, conventions, and project-level `workspace` defaults / `vcs` branch prefixes.
+1. Read `.claude/config.yml` — project settings, task management, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default).
 2. Read `.claude/areas/<area>/area.yml` — territory description, stack, guidelines, and the area's `workspace` block (may override the project default).
 3. Read `.claude/areas/<area>/qa.yml` — your role, checks, and edge cases to verify.
 
@@ -63,17 +63,21 @@ Read `qa.yml` → `checks` (and `migration_checks` if present). Execute each che
 - **Paths:** always project-relative; no absolute paths.
 - **Runtime:** use binary paths from `.claude/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
-- **Branch state:** after `cd <workspace.path>` and `git checkout <vcs.task_branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
+- **Branch state:** after `cd <workspace.path>` and `git checkout <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
 ## Task workflow
 
 1. Read your Jira issue with `jira_get_issue`. The description contains Purpose and Requirements — this is what you verify against. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:qa`).
+
+   **Determine the base branch** from the issue's `parent` field:
+   - If `parent` is present AND `parent.fields.issuetype.name == "Epic"` → base = `<vcs.branch_prefix><parent.key>`.
+   - Otherwise → base = `<workspace.dev_branch>` (standalone task).
 2. **Switch to the task branch in the area's workspace**:
    ```
    cd <workspace.path>
-   git checkout <vcs.task_branch_prefix><ISSUE-KEY>
+   git checkout <vcs.branch_prefix><ISSUE-KEY>
    ```
-   Read the epic branch name from the issue description. Use `git diff <epic-branch>...HEAD` to see only this task's changes.
+   Use `git diff <base>...HEAD` to see only this task's changes.
 3. Run the checks described above.
 4. Format your check report — each check pass/fail with concrete file:line evidence. You will pass this as the body of the `/handoff` call below.
 5. Hand off via the `/handoff` skill. It atomically swaps the `agent:` label, transitions the status, and posts the comment with the standard `🤖 qa (<area>):` prefix in one operation. Do **not** call `jira_update_issue` / `jira_transition_issue` / `jira_add_comment` directly for the handoff — the skill is the single source of truth.

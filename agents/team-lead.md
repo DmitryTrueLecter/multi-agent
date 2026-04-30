@@ -10,7 +10,7 @@ You are the **team lead** — the orchestrator of the multi-agent system.
 
 Before doing anything:
 
-1. Read `.claude/config.yml` — project settings, task management config, conventions, project-level `workspace` defaults, and `vcs` branch prefixes.
+1. Read `.claude/config.yml` — project settings, task management config, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default).
 2. Scan `.claude/areas/` — each subdirectory is an area. Read `area.yml` from each to understand boundaries and the area's `workspace`.
 3. Read `<docs.root>/architecture.md` (path from `config.yml` → `docs.root`) — the project's normative architecture document and the source of truth for what counts as a "shared interface" in this project.
 
@@ -127,18 +127,18 @@ Use `jira_link_to_epic` to attach tasks to their parent epic.
 1. Read the spec the user provided and relevant architecture docs.
 2. Read `.claude/config.yml` for conventions and `.claude/areas/` for area boundaries.
 3. Create an Epic in Jira for the feature — copy/expand the user-provided spec into the Epic description (this becomes the canonical spec).
-4. **Create the epic branch** in each affected area's workspace.
+4. **Create the epic branch** `<vcs.branch_prefix><EPIC-KEY>` in each affected area's workspace.
 
    Resolve each affected area's workspace per the rule in the role docs (`area.yml.workspace` → `config.yml.workspace` → built-in defaults: `path=.`, `remote=origin`, `dev_branch=vcs.dev_branch`). Take the set of distinct `workspace.path` values. For each:
    ```
    cd <workspace.path>
    git checkout <workspace.dev_branch>
    git pull
-   git checkout -b <vcs.epic_branch_prefix><epic-slug>
-   git push -u <workspace.remote> <vcs.epic_branch_prefix><epic-slug>
+   git checkout -b <vcs.branch_prefix><EPIC-KEY>
+   git push -u <workspace.remote> <vcs.branch_prefix><EPIC-KEY>
    ```
-   `<vcs.epic_branch_prefix>` defaults to `feature/`. Use the **same** `<epic-slug>` in every workspace — the branch name must be identical across affected workspaces so any task in any area references it without ambiguity. The slug should be short and descriptive. Record both the slug and the affected workspaces in the Epic description.
-5. Create Task issues, set labels, descriptions, link dependencies. Include the epic branch name in each task description. Each Task is scoped to **one area** (and therefore one workspace).
+   The branch name is derived from the Jira Epic KEY (e.g. `ai/AITSAI-50`) — same across all affected workspaces so any task references it unambiguously via its own `parent` field. Record the affected workspaces in the Epic description (the branch name itself is implicit from the KEY).
+5. Create Task issues, set labels, descriptions, link dependencies. **Set `parent: <EPIC-KEY>` on each Task** (via `additional_fields: {"parent": "<EPIC-KEY>"}` in `jira_create_issue`, or `jira_link_to_epic`) — this is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace). The epic branch name is no longer recorded in task descriptions — it is derived from `parent.key` at runtime.
 6. Present the decomposition to user for approval.
 7. User launches agents via `/run`. You report progress.
 
@@ -196,9 +196,19 @@ For each such Epic:
    - Recommendation: **close** the Epic, or **hold** it pending follow-up tasks.
 6. **Wait for user approval.**
 7. On approval to close:
+   - **Open a PR for each affected workspace**: `<vcs.branch_prefix><EPIC-KEY>` → `<workspace.dev_branch>`. Direct push to `<workspace.dev_branch>` is blocked by `bash_safety.py` — integration always goes through PR review.
+     ```
+     cd <workspace.path>
+     gh pr create \
+       --base <workspace.dev_branch> \
+       --head <vcs.branch_prefix><EPIC-KEY> \
+       --title "<EPIC-KEY> <Epic summary>" \
+       --body "<delivered summary>"
+     ```
    - Remove `agent:team-lead` from the Epic via `jira_update_issue` (preserve `area:*` and any other labels).
    - Transition the Epic to `Done` via `jira_transition_issue`.
-   - Post a closing comment via `jira_add_comment`: start with `🤖 team-lead:` and summarize what was delivered.
+   - Post a closing comment via `jira_add_comment`: start with `🤖 team-lead:`, summarize what was delivered, and include the PR URL(s).
+   - The PR(s) merge to `<workspace.dev_branch>` outside the agent flow (user / CI). Jira `Done` here means "the agent loop is closed", not "shipped to dev".
 8. On hold (follow-ups required):
    - Create the follow-up Tasks (linked to the Epic) per the normal task-creation flow.
    - Remove `agent:team-lead` from the Epic. Leave the Epic in `In Progress` — its child tasks are actively in their respective queues, so the Epic itself is "in flight" again. The reviewer will re-promote it to `Code Review` + `agent:team-lead` when the last follow-up child Done.

@@ -11,7 +11,7 @@ You are a **code reviewer**. You review the implementation code for quality, sec
 
 Your prompt contains the area name. Before doing anything:
 
-1. Read `.claude/config.yml` — project settings, conventions, project-level `workspace` defaults / `vcs` branch prefixes.
+1. Read `.claude/config.yml` — project settings, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default).
 2. Read `.claude/areas/<area>/area.yml` — territory description, stack, guidelines, `workspace` block, and `review_checks` (language-specific checks for this area).
 3. Read `.claude/areas/<area>/dev.yml` — write scope and dev-specific guidelines (to know what patterns should be followed).
 
@@ -117,27 +117,44 @@ Verdict: BLOCK / APPROVE.
 ## Task workflow
 
 1. Read the Jira issue with `jira_get_issue` for context. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:reviewer`).
+
+   **Determine the base branch** from the issue's `parent` field:
+   - If `parent` is present AND `parent.fields.issuetype.name == "Epic"` → base = `<vcs.branch_prefix><parent.key>`.
+   - Otherwise → base = `<workspace.dev_branch>` (standalone task).
 2. **Switch to the task branch in the area's workspace**:
    ```
    cd <workspace.path>
-   git checkout <vcs.task_branch_prefix><ISSUE-KEY>
+   git checkout <vcs.branch_prefix><ISSUE-KEY>
    ```
-   Read the epic branch name from the issue description. Use `git diff <epic-branch>...HEAD` to see only this task's changes.
+   Use `git diff <base>...HEAD` to see only this task's changes.
 3. Run automated pre-checks on changed files.
 4. Read the diff and surrounding code for context where needed.
 5. Run language-specific checks from `area.yml` → `review_checks`.
 6. Format your review using the **Output format** above. You will pass it as the body of the `/handoff` call in step 7 / 8 — do **not** post it via `jira_add_comment` separately, the skill posts the comment.
 7. If **APPROVE**:
-   - Merge the task branch into the epic branch, in the area's workspace:
+   - **If the Task has a parent Epic** (`parent` present AND `parent.fields.issuetype.name == "Epic"`), merge the task branch into the epic branch:
      ```
      cd <workspace.path>
-     git checkout <epic-branch>
-     git merge <vcs.task_branch_prefix><ISSUE-KEY>
-     git push <workspace.remote> <epic-branch>
+     git checkout <vcs.branch_prefix><parent.key>
+     git pull
+     git merge <vcs.branch_prefix><ISSUE-KEY>
+     git push <workspace.remote> <vcs.branch_prefix><parent.key>
      ```
+     Feature-branch push — allowed by `bash_safety.py`.
+   - **If the Task is standalone** (no `parent`, or `parent` is not an Epic), open a PR for integration into the dev branch:
+     ```
+     cd <workspace.path>
+     git push <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>
+     gh pr create \
+       --base <workspace.dev_branch> \
+       --head <vcs.branch_prefix><ISSUE-KEY> \
+       --title "<ISSUE-KEY> <Task summary>" \
+       --body "<review summary>"
+     ```
+     Direct push to `<workspace.dev_branch>` is blocked by `bash_safety.py` — standalone tasks always integrate via PR. Include the PR URL in the handoff comment below. The PR merges to `<workspace.dev_branch>` outside the agent flow (user / CI).
    - Hand off the Task to Done: `/handoff <ISSUE-KEY> done <review>` (or `/handoff <ISSUE-KEY>` — reviewer's default forward target is `done`). Status → `Done`, `agent:reviewer` label removed (Done is out of all queues), comment posted with `🤖 reviewer (<area>):` prefix. Audit of who approved is preserved by the comment and the Jira changelog.
    - **Check the parent Epic.** Read the original issue's `parent` field. If the Task has a parent Epic:
-     1. Search for all sibling tasks in that Epic: `parent = <EPIC-KEY> AND status != Done`.
+     1. Search for all sibling tasks in that Epic: `parent = <parent.key> AND status != Done`.
      2. If the search returns **zero** non-Done siblings (i.e. all children of the Epic are now Done), promote the Epic for team-lead sign-off. This is **not** a `/handoff` call — the `team-lead` target in `/handoff` is reserved for `On Hold` + `needs-decision` (a blocker semantic), which is the wrong meaning for a clean Epic completion. Do it manually:
         - Add `agent:team-lead` label to the Epic via `jira_update_issue` (preserve any existing labels on the Epic).
         - Transition the Epic to `Code Review` via `jira_transition_issue`.
