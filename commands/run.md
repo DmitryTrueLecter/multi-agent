@@ -4,7 +4,7 @@ description: "Run agent: /run | /run <ISSUE-KEY> | /run pipeline | /run all | /r
 
 Launch a subagent to work on a Jira task.
 
-**Setup:** Read `.claude/config.yml` to get `tasks.project_key`, `tasks.labels.managed`, and known areas (scan `.claude/areas/` subdirectory names).
+**Setup:** Read `.claude/config.yml` to get `tasks.project_key` and known areas (scan `.claude/areas/` subdirectory names).
 
 **Usage patterns:**
 
