@@ -36,6 +36,8 @@
       "mcp__atlassian__jira_remove_watcher",
       "mcp__atlassian__jira_add_worklog",
 
+      "mcp__atlassian__bitbucket_create_pull_request",
+
       "Bash(*pytest*)",
       "Bash(*-m pytest*)",
       "Bash(*vitest*)",
