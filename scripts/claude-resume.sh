@@ -10,14 +10,19 @@
 # Requires: tmux, GNU/BSD date. Tested on macOS (BSD date).
 #
 # Usage:
-#   .claude/scripts/claude-resume.sh                 # default target claude:0
-#   TARGET=work:1 .claude/scripts/claude-resume.sh   # custom session:window
+#   .claude/scripts/claude-resume.sh                       # default target claude:0
+#   .claude/scripts/claude-resume.sh my-session:0          # positional target
+#   TARGET=work:1 .claude/scripts/claude-resume.sh         # env-var target
+#
+# Passing the target as a positional argument is preferred when running
+# multiple watchdogs side-by-side — argv shows up in `pgrep -f` / `pkill -f`,
+# so per-project filtering works. Env vars do not.
 #
 # Run via `just claude-resume` or directly.
 
 set -u
 
-TARGET="${TARGET:-claude:0}"
+TARGET="${1:-${TARGET:-claude:0}}"
 NUDGE="${NUDGE:-продолжай}"
 POLL_INTERVAL="${POLL_INTERVAL:-60}"   # seconds between pane reads
 COOLDOWN="${COOLDOWN:-900}"            # seconds to skip after a successful nudge
