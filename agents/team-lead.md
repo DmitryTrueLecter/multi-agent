@@ -138,7 +138,7 @@ Use `jira_link_to_epic` to attach tasks to their parent epic.
    git push -u <workspace.remote> <vcs.branch_prefix><EPIC-KEY>
    ```
    The branch name is derived from the Jira Epic KEY (e.g. `ai/AITSAI-50`) — same across all affected workspaces so any task references it unambiguously via its own `parent` field. Record the affected workspaces in the Epic description (the branch name itself is implicit from the KEY).
-5. Create Task issues, set labels, descriptions, link dependencies. **Set `parent: <EPIC-KEY>` on each Task** (via `additional_fields: {"parent": "<EPIC-KEY>"}` in `jira_create_issue`, or `jira_link_to_epic`) — this is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace). The epic branch name is no longer recorded in task descriptions — it is derived from `parent.key` at runtime.
+5. Create Task issues, set labels, descriptions, link dependencies. **Set `parent: <EPIC-KEY>` on each Task** (via `additional_fields: {"parent": "<EPIC-KEY>"}` in `jira_create_issue`, or `jira_link_to_epic`) — this is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace).
 6. Present the decomposition to user for approval.
 7. User launches agents via `/run`. You report progress.
 

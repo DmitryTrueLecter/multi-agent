@@ -58,7 +58,7 @@ Paths in `dev.yml` (`write:`, `test_command`, etc.) are interpreted **relative t
    git pull
    git checkout -b <vcs.branch_prefix><ISSUE-KEY>
    ```
-   All branches use `<vcs.branch_prefix>` (default `ai/`) followed by the Jira KEY — no slugs.
+   All branches use `<vcs.branch_prefix>` (default `ai/`) followed by the Jira KEY.
 3. Do the work described in the issue. All edits and tool calls operate on paths relative to `workspace.path`.
 4. Run tests using the `test_command` from `dev.yml` (executed from `workspace.path`).
 5. **Commit your changes** (do NOT push). Commit message format:
