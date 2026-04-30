@@ -196,15 +196,26 @@ For each such Epic:
    - Recommendation: **close** the Epic, or **hold** it pending follow-up tasks.
 6. **Wait for user approval.**
 7. On approval to close:
-   - **Open a PR for each affected workspace**: `<vcs.branch_prefix><EPIC-KEY>` → `<workspace.dev_branch>`. Direct push to `<workspace.dev_branch>` is blocked by `bash_safety.py` — integration always goes through PR review.
+   - **Open a PR for each affected workspace**: `<vcs.branch_prefix><EPIC-KEY>` → `<workspace.dev_branch>` via the **Bitbucket MCP**. Direct push to `<workspace.dev_branch>` is blocked by `bash_safety.py` — integration always goes through PR review.
+
+     Derive the Bitbucket repo coordinates from the remote URL once per workspace:
      ```
      cd <workspace.path>
-     gh pr create \
-       --base <workspace.dev_branch> \
-       --head <vcs.branch_prefix><EPIC-KEY> \
-       --title "<EPIC-KEY> <Epic summary>" \
-       --body "<delivered summary>"
+     git remote get-url <workspace.remote>
+     # → git@bitbucket.org:<bitbucket-workspace>/<bitbucket-repo>.git
+     #   or https://bitbucket.org/<bitbucket-workspace>/<bitbucket-repo>.git
      ```
+     Strip the `.git` suffix and read the two trailing path segments — they are `<bitbucket-workspace>` and `<bitbucket-repo>` (the latter is the `repo_slug`).
+
+     Call the MCP tool `mcp__atlassian__bitbucket_create_pull_request` with:
+     - `workspace`: `<bitbucket-workspace>`
+     - `repo_slug`: `<bitbucket-repo>`
+     - `source_branch`: `<vcs.branch_prefix><EPIC-KEY>`
+     - `destination_branch`: `<workspace.dev_branch>`
+     - `title`: `<EPIC-KEY> <Epic summary>`
+     - `description`: the delivered-summary text
+
+     Capture the PR URL from the MCP response — include it in the closing Jira comment below. If PR creation fails for any workspace, do **not** transition the Epic to `Done`: post a comment on the Epic with the failure, leave the Epic in `In Progress` with `agent:team-lead`, and stop.
    - Remove `agent:team-lead` from the Epic via `jira_update_issue` (preserve `area:*` and any other labels).
    - Transition the Epic to `Done` via `jira_transition_issue`.
    - Post a closing comment via `jira_add_comment`: start with `🤖 team-lead:`, summarize what was delivered, and include the PR URL(s).
