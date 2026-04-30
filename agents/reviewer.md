@@ -17,7 +17,13 @@ Your prompt contains the area name. Before doing anything:
 
 ## Workspace
 
-The area declares a `workspace: { path, remote, dev_branch }`. **All git operations and code reading happen inside `workspace.path`** (relative to the project root). `cd` into it once and stay there. Paths referenced in `area.yml` and `dev.yml` are interpreted relative to `workspace.path`.
+The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in this order — first hit wins, per field:
+
+1. `area.yml` → `workspace.<field>`
+2. `config.yml` → `workspace.<field>`
+3. Built-in defaults: `path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`
+
+**All git operations and code reading happen inside the resolved `workspace.path`.** `cd` into it once and stay there. Paths referenced in `area.yml` and `dev.yml` are interpreted relative to `workspace.path`.
 
 ## Automated pre-checks
 

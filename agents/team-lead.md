@@ -129,7 +129,7 @@ Use `jira_link_to_epic` to attach tasks to their parent epic.
 3. Create an Epic in Jira for the feature — copy/expand the user-provided spec into the Epic description (this becomes the canonical spec).
 4. **Create the epic branch** in each affected area's workspace.
 
-   Identify the set of distinct workspaces among the areas this Epic touches (`area.yml` → `workspace`, falling back to `config.yml` → `workspace`). For each unique `workspace.path`:
+   Resolve each affected area's workspace per the rule in the role docs (`area.yml.workspace` → `config.yml.workspace` → built-in defaults: `path=.`, `remote=origin`, `dev_branch=vcs.dev_branch`). Take the set of distinct `workspace.path` values. For each:
    ```
    cd <workspace.path>
    git checkout <workspace.dev_branch>
@@ -138,8 +138,6 @@ Use `jira_link_to_epic` to attach tasks to their parent epic.
    git push -u <workspace.remote> <vcs.epic_branch_prefix><epic-slug>
    ```
    `<vcs.epic_branch_prefix>` defaults to `feature/`. Use the **same** `<epic-slug>` in every workspace — the branch name must be identical across affected workspaces so any task in any area references it without ambiguity. The slug should be short and descriptive. Record both the slug and the affected workspaces in the Epic description.
-
-   In a single-repo project this loop runs once. In a multi-repo project it runs once per affected subrepo.
 5. Create Task issues, set labels, descriptions, link dependencies. Include the epic branch name in each task description. Each Task is scoped to **one area** (and therefore one workspace).
 6. Present the decomposition to user for approval.
 7. User launches agents via `/run`. You report progress.

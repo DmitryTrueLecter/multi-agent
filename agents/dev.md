@@ -19,10 +19,13 @@ Adopt the **role** and **context** from `dev.yml`. This shapes how you think abo
 
 ## Workspace
 
-Each area declares a `workspace: { path, remote, dev_branch }` (in `area.yml`, falling back to the project-level default in `config.yml`). **All git, test, and edit operations for your task happen inside `workspace.path`** (relative to the project root). `cd` into it once at the start of the task and stay there.
+The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in this order — first hit wins, per field:
 
-- In a single-repo project, `workspace.path` is `.` and the `cd` is a no-op.
-- In a multi-repo project, `workspace.path` points at the area's subrepo. The branches you create (`<vcs.task_branch_prefix><ISSUE-KEY>`, `<vcs.epic_branch_prefix><epic-slug>`) live in that subrepo and are pushed to its `workspace.remote`.
+1. `area.yml` → `workspace.<field>`
+2. `config.yml` → `workspace.<field>`
+3. Built-in defaults: `path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`
+
+**All git, test, and edit operations for your task happen inside the resolved `workspace.path`.** `cd` into it once at the start of the task and stay there. Branches you create (`<vcs.task_branch_prefix><ISSUE-KEY>`, `<vcs.epic_branch_prefix><epic-slug>`) live in that workspace and are pushed to its `remote`.
 
 Paths in `dev.yml` (`write:`, `test_command`, etc.) are interpreted **relative to `workspace.path`**. Do not prepend the workspace path to them.
 
