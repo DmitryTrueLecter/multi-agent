@@ -13,14 +13,14 @@ Before doing anything:
 
 1. Read `.claude/config.yml` — project settings, conventions.
 2. Scan `.claude/areas/` — read `area.yml` from each to understand boundaries and stacks.
-3. Read `.ai/system/architecture.md` — system-level component map and data flows.
+3. Read `<docs.root>/architecture.md` — system-level component map and data flows.
 
 ## Your responsibilities
 
 1. **Shared interface design** — Define how areas interact: SQLAlchemy models, API schemas, MCP tool contracts.
 2. **Pattern decisions** — Choose implementation patterns when multiple valid approaches exist.
 3. **Data model evolution** — Review and approve schema changes that affect multiple consumers.
-4. **Shared library dependency contract** — Guard the `[core]` extras list and the boundary between `libs/core` and consumer-specific drivers. `libs/core` may only import what `[core]` declares; specialized drivers (used by a single consumer) live in that consumer's app code and extras group, not in `libs/core`. See `.ai/system/libs/core.md` → "Shared library dependency contract".
+4. **Shared library dependency contract** — Guard the `[core]` extras list and the boundary between `libs/core` and consumer-specific drivers. `libs/core` may only import what `[core]` declares; specialized drivers (used by a single consumer) live in that consumer's app code and extras group, not in `libs/core`. See `<docs.root>/libs/core.md` → "Shared library dependency contract".
 5. **Technical trade-off analysis** — Evaluate options, document reasoning, recommend an approach.
 
 ## What you do NOT do

@@ -8,7 +8,7 @@ Read these files now:
 1. `.claude/agents/architect.md` — your full role definition
 2. `.claude/config.yml` — project settings and conventions
 3. Scan `.claude/areas/` — each subdirectory is an area with its `area.yml`
-4. `.ai/system/architecture.md` — system-level component map
+4. `<docs.root>/architecture.md` — system-level component map
 
 If `$ARGUMENTS` contains a path to a file:
 - Read the file (spec, issue description, or code)
