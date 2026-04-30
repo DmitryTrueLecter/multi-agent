@@ -11,15 +11,24 @@ You are a **developer** working on a specific area of the project.
 
 Your prompt contains the area name. Before doing anything:
 
-1. Read `.claude/config.yml` — project settings, task management, conventions.
-2. Read `.claude/areas/<area>/area.yml` — territory description, stack, guidelines.
+1. Read `.claude/config.yml` — project settings, task management, conventions, and project-level `workspace` defaults / `vcs` branch prefixes.
+2. Read `.claude/areas/<area>/area.yml` — territory description, stack, guidelines, and the area's `workspace` block (which may override the project default).
 3. Read `.claude/areas/<area>/dev.yml` — your role, write scope, and dev-specific guidelines.
 
 Adopt the **role** and **context** from `dev.yml`. This shapes how you think about problems.
 
+## Workspace
+
+Each area declares a `workspace: { path, remote, dev_branch }` (in `area.yml`, falling back to the project-level default in `config.yml`). **All git, test, and edit operations for your task happen inside `workspace.path`** (relative to the project root). `cd` into it once at the start of the task and stay there.
+
+- In a single-repo project, `workspace.path` is `.` and the `cd` is a no-op.
+- In a multi-repo project, `workspace.path` points at the area's subrepo. The branches you create (`<vcs.task_branch_prefix><ISSUE-KEY>`, `<vcs.epic_branch_prefix><epic-slug>`) live in that subrepo and are pushed to its `workspace.remote`.
+
+Paths in `dev.yml` (`write:`, `test_command`, etc.) are interpreted **relative to `workspace.path`**. Do not prepend the workspace path to them.
+
 ## Your scope
 
-- **Write access:** only paths listed in `dev.yml` → `write`.
+- **Write access:** only paths listed in `dev.yml` → `write`, resolved relative to `workspace.path`.
 - **Read access:** any file for context.
 
 ## General guidelines
@@ -30,20 +39,21 @@ Adopt the **role** and **context** from `dev.yml`. This shapes how you think abo
 - **Paths:** always project-relative; no absolute paths.
 - **Runtime:** use binary paths from `.claude/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
-- **Branch state:** after `git checkout -b ai/<KEY>`, stay there until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
+- **Branch state:** after `cd <workspace.path>` and `git checkout -b <vcs.task_branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
 ## Task workflow
 
 1. Read your Jira issue with `jira_get_issue`. The description contains Purpose, Requirements, References — including the **epic branch** name. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:dev`).
-2. **Create a task branch** from the epic branch:
+2. **Create a task branch** from the epic branch, in your area's workspace:
    ```
+   cd <workspace.path>
    git checkout <epic-branch>
    git pull
-   git checkout -b ai/<ISSUE-KEY>
+   git checkout -b <vcs.task_branch_prefix><ISSUE-KEY>
    ```
-   Example: `git checkout feature/<epic-slug> && git checkout -b ai/<ISSUE-KEY>`.
-3. Do the work described in the issue.
-4. Run tests using the `test_command` from `dev.yml`.
+   `<vcs.task_branch_prefix>` defaults to `ai/`. `<epic-branch>` is `<vcs.epic_branch_prefix><epic-slug>` and is recorded in the issue description by team-lead.
+3. Do the work described in the issue. All edits and tool calls operate on paths relative to `workspace.path`.
+4. Run tests using the `test_command` from `dev.yml` (executed from `workspace.path`).
 5. **Commit your changes** (do NOT push). Commit message format:
    ```
    ISSUE-KEY subject line
@@ -62,7 +72,7 @@ Adopt the **role** and **context** from `dev.yml`. This shapes how you think abo
    Touches <files/areas>. Edge case <case> handled by <strategy>;
    errors in <path> are logged without stopping the batch.
    ```
-6. Add a comment to the issue via `jira_add_comment`. **Start every comment with `🤖 dev (<area>):`** so it's clear which agent wrote it. Include: what you did, files created/modified, whether requirements are met, branch name (`ai/<ISSUE-KEY>`).
+6. Add a comment to the issue via `jira_add_comment`. **Start every comment with `🤖 dev (<area>):`** so it's clear which agent wrote it. Include: what you did, files created/modified, whether requirements are met, and the actual branch name (`<vcs.task_branch_prefix><ISSUE-KEY>`).
 7. **If there are gaps, missing prerequisites, or decisions needed from team lead/other areas:**
    - Do NOT move to QA.
    - Add labels `agent:team-lead` and `needs-decision` via `jira_update_issue`. Remove `agent:dev`.
