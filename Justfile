@@ -35,6 +35,16 @@ claude-start:
     @just claude-resume
     @tmux attach -t {{session}}
 
+# Attach to the existing per-project claude tmux session (does not create one)
+claude-attach:
+    @tmux has-session -t {{session}} 2>/dev/null || (echo "session {{session}} not running — start it with: just claude-start | just claude-start-detached" >&2 ; exit 1)
+    @tmux attach -t {{session}}
+
+# Stop this project's claude session: kill the tmux session and the resume watchdog
+claude-stop:
+    @just claude-resume-stop >/dev/null 2>&1 || true
+    @tmux has-session -t {{session}} 2>/dev/null && (tmux kill-session -t {{session}} && echo "killed tmux session {{session}}") || echo "session {{session}} not running"
+
 # Start claude detached + watchdog and print the remote-control chat URL
 claude-start-detached:
     #!/usr/bin/env bash
