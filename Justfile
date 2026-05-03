@@ -2,19 +2,24 @@
 #
 # Usage in the project's root Justfile:
 #
-#     project := file_name(justfile_directory())
-#     session := "claude-" + project
-#
 #     import '.claude/Justfile'
 #
 # The import resolves through the conventional symlink
 #     .claude/Justfile -> .claude-multi-agent-jira/Justfile
 # created alongside the existing .claude/agents, .claude/commands, etc.
 #
-# Expected variables in the importing Justfile:
-#   project — last segment of the project directory; used as the Claude
-#             Remote Control session label visible at claude.ai/code.
-#   session — tmux session name (typically "claude-" + project).
+# Variables `project` and `session` are defined here so that imported
+# recipes work on every just version, including ones where `import`
+# does not share variable scope with the importing file. They derive
+# from `justfile_directory()`, which always points at the *root*
+# Justfile (the one the user invoked), so the values are correct
+# regardless of which project imports this file.
+
+# Last segment of the project directory; used as the Claude Remote
+# Control session label visible at claude.ai/code.
+project := file_name(justfile_directory())
+# tmux session name (per-project, no collisions across checkouts).
+session := "claude-" + project
 
 # Auto-resume claude after rate-limit reset (logs: /tmp/claude-resume-<session>.log)
 claude-resume:
