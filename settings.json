@@ -146,6 +146,8 @@
       "Bash(tail:*)",
       "Bash(head:*)",
       "Bash(ls:*)",
+      "Bash(cd:*)",
+      "Bash(grep:*)",
       "Bash(command:*)",
       "Bash(which:*)",
       "Bash(echo:*)",
