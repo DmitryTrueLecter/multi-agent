@@ -23,7 +23,7 @@ session := "claude-" + project
 
 # Auto-resume claude after rate-limit reset (logs: /tmp/claude-resume-<session>.log)
 claude-resume:
-    @pgrep -f "claude-resume.sh {{session}}" > /dev/null && echo "already running" || (nohup bash .claude/scripts/claude-resume.sh {{session}}:0 > /tmp/claude-resume-{{session}}.log 2>&1 & disown ; echo started)
+    @pgrep -f "claude-resume.sh {{session}}" > /dev/null && echo "already running" || (cd "{{justfile_directory()}}" && nohup bash .claude/scripts/claude-resume.sh {{session}}:0 > /tmp/claude-resume-{{session}}.log 2>&1 & disown ; echo started)
 
 # Stop claude auto-resume (only this project's watchdog)
 claude-resume-stop:
@@ -31,7 +31,7 @@ claude-resume-stop:
 
 # Start claude in a per-project tmux session + auto-resume watchdog, then attach
 claude-start:
-    @tmux has-session -t {{session}} 2>/dev/null || tmux new-session -d -s {{session}} 'claude --agent team-lead --rc "{{project}}"'
+    @tmux has-session -t {{session}} 2>/dev/null || tmux new-session -d -s {{session}} -c "{{justfile_directory()}}" 'claude --agent team-lead --rc "{{project}}"'
     @just claude-resume
     @tmux attach -t {{session}}
 
@@ -52,7 +52,7 @@ claude-start-detached:
     if tmux has-session -t {{session}} 2>/dev/null; then
         echo "session {{session}} already running"
     else
-        tmux new-session -d -s {{session}} 'claude --agent team-lead --rc "{{project}}"'
+        tmux new-session -d -s {{session}} -c "{{justfile_directory()}}" 'claude --agent team-lead --rc "{{project}}"'
     fi
     just claude-resume >/dev/null
     for i in $(seq 1 30); do
