@@ -6,7 +6,7 @@ Show the current state of the Jira task board.
 
 **Setup:** Read `.claude/config.yml` to get `tasks.project_key`.
 
-Use `jira_search` with JQL `project = <project_key> AND labels in ("agent:dev", "agent:qa", "agent:reviewer", "agent:team-lead") AND status != Done ORDER BY status, rank` and present a summary:
+Use `mcp__atlassian__jira_search` with JQL `project = <project_key> AND labels in ("agent:dev", "agent:qa", "agent:reviewer", "agent:team-lead") AND status != Done ORDER BY status, rank` and present a summary:
 
 1. **Overview**: how many tasks total / done / in progress / QA / code review / on hold / to do
 2. **On hold**: list tasks with status "On Hold" (key, summary, area/agent labels) — these need attention first!

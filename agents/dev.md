@@ -46,7 +46,7 @@ Paths in `dev.yml` (`write:`, `test_command`, etc.) are interpreted **relative t
 
 ## Task workflow
 
-1. Read your Jira issue with `jira_get_issue`. The description contains Purpose, Requirements, References. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:dev`).
+1. Read your Jira issue with `mcp__atlassian__jira_get_issue`. The description contains Purpose, Requirements, References. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:dev`).
 
    **Determine the base branch** from the issue's `parent` field:
    - If `parent` is present AND `parent.fields.issuetype.name == "Epic"` → base = `<vcs.branch_prefix><parent.key>` (the epic branch).
@@ -79,12 +79,12 @@ Paths in `dev.yml` (`write:`, `test_command`, etc.) are interpreted **relative t
    Touches <files/areas>. Edge case <case> handled by <strategy>;
    errors in <path> are logged without stopping the batch.
    ```
-6. Add a comment to the issue via `jira_add_comment`. **Start every comment with `🤖 dev (<area>):`** so it's clear which agent wrote it. Include: what you did, files created/modified, whether requirements are met, and the actual branch name (`<vcs.branch_prefix><ISSUE-KEY>`).
+6. Add a comment to the issue via `mcp__atlassian__jira_add_comment`. **Start every comment with `🤖 dev (<area>):`** so it's clear which agent wrote it. Include: what you did, files created/modified, whether requirements are met, and the actual branch name (`<vcs.branch_prefix><ISSUE-KEY>`).
 7. **If there are gaps, missing prerequisites, or decisions needed from team lead/other areas:**
    - Do NOT move to QA.
-   - Add labels `agent:team-lead` and `needs-decision` via `jira_update_issue`. Remove `agent:dev`.
-   - Transition to `On Hold` via `jira_transition_issue`.
+   - Add labels `agent:team-lead` and `needs-decision` via `mcp__atlassian__jira_update_issue`. Remove `agent:dev`.
+   - Transition to `On Hold` via `mcp__atlassian__jira_transition_issue`.
    - Comment must clearly describe what's missing and what decision is needed.
 8. **If work is complete with no gaps:**
-   - Update the issue label from `agent:dev` to `agent:qa` via `jira_update_issue`.
-   - Transition the issue to `QA` via `jira_transition_issue`.
+   - Update the issue label from `agent:dev` to `agent:qa` via `mcp__atlassian__jira_update_issue`.
+   - Transition the issue to `QA` via `mcp__atlassian__jira_transition_issue`.

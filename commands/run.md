@@ -34,7 +34,7 @@ Launch a subagent to work on a Jira task.
 
 The `agent:` label disambiguates `Code Review`: `agent:reviewer` → reviewer (Task), `agent:team-lead` → team-lead (Epic close-out).
 
-**Claim model.** Pickup = `jira_transition_issue` → `In Progress`. This is the atomic claim — Jira rejects the second runner because the workflow disallows transition from `In Progress` to `In Progress`. Every queue JQL filters by pre-claim status (`To Do` / `QA` / `Code Review` / `On Hold`), so a claimed task disappears from every queue automatically.
+**Claim model.** Pickup = `mcp__atlassian__jira_transition_issue` → `In Progress`. This is the atomic claim — Jira rejects the second runner because the workflow disallows transition from `In Progress` to `In Progress`. Every queue JQL filters by pre-claim status (`To Do` / `QA` / `Code Review` / `On Hold`), so a claimed task disappears from every queue automatically.
 
 ## Auto-mode (`/run` without arguments)
 
@@ -120,11 +120,11 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
 
 4. Determine area from `area:` label on the issue (e.g. `area:ai` → area is `ai`).
 
-5. Read the issue with `jira_get_issue` to see description and linked (blocking) issues.
+5. Read the issue with `mcp__atlassian__jira_get_issue` to see description and linked (blocking) issues.
 
 6. Verify blocked-by issues are all Done (for dev tasks). If not, report and stop.
 
-7. **Claim the task**: `jira_transition_issue` → `In Progress` (for every role, including `team-lead` on On Hold tasks and Epic close-out). If the transition is rejected (Jira returns an error because the issue already left the source status — another runner claimed it), drop this task and pick the next one from the queue. If the queue is now empty, report "board contended, nothing else to take" and stop.
+7. **Claim the task**: `mcp__atlassian__jira_transition_issue` → `In Progress` (for every role, including `team-lead` on On Hold tasks and Epic close-out). If the transition is rejected (Jira returns an error because the issue already left the source status — another runner claimed it), drop this task and pick the next one from the queue. If the queue is now empty, report "board contended, nothing else to take" and stop.
 
 8. Launch **one Agent tool per task**, in **background mode**, so this main session stays responsive to the user (see "Stop semantics" below).
    - Before spawning, report a one-line status to the user: `▶ <role> on <ISSUE-KEY> (<area>)`.
@@ -133,7 +133,7 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
      ```
      Agent(
        subagent_type="<role>",
-       prompt="Your area: <area>. Your Jira issue: <ISSUE-KEY> — read your area config from .claude/areas/<area>/, then read the issue with jira_get_issue and do the work.",
+       prompt="Your area: <area>. Your Jira issue: <ISSUE-KEY> — read your area config from .claude/areas/<area>/, then read the issue with mcp__atlassian__jira_get_issue and do the work.",
        run_in_background=true,
      )
      ```
@@ -141,7 +141,7 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
      ```
      Agent(
        subagent_type="team-lead",
-       prompt="Handle On Hold task: <ISSUE-KEY> — read it with jira_get_issue, investigate, and present your analysis.",
+       prompt="Handle On Hold task: <ISSUE-KEY> — read it with mcp__atlassian__jira_get_issue, investigate, and present your analysis.",
        run_in_background=true,
      )
      ```
@@ -149,7 +149,7 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
      ```
      Agent(
        subagent_type="team-lead",
-       prompt="Final review of Epic <ISSUE-KEY> — all child tasks are Done. Read the Epic and its children with jira_get_issue / jira_search, verify nothing is missing, and follow the 'Closing Epics' section of your role.",
+       prompt="Final review of Epic <ISSUE-KEY> — all child tasks are Done. Read the Epic and its children with mcp__atlassian__jira_get_issue / mcp__atlassian__jira_search, verify nothing is missing, and follow the 'Closing Epics' section of your role.",
        run_in_background=true,
      )
      ```

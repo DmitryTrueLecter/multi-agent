@@ -12,14 +12,14 @@ Example: `/reject <ISSUE-KEY> implementation doesn't follow existing patterns fr
 
 **Steps:**
 
-1. Read the issue with `jira_get_issue` using the key from `$ARGUMENTS`.
+1. Read the issue with `mcp__atlassian__jira_get_issue` using the key from `$ARGUMENTS`.
 2. Read the issue's comments to find which files were created/modified by the agent.
 3. Revert those files:
    - Modified files: `git restore <file>`
    - Created files: `rm <file>`
-4. Transition the issue back to `To Do` via `jira_transition_issue`.
-5. Update the `agent:` label back to `agent:dev` via `jira_update_issue`.
-6. Add a rejection comment via `jira_add_comment`:
+4. Transition the issue back to `To Do` via `mcp__atlassian__jira_transition_issue`.
+5. Update the `agent:` label back to `agent:dev` via `mcp__atlassian__jira_update_issue`.
+6. Add a rejection comment via `mcp__atlassian__jira_add_comment`:
 
 ```
 **REJECTED**

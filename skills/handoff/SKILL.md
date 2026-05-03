@@ -7,7 +7,7 @@ description: Hand off a Jira task between roles in the multi-agent system — sw
 
 Hand off a Jira task between roles in one step: swap the `agent:<role>` label, transition the status, and add a comment with the standard `🤖 <from-role> (<area>):` prefix.
 
-The status names below match `.claude/config.yml` → `tasks.workflow.statuses` for project AITSAI. If that workflow changes, update the table in this skill — the names are referenced literally by `jira_transition_issue`.
+The status names below match `.claude/config.yml` → `tasks.workflow.statuses` for project AITSAI. If that workflow changes, update the table in this skill — the names are referenced literally by `mcp__atlassian__jira_transition_issue`.
 
 ## Usage
 
@@ -39,7 +39,7 @@ Why these rules:
 ## Steps
 
 1. Parse arguments into `<KEY>`, optional `<to-role>`, optional `<comment>`.
-2. Read the issue with `jira_get_issue`. Extract:
+2. Read the issue with `mcp__atlassian__jira_get_issue`. Extract:
    - **From role** — current `agent:<role>` label. If missing, stop and ask the user to specify it.
    - **Area** — current `area:<area>` label. If missing, stop and report.
 3. If `<to-role>` is omitted, derive the default forward target:
@@ -48,9 +48,9 @@ Why these rules:
    - `agent:reviewer` → `done`
    - any other from-role → stop, ask for an explicit target.
 4. Validate the target is one of `dev`, `qa`, `reviewer`, `team-lead`, `done`. Otherwise stop.
-5. Update labels via `jira_update_issue`. Pass the **full** label list (existing labels minus `agent:<from>`, plus the new label(s)) — the mcp-atlassian update replaces the field as a whole.
-6. Transition status via `jira_transition_issue` to the target status from the table above. If Jira rejects the transition (workflow doesn't allow it from the current status), stop and report — do not retry with another path.
-7. Add a comment via `jira_add_comment`:
+5. Update labels via `mcp__atlassian__jira_update_issue`. Pass the **full** label list (existing labels minus `agent:<from>`, plus the new label(s)) — the mcp-atlassian update replaces the field as a whole.
+6. Transition status via `mcp__atlassian__jira_transition_issue` to the target status from the table above. If Jira rejects the transition (workflow doesn't allow it from the current status), stop and report — do not retry with another path.
+7. Add a comment via `mcp__atlassian__jira_add_comment`:
 
    ```
    🤖 <from-role> (<area>): handoff → <to-role>

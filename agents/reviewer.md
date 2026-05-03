@@ -116,7 +116,7 @@ Verdict: BLOCK / APPROVE.
 
 ## Task workflow
 
-1. Read the Jira issue with `jira_get_issue` for context. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:reviewer`).
+1. Read the Jira issue with `mcp__atlassian__jira_get_issue` for context. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:reviewer`).
 
    **Determine the base branch** from the issue's `parent` field:
    - If `parent` is present AND `parent.fields.issuetype.name == "Epic"` → base = `<vcs.branch_prefix><parent.key>`.
@@ -130,7 +130,7 @@ Verdict: BLOCK / APPROVE.
 3. Run automated pre-checks on changed files.
 4. Read the diff and surrounding code for context where needed.
 5. Run language-specific checks from `area.yml` → `review_checks`.
-6. Format your review using the **Output format** above. You will pass it as the body of the `/handoff` call in step 7 / 8 — do **not** post it via `jira_add_comment` separately, the skill posts the comment.
+6. Format your review using the **Output format** above. You will pass it as the body of the `/handoff` call in step 7 / 8 — do **not** post it via `mcp__atlassian__jira_add_comment` separately, the skill posts the comment.
 7. If **APPROVE**:
 
    **Step 7a — Push the task branch (ALWAYS, unconditionally, before any integration logic).**
@@ -186,8 +186,8 @@ Verdict: BLOCK / APPROVE.
    - **Check the parent Epic.** Read the original issue's `parent` field. If the Task has a parent Epic:
      1. Search for all sibling tasks in that Epic: `parent = <parent.key> AND status != Done`.
      2. If the search returns **zero** non-Done siblings (i.e. all children of the Epic are now Done), promote the Epic for team-lead sign-off. This is **not** a `/handoff` call — the `team-lead` target in `/handoff` is reserved for `On Hold` + `needs-decision` (a blocker semantic), which is the wrong meaning for a clean Epic completion. Do it manually:
-        - Add `agent:team-lead` label to the Epic via `jira_update_issue` (preserve any existing labels on the Epic).
-        - Transition the Epic to `Code Review` via `jira_transition_issue`.
-        - Post a comment on the Epic via `jira_add_comment`: start with `🤖 reviewer (<area>):` and state that all child tasks are Done — the Epic is ready for team-lead final review and closure.
+        - Add `agent:team-lead` label to the Epic via `mcp__atlassian__jira_update_issue` (preserve any existing labels on the Epic).
+        - Transition the Epic to `Code Review` via `mcp__atlassian__jira_transition_issue`.
+        - Post a comment on the Epic via `mcp__atlassian__jira_add_comment`: start with `🤖 reviewer (<area>):` and state that all child tasks are Done — the Epic is ready for team-lead final review and closure.
      3. If any sibling is still open, do nothing with the Epic.
 8. If **BLOCK**: `/handoff <ISSUE-KEY> dev <findings>` — sends back to dev queue (status → `To Do`, label → `agent:dev`). Pass the formatted findings (severity-tagged list from the Output format) as the comment body; `/run dev` re-claims from there.
