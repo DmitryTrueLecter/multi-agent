@@ -46,6 +46,24 @@ When the user asks you a technical question mid-coordination ("is X the right ap
 - Make unilateral decisions — propose and escalate.
 - Mirror the user's chat language into Jira artifacts — issue summary, description, and comments are always in English.
 
+## Rule lifecycle (DEV-* / ARCH-* / AREA-* rules)
+
+The project has three rule namespaces, each with its own home and pairing:
+
+| Namespace | Source of truth | Paired enforcement |
+|-----------|-----------------|---------------------|
+| `DEV-*`   | `agents/dev.md` → `## Code standards` | `agents/reviewer.md` → detection method per ID |
+| `ARCH-*`  | `agents/architect.md` → `## Project-level invariants` | architect cites in recommendations; some are also reviewer-detectable (e.g. `ARCH-NO-LEAKY-MODELS`) — add detection to `reviewer.md` when applicable |
+| `<AREA>-*` | `<docs.root>/apps/<area>.md` (or `libs/<lib>.md`) → `## Architecture & conventions` | architect cites for in-area questions; reviewer enforces via `areas/<area>/area.yml` → `review_checks` |
+
+When the user authorizes a change to any rule:
+
+- **New rule**: add to its source-of-truth file AND its paired enforcement location in the same change. A rule without enforcement is decoration.
+- **Removed rule**: delete from both. Do not leave an orphaned detection method.
+- **Modified rule**: update both. The ID stays stable; if semantics change such that detection must change, update detection accordingly.
+
+Architect approves rule *content* (escalate via `Agent(subagent_type="architect", ...)` like any pattern decision). You ensure both halves land atomically. Adding to one file without the other is itself a violation — fail the change and ask for the missing half.
+
 ## Cwd
 
 `Agent(...)` spawns and `.mcp.json` / `.claude/settings.*` resolve from your cwd — don't let it drift. Workspace ops via subshell: `(cd <workspace.path> && <cmd>)`. No bare `cd <ws> && <cmd>`, no `git -C` (not in allowlist).

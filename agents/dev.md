@@ -46,6 +46,43 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
 - **Branch state:** after `cd <workspace.path>` and `git checkout -b <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
+## Code standards
+
+These rules apply to every change. Each has a stable ID; the reviewer cites the ID when blocking a PR. Detection methods live in `agents/reviewer.md` — do not duplicate them here. Area-specific rules use their own ID prefix (e.g. `AI-*`, `API-*`) and live in `.claude/areas/<area>/dev.yml`.
+
+**DEV-SRP — Single responsibility per function and module.**
+A function or module does one thing. If you can describe it as "X and Y", split it. Counterweight: see `DEV-DRY` and `DEV-YAGNI` — do not split for the sake of splitting; the goal is one purpose, not minimum size.
+
+**DEV-FCIS — Functional core, imperative shell.**
+Pure logic is separated from I/O. Computational functions accept primitives or dataclasses, not database sessions, HTTP clients, or ORM models. I/O lives at the edges: read inputs, call pure logic, write outputs.
+
+**DEV-FN-SHAPE — Small functions, ≤4 arguments, no boolean flags.**
+A function fits in your head. Maximum four parameters; group them into a dataclass if you need more. Boolean flag arguments are forbidden — `do_thing(x, dry_run=True)` is two functions hiding in one signature; expose them separately (`do_thing` / `simulate_thing`).
+
+**DEV-FAIL-FAST — Errors propagate, no silent fallbacks.**
+Unexpected errors stop the flow. Error handlers catch *specific* exception types and either handle them meaningfully or re-raise with context. Forbidden: catch-all handlers that swallow errors silently; substituting a default empty value to mask failure; logging-and-continuing without a stated reason.
+
+**DEV-DRY — Extract on the third repetition.**
+Two similar pieces of code stay duplicated. The third occurrence is the signal to extract. Premature abstraction freezes the wrong shape and forces every later case to bend around it. Duplication across architectural layers (domain ↔ persistence) is acceptable; duplication within one layer is the candidate, starting at the third copy.
+
+**DEV-YAGNI — Build only for current requirements.**
+No parameters, configuration knobs, or abstractions for hypothetical future use. A parameter with one realistic value at the call sites does not exist. Generic interfaces with one consumer are noise. Add flexibility when the second concrete need appears.
+
+**DEV-CQS — Command/query separation.**
+A function returns data without changing state (query) or changes state without returning meaningful data (command). Not both. Names reflect this: `get_*` / `find_*` / `is_*` / `compute_*` for queries; `save_*` / `mark_*` / `apply_*` / `delete_*` for commands. A function that loads, computes, and persists is three functions; split into `load → compute → persist`.
+
+**DEV-NAMING — Intention-revealing names. No generic helpers.**
+Names answer "what does this do" or "what is this" in domain terms. Forbidden as standalone names: `data`, `result`, `helper`, `process`, `handle`, `manage`, `do_*`, `_a` / `_b`, single letters except `i`/`x`/`y` in numeric contexts. A good name makes a comment unnecessary. Apply to new code and to code you touch — do not refactor names in unrelated code as a separate concern.
+
+**DEV-COMPOSITION — Composition over inheritance.**
+Behavior is assembled by passing collaborators as parameters or attributes, not by inheriting from a base class to share code. Inheritance is allowed only for strict `is-a` relationships honoring LSP. Mixins for code sharing are forbidden — use module-level functions or composed helpers instead.
+
+**DEV-ERRORS — Explicit error types, no sentinels.**
+Either raise a specific exception, or return an explicit type encoding the outcome (`Optional[T]` for "may not exist", a result dataclass for failure with reason). Forbidden: returning `None` / `-1` / `""` / `{}` as a failure marker; returning bare `bool` "ok / not ok" without details. The caller must be unable to confuse a real value with an error sentinel.
+
+**DEV-COMMENTS — Short, "why" only.**
+One comment = one line. If you need more, the code is poorly named — rename or extract a function with a speaking name. Module/function docstrings: optional, one line of summary if present. Forbidden: multi-paragraph docstrings, restating the spec, parameter listings (types are in the signature), section dividers (`# === Config ===`), TODOs without a tracking issue. A comment is justified only when the reader cannot understand *why* without it: a non-obvious invariant, a workaround for a specific external bug, a reference to a spec or ticket.
+
 ## Task workflow
 
 1. Read your Jira issue with `mcp__atlassian__jira_get_issue`. The description contains Purpose, Requirements, References. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:dev`).

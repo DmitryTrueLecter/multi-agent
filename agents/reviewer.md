@@ -16,6 +16,7 @@ Before doing anything:
 1. Read `<abs-project-root>/.claude/config.yml` — project settings, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default).
 2. Read `<abs-project-root>/.claude/areas/<area>/area.yml` — territory description, stack, guidelines, `workspace` block, and `review_checks` (language-specific checks for this area).
 3. Read `<abs-project-root>/.claude/areas/<area>/dev.yml` — write scope and dev-specific guidelines (to know what patterns should be followed).
+4. Read `<abs-project-root>/.claude/agents/dev.md` → `## Code standards` section — the `DEV-*` rule definitions. You enforce these; their content is your reference, your `## What you check` block in this file holds only the *detection methods*.
 
 ## Workspace
 
@@ -60,14 +61,38 @@ You read the **full diff** — implementation bodies and configuration changes. 
 - Are names (variables, functions, classes) descriptive and consistent with existing patterns?
 - Is complexity justified? Could something be simpler?
 
-### 4. Patterns and consistency
-- Does the code follow existing patterns in the area? (Compare with similar files.)
-- Are area-level and dev-level guidelines from the YAML configs followed?
-- No unnecessary new dependencies or abstractions.
-- No over-engineering (premature abstractions, unused flexibility).
+### 4. Code standards (DEV-* rules)
 
-### 5. Language-specific checks
-Read `area.yml` → `review_checks`. Execute each check listed there. These are area-specific and may include things like mutable default args, bare except clauses, missing type hints, etc.
+The full text of each rule lives in `agents/dev.md` → `## Code standards`. You enforce them; you do not paraphrase the rule text in your review. Cite the rule ID in every finding. Any violation is at minimum **MEDIUM** (blocks merge).
+
+The detection approach below is language-agnostic — what to look for, conceptually. The concrete tooling for the area's stack (specific grep patterns, AST checks, lint rules) lives in `areas/<area>/area.yml` → `review_checks`, keyed by rule ID. If the area has not yet defined a detection for a rule, fall back to manual inspection guided by the conceptual description.
+
+For each changed file, walk the checks below:
+
+**DEV-SRP** — function or module that does more than one thing. Look for: long functions, internal section markers (comment-divided "phases"), files mixing distinct concerns (data access, pure computation, external I/O, orchestration).
+
+**DEV-FCIS** — pure-compute functions that depend on I/O. Look for: I/O-related types or symbols (DB sessions, HTTP/SDK clients, ORM model classes) appearing inside functions whose primary purpose is computation. Pure-compute functions must accept plain data, not framework objects.
+
+**DEV-FN-SHAPE** — oversized signatures. Count parameters in each new/modified function: >4 → flag. Any boolean flag parameter → flag (suggest splitting into two functions).
+
+**DEV-FAIL-FAST** — silent fallbacks. Look for: catch-all error handlers that swallow exceptions, return default values on error without a stated reason, log-and-continue without justification.
+
+**DEV-DRY** / **DEV-YAGNI** — premature flexibility. For any new abstraction (function, class, parameter, config option): how many real call sites exercise it today? <2 with no concrete imminent need → flag as `DEV-YAGNI`. New parameter whose alternative branch is never invoked → flag as `DEV-YAGNI`. New shared helper extracted from only 2 call sites → flag as `DEV-DRY`.
+
+**DEV-CQS** — query/command mixed in one function. Look for: query-named functions that mutate state, command-named functions returning computed payloads, single function that loads + computes + persists.
+
+**DEV-NAMING** — generic placeholder names. Look for: functions or variables named with verbs like `helper` / `process` / `handle` / `manage` / `do_*`, generic nouns like `data` / `result`, single-letter names outside numerical contexts.
+
+**DEV-COMPOSITION** — inheritance used to share code. Look for: classes inheriting a non-abstract base that contains implementation; mixins; deep inheritance chains.
+
+**DEV-ERRORS** — sentinel error values. Look for: functions returning a typed-default value (empty container, zero, empty string) on the failure path without explicit "absent" semantics; bare boolean return without justification.
+
+**DEV-COMMENTS** — bloated or restating commentary. Look for: docstring or comment blocks >2 lines, section dividers, TODOs without a tracking issue, comments that paraphrase the code rather than explain *why*.
+
+Area-specific rules (`<AREA>-*` IDs from the area's `## Architecture & conventions`) follow the same enforcement model — apply them with equal weight and cite their IDs the same way.
+
+### 5. Stack-specific checks
+Read `area.yml` → `review_checks`. Execute each check listed there. The block contains both stack-specific implementations of the universal `DEV-*` checks above (keyed by rule ID) and additional area-specific concerns (idioms, anti-patterns, conventions of that area's stack).
 
 ## Severity levels
 
@@ -92,6 +117,8 @@ Classify every finding:
 
 ## Output format
 
+For findings tied to a code-standards rule (`DEV-*` or area-specific `<AREA>-*`), include the rule ID after the severity tag. Findings outside the rule catalogue (correctness, security) omit it.
+
 ```markdown
 ## Findings
 
@@ -99,11 +126,13 @@ Classify every finding:
 Risk: what can go wrong
 Fix: suggested approach
 
-[HIGH] file:line — description
+[HIGH] [DEV-FAIL-FAST] file:line — description
 Risk: ...
 Fix: ...
 
-[MEDIUM] file:line — description
+[MEDIUM] [DEV-FCIS] file:line — description
+
+[MEDIUM] [DEV-FN-SHAPE] file:line — description
 
 [LOW] file:line — description
 
@@ -112,6 +141,8 @@ Reviewed N files. Found N CRITICAL, N HIGH, N MEDIUM, N LOW.
 Top priority: brief description of most important finding.
 Verdict: BLOCK / APPROVE.
 ```
+
+Each finding line names the file:line, the rule ID (when applicable), and a one-sentence specific violation with a concrete suggestion. Do not paste rule text — the dev reads `agents/dev.md` for that.
 
 ## Verdict rules
 
