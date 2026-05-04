@@ -44,6 +44,10 @@ When the user asks you a technical question mid-coordination ("is X the right ap
 - Make unilateral decisions — propose and escalate.
 - Mirror the user's chat language into Jira artifacts — issue summary, description, and comments are always in English.
 
+## Working directory discipline
+
+Your cwd MUST stay at `$CLAUDE_PROJECT_DIR` — `Agent(...)` spawns and `.mcp.json` / `.claude/settings.*` resolve from there. For any workspace-touching Bash (epic-branch creation, hotfix), use a subshell: `(cd <workspace.path> && <cmd>)`. Never bare `cd <workspace.path> && <cmd>` (leaks cwd) and never `git -C` (not in allowlist).
+
 ## Default flow for any user input
 
 Main session is always under this role (set via `.claude/settings.json` → `agent: team-lead`). Whatever the user pastes — log, error, question, idea — handle it as team-lead:
@@ -129,13 +133,13 @@ Use `mcp__atlassian__jira_link_to_epic` to attach tasks to their parent epic.
 3. Create an Epic in Jira for the feature — copy/expand the user-provided spec into the Epic description (this becomes the canonical spec).
 4. **Create the epic branch** `<vcs.branch_prefix><EPIC-KEY>` in each affected area's workspace.
 
-   Resolve each affected area's workspace per the rule in the role docs (`area.yml.workspace` → `config.yml.workspace` → built-in defaults: `path=.`, `remote=origin`, `dev_branch=vcs.dev_branch`). Take the set of distinct `workspace.path` values. For each:
+   Resolve each affected area's workspace per the rule in the role docs (`area.yml.workspace` → `config.yml.workspace` → built-in defaults: `path=.`, `remote=origin`, `dev_branch=vcs.dev_branch`). Take the set of distinct `workspace.path` values. For each, use a **subshell** so cwd does not leak:
    ```
-   cd <workspace.path>
-   git checkout <workspace.dev_branch>
-   git pull
-   git checkout -b <vcs.branch_prefix><EPIC-KEY>
-   git push -u <workspace.remote> <vcs.branch_prefix><EPIC-KEY>
+   ( cd <workspace.path> && \
+     git checkout <workspace.dev_branch> && \
+     git pull && \
+     git checkout -b <vcs.branch_prefix><EPIC-KEY> && \
+     git push -u <workspace.remote> <vcs.branch_prefix><EPIC-KEY> )
    ```
    The branch name is derived from the Jira Epic KEY (e.g. `ai/AITSAI-50`) — same across all affected workspaces so any task references it unambiguously via its own `parent` field. Record the affected workspaces in the Epic description (the branch name itself is implicit from the KEY).
 5. Create Task issues, set labels, descriptions, link dependencies. **Set `parent: <EPIC-KEY>` on each Task** (via `additional_fields: {"parent": "<EPIC-KEY>"}` in `mcp__atlassian__jira_create_issue`, or `mcp__atlassian__jira_link_to_epic`) — this is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace).
@@ -198,10 +202,9 @@ For each such Epic:
 7. On approval to close:
    - **Open a PR for each affected workspace**: `<vcs.branch_prefix><EPIC-KEY>` → `<workspace.dev_branch>` via the **Bitbucket MCP**. Direct push to `<workspace.dev_branch>` is blocked by `bash_safety.py` — integration always goes through PR review.
 
-     Derive the Bitbucket repo coordinates from the remote URL once per workspace:
+     Derive the Bitbucket repo coordinates from the remote URL once per workspace (subshell — cwd does not leak):
      ```
-     cd <workspace.path>
-     git remote get-url <workspace.remote>
+     ( cd <workspace.path> && git remote get-url <workspace.remote> )
      # → git@bitbucket.org:<bitbucket-workspace>/<bitbucket-repo>.git
      #   or https://bitbucket.org/<bitbucket-workspace>/<bitbucket-repo>.git
      ```

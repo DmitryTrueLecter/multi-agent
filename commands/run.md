@@ -126,35 +126,39 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
 
 7. **Claim the task**: `mcp__atlassian__jira_transition_issue` → `In Progress` (for every role, including `team-lead` on On Hold tasks and Epic close-out). If the transition is rejected (Jira returns an error because the issue already left the source status — another runner claimed it), drop this task and pick the next one from the queue. If the queue is now empty, report "board contended, nothing else to take" and stop.
 
-8. Launch **one Agent tool per task**, in **background mode**, so this main session stays responsive to the user (see "Stop semantics" below).
-   - Before spawning, report a one-line status to the user: `▶ <role> on <ISSUE-KEY> (<area>)`.
-   - Use `run_in_background=true`. **Capture the `agentId` returned by the spawn** — you need it to call `TaskStop` if the user asks to stop.
-   - For `dev`/`qa`/`reviewer`:
-     ```
-     Agent(
-       subagent_type="<role>",
-       prompt="Your area: <area>. Your Jira issue: <ISSUE-KEY> — read your area config from .claude/areas/<area>/, then read the issue with mcp__atlassian__jira_get_issue and do the work.",
-       run_in_background=true,
-     )
-     ```
-   - For `team-lead` on a Task in `On Hold`:
-     ```
-     Agent(
-       subagent_type="team-lead",
-       prompt="Handle On Hold task: <ISSUE-KEY> — read it with mcp__atlassian__jira_get_issue, investigate, and present your analysis.",
-       run_in_background=true,
-     )
-     ```
-   - For `team-lead` on an Epic in `Code Review`:
-     ```
-     Agent(
-       subagent_type="team-lead",
-       prompt="Final review of Epic <ISSUE-KEY> — all child tasks are Done. Read the Epic and its children with mcp__atlassian__jira_get_issue / mcp__atlassian__jira_search, verify nothing is missing, and follow the 'Closing Epics' section of your role.",
-       run_in_background=true,
-     )
-     ```
+8. **Resolve the absolute workspace path** (dev/qa/reviewer only — team-lead operates at repo root). Read `area.yml.workspace.path` → fall back to `config.yml.workspace.path` → default `.`. If relative, join with `$CLAUDE_PROJECT_DIR`. Pass the result as `<abs-workspace-path>` in the prompt below.
 
-9. **End your turn after the spawn** — do **not** poll, do **not** sleep. The harness will notify you automatically when the background subagent completes. When the notification arrives:
-   - Process the subagent's final result.
-   - Report a one-line status to the user: `✓ <ISSUE-KEY> done — <one-sentence summary>` or `✗ <ISSUE-KEY> blocked — <reason>`.
-   - Continue per the active mode: next stage in pipeline mode, next task in all mode, or stop in single-step modes.
+9. **Main-session cwd contract.** Before every `Agent(...)` spawn, your cwd MUST equal `$CLAUDE_PROJECT_DIR`. For any workspace-touching Bash, use a subshell: `(cd <workspace.path> && <cmd>)` — never bare `cd <workspace.path> && <cmd>`, which leaks cwd.
+
+10. Launch **one Agent tool per task**, in **background mode**, so this main session stays responsive to the user (see "Stop semantics" below).
+    - Before spawning, report a one-line status to the user: `▶ <role> on <ISSUE-KEY> (<area>)`.
+    - Use `run_in_background=true`. **Capture the `agentId` returned by the spawn** — you need it to call `TaskStop` if the user asks to stop.
+    - For `dev`/`qa`/`reviewer`:
+      ```
+      Agent(
+        subagent_type="<role>",
+        prompt="Your area: <area>. Your workspace (absolute): <abs-workspace-path>. Your Jira issue: <ISSUE-KEY>. Before any other tool call, run `cd <abs-workspace-path>` — your inherited cwd is NOT guaranteed to be set. Then read your area config from .claude/areas/<area>/, read the issue with mcp__atlassian__jira_get_issue, and do the work.",
+        run_in_background=true,
+      )
+      ```
+    - For `team-lead` on a Task in `On Hold`:
+      ```
+      Agent(
+        subagent_type="team-lead",
+        prompt="Handle On Hold task: <ISSUE-KEY> — read it with mcp__atlassian__jira_get_issue, investigate, and present your analysis.",
+        run_in_background=true,
+      )
+      ```
+    - For `team-lead` on an Epic in `Code Review`:
+      ```
+      Agent(
+        subagent_type="team-lead",
+        prompt="Final review of Epic <ISSUE-KEY> — all child tasks are Done. Read the Epic and its children with mcp__atlassian__jira_get_issue / mcp__atlassian__jira_search, verify nothing is missing, and follow the 'Closing Epics' section of your role.",
+        run_in_background=true,
+      )
+      ```
+
+11. **End your turn after the spawn** — do **not** poll, do **not** sleep. The harness will notify you automatically when the background subagent completes. When the notification arrives:
+    - Process the subagent's final result.
+    - Report a one-line status to the user: `✓ <ISSUE-KEY> done — <one-sentence summary>` or `✗ <ISSUE-KEY> blocked — <reason>`.
+    - Continue per the active mode: next stage in pipeline mode, next task in all mode, or stop in single-step modes.

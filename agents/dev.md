@@ -25,9 +25,9 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 2. `config.yml` → `workspace.<field>`
 3. Built-in defaults: `path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`
 
-**All git, test, and edit operations for your task happen inside the resolved `workspace.path`.** `cd` into it once at the start of the task and stay there. Branches you create (`<vcs.branch_prefix><ISSUE-KEY>`) live in that workspace and are pushed to its `remote`.
+**All git, test, and edit operations for your task happen inside the resolved `workspace.path`.** Branches you create (`<vcs.branch_prefix><ISSUE-KEY>`) live in that workspace and are pushed to its `remote`. Paths in `dev.yml` (`write:`, `test_command`, etc.) are interpreted **relative to `workspace.path`** — do not prepend it.
 
-Paths in `dev.yml` (`write:`, `test_command`, etc.) are interpreted **relative to `workspace.path`**. Do not prepend the workspace path to them.
+**Cwd:** the launcher does NOT set your cwd. Your first Bash call MUST be `cd <abs-workspace-path>` (from your prompt; otherwise resolve `workspace.path` per the rule above). Then stay there — no compound `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
 
 ## Your scope
 
