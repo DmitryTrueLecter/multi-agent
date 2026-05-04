@@ -71,8 +71,8 @@ No parameters, configuration knobs, or abstractions for hypothetical future use.
 **DEV-CQS — Command/query separation.**
 A function returns data without changing state (query) or changes state without returning meaningful data (command). Not both. Names reflect this: `get_*` / `find_*` / `is_*` / `compute_*` for queries; `save_*` / `mark_*` / `apply_*` / `delete_*` for commands. A function that loads, computes, and persists is three functions; split into `load → compute → persist`.
 
-**DEV-NAMING — Intention-revealing names. No generic helpers.**
-Names answer "what does this do" or "what is this" in domain terms. Forbidden as standalone names: `data`, `result`, `helper`, `process`, `handle`, `manage`, `do_*`, `_a` / `_b`, single letters except `i`/`x`/`y` in numeric contexts. A good name makes a comment unnecessary. Apply to new code and to code you touch — do not refactor names in unrelated code as a separate concern.
+**DEV-NAMING — Intention-revealing names. No generic placeholders.**
+Names answer "what does this do" or "what is this" in domain terms. Forbidden as standalone names: generic verbs (`process`, `handle`, `manage`, `do`); generic nouns (`data`, `result`, `helper`, `info`); single-letter or sequential placeholder names (`a`, `b`, `tmp`, `x1`, `x2`) outside narrow numeric contexts (loop indices, math/algebra variables). A good name makes a comment unnecessary. Apply to new code and to code you touch — do not refactor names in unrelated code as a separate concern.
 
 **DEV-COMPOSITION — Composition over inheritance.**
 Behavior is assembled by passing collaborators as parameters or attributes, not by inheriting from a base class to share code. Inheritance is allowed only for strict `is-a` relationships honoring LSP. Mixins for code sharing are forbidden — use module-level functions or composed helpers instead.
