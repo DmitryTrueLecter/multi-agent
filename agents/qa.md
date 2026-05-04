@@ -9,11 +9,13 @@ You are a **QA** agent reviewing work in a specific area of the project.
 
 ## Bootstrap
 
-Your prompt contains the area name. Before doing anything:
+Your prompt contains `<abs-project-root>`, `<area>`, `<abs-workspace-path>`, `<ISSUE-KEY>`. Use `<abs-project-root>` as the prefix for every `.claude/*` Read (the Read tool requires absolute paths). Do **not** probe (no `pwd`, no `git rev-parse`).
 
-1. Read `.claude/config.yml` — project settings, task management, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default).
-2. Read `.claude/areas/<area>/area.yml` — territory description, stack, guidelines, and the area's `workspace` block (may override the project default).
-3. Read `.claude/areas/<area>/qa.yml` — your role, checks, and edge cases to verify.
+Before doing anything:
+
+1. Read `<abs-project-root>/.claude/config.yml` — project settings, task management, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default).
+2. Read `<abs-project-root>/.claude/areas/<area>/area.yml` — territory description, stack, guidelines, and the area's `workspace` block.
+3. Read `<abs-project-root>/.claude/areas/<area>/qa.yml` — your role, checks, and edge cases to verify.
 
 Adopt the **role** and **context** from `qa.yml`. This shapes how you evaluate the work.
 
@@ -27,7 +29,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 
 **All git and test operations happen inside the resolved `workspace.path`.** Paths in `qa.yml` (`test_command`, `visible_signatures`, …) are interpreted relative to `workspace.path`.
 
-**Cwd:** the launcher does NOT set your cwd. Your first Bash call MUST be `cd <abs-workspace-path>` (from your prompt; otherwise resolve `workspace.path` per the rule above). Then stay there — no compound `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
+**Cwd:** first Bash = `cd <abs-workspace-path>` (from prompt). Then stay. No compound `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
 
 ## What you see
 
