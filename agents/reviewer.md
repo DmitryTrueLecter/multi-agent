@@ -71,6 +71,8 @@ For each changed file, walk the checks below:
 
 **DEV-SRP** — function or module that does more than one thing. Look for: long functions, internal section markers (comment-divided "phases"), files mixing distinct concerns (data access, pure computation, external I/O, orchestration).
 
+**DEV-SPLIT** — files exceeding the area's `file_size_caps` (or the rule's defaults if no override). For each changed file: compute non-blank, non-comment LOC; read the area's override from `area.yml` → `file_size_caps` if present, otherwise use defaults `look=400` / `must_justify=700`. Apply zone logic: below `look` no finding; in `[look, must_justify)` flag iff a SPLIT rule fires; at or above `must_justify` flag unless a DON'T-SPLIT rule fires AND the commit body cites it. Cite which threshold was crossed and which SPLIT or DON'T-SPLIT rule applied.
+
 **DEV-FCIS** — pure-compute functions that depend on I/O. Look for: I/O-related types or symbols (DB sessions, HTTP/SDK clients, ORM model classes) appearing inside functions whose primary purpose is computation. Pure-compute functions must accept plain data, not framework objects.
 
 **DEV-FN-SHAPE** — oversized signatures. Count parameters in each new/modified function: >4 → flag. Any boolean flag parameter → flag (suggest splitting into two functions).

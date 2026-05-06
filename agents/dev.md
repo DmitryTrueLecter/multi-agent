@@ -53,6 +53,31 @@ These rules apply to every change. Each has a stable ID; the reviewer cites the 
 **DEV-SRP — Single responsibility per function and module.**
 A function or module does one thing. If you can describe it as "X and Y", split it. Counterweight: see `DEV-DRY` and `DEV-YAGNI` — do not split for the sake of splitting; the goal is one purpose, not minimum size.
 
+**DEV-SPLIT — File size triggers a split check.**
+LOC = non-blank, non-comment. Defaults: `look = 400`, `must_justify = 700`. An area may override either in `.claude/areas/<area>/area.yml` → `file_size_caps`; area override takes precedence, otherwise defaults apply.
+
+Zones:
+- `LOC < look` → ignore the rule.
+- `look ≤ LOC < must_justify` → split iff a SPLIT rule fires.
+- `LOC ≥ must_justify` → split, unless a DON'T-SPLIT rule fires (cite which in the commit body).
+
+Order: walk SPLIT rules first. If any fire → split. Else walk DON'T-SPLIT rules. SPLIT rules apply to the file's public surface; if the file is one class, its public methods ARE that surface (rules 1, 2, 4 apply to methods, not just module-level functions).
+
+SPLIT — split if any holds:
+1. **≥2 domain entities exported.** Public symbols cluster around different domain nouns (e.g. `User`-things and `Invoice`-things). Split per entity.
+2. **≥2 verb categories exported.** Public symbols span ≥2 of: read/parse, compute/transform, persist, render, validate. Split per category.
+3. **I/O mixed with pure logic.** File imports HTTP/DB/filesystem modules and contains functions that don't use them. Pure logic moves out.
+4. **External callers import a slice.** ≥2 modules outside this file import only names from one half and never the other. That half moves out.
+5. **Bisected internal state.** Top-level state, registry, or constants are used by only one cluster of functions; the rest of the file doesn't touch them. State + consumers move out.
+6. **Non-cohesive class.** The file's class has ≥2 disjoint clusters of public methods when grouped by which instance fields they read/write. Each cluster becomes its own class.
+
+DON'T SPLIT — keep whole if any holds:
+1. **One cohesive class + private helpers.** Exactly one class declaration; every public method touches an instance field that's also touched by another public method (no clusters disjoint by state). Module-level functions only take that class's instance or are only called from its methods.
+2. **Single pipeline.** One entry function called from outside; all other functions are called only by the entry or by each other; no external call sites for helpers.
+3. **Flat declarative listing.** Mostly top-level data: enums, const tables, model classes of one bounded context, routes of one router, fixtures of one suite. No control flow at module top.
+4. **Migration file** (`migrations/**`). Never split.
+5. **1↔1 indirection or cycle.** Proposed new module would be imported by exactly one file (the original), or both halves would need to import each other.
+
 **DEV-FCIS — Functional core, imperative shell.**
 Pure logic is separated from I/O. Computational functions accept primitives or dataclasses, not database sessions, HTTP clients, or ORM models. I/O lives at the edges: read inputs, call pure logic, write outputs.
 
