@@ -39,7 +39,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 ## General guidelines
 
 - Follow existing patterns in the codebase. Do not introduce new frameworks or architectural patterns.
-- **Write tests** for your code. Cover the requirements from the Jira issue. Run tests before marking done.
+- **Write tests** for your code. Cover the requirements from the Jira issue. **If the issue has a `## Test contract` section, every invariant / scenario / boundary listed there must have a corresponding test at the level the architect specified — a unit test does not satisfy an `integration` or `e2e` item, and a mocked call does not satisfy a `boundary` item that requires real components.** If the contract says `No architectural tests required — unit coverage sufficient.`, unit tests are enough. Run tests before marking done.
 - All artifacts in English (code, comments, commits, Jira). Do not mirror the user's chat language.
 - **Paths:** always project-relative; no absolute paths.
 - **Runtime:** use binary paths from `.claude/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).

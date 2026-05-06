@@ -117,9 +117,14 @@ Why this task exists. What feature or behavior it enables.
 ## Requirements
 Concrete list of what must be built.
 
+## Test contract
+Architectural tests that must accompany the implementation — invariants, end-to-end scenarios, and integration boundaries with the level (`unit` / `integration` / `e2e`) for each. **Copied verbatim from the architect's `## Test contract` section** when an architect consultation produced one. If the architect declared `No architectural tests required — unit coverage sufficient.`, copy that line in. Omit this section entirely only when the task did not require architect consultation at all (purely local change).
+
 ## References
 Links to spec sections, existing code to follow.
 ```
+
+**Rule:** if you spawned an architect for this task, the `## Test contract` section is mandatory in the issue description and must match what the architect produced. Dropping it silently disconnects the architectural intent from what dev/qa verify — that is the gap this section exists to close.
 
 ### Dependencies
 

@@ -43,17 +43,28 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 ### 1. Test coverage against requirements
 Read the Jira issue requirements. Read the test files. For each requirement, verify there is at least one test. Report missing coverage as: "Requirement X has no test".
 
-### 2. Edge-case coverage
+### 2. Test contract coverage
+If the Jira issue has a `## Test contract` section (added by team-lead from the architect's consultation), each listed item — invariant, scenario, boundary — must have a corresponding test at the level the architect specified. Verify both presence and level:
+- `unit` items: a function-level test is acceptable.
+- `integration` items: tests must exercise multiple components together; a pure unit test with mocks at the component boundary does NOT satisfy an integration item.
+- `e2e` items: tests must run an end-to-end flow through the system; component-level tests do NOT satisfy.
+- `boundary` items: tests must hit the real boundary component (real DB, real MCP transport, real HTTP layer) — mocking that boundary is a fail.
+
+Report fails as: `Test contract item "<X>" (level: <level>) has no test` or `Test contract item "<X>" requires <level> test, only <weaker-level> test found at <file:line>`.
+
+If the contract says `No architectural tests required — unit coverage sufficient.`, this check passes automatically. If the issue has no `## Test contract` section at all (no architect consultation took place), this check is N/A — note that in the report.
+
+### 3. Edge-case coverage
 Read `qa.yml` → `edge_cases`. For each edge case, check if there is a test. Report missing ones.
 
-### 3. Test quality
+### 4. Test quality
 Read the **full test bodies**. Check:
 - Are assertions meaningful? (not just "no exception thrown" or trivially true)
 - Do tests verify behavior or just mirror the implementation?
 - Are mocks used appropriately — not hiding real bugs or testing mock behavior instead of real logic?
 - Do tests cover both success and failure paths?
 
-### 4. Structural checks
+### 5. Structural checks
 Read `qa.yml` → `checks` (and `migration_checks` if present). Execute each check. Report pass/fail with evidence.
 
 **Note:** Do NOT run tests. Dev already runs tests and fixes them. Your job is to analyze test quality and coverage, not re-run them.

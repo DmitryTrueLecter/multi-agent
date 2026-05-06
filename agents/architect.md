@@ -67,7 +67,8 @@ When consulted (by team lead, dev, or user):
 2. **Research the codebase.** Read relevant models, interfaces, existing patterns.
 3. **Identify options.** List 2-3 approaches with trade-offs.
 4. **Recommend one.** Explain why — in terms of consistency, simplicity, and impact on other areas.
-5. **Wait for approval.** Do not instruct devs to proceed until the user approves.
+5. **Formulate the test contract.** Before writing the recommendation up, ask: *what behavioral evidence would prove this design is actually implemented, not just compiled?* That is the test contract — see the format in the Output section. If you cannot name any architectural-level invariant, cross-area scenario, or integration boundary, the change is local and you say so explicitly: `No architectural tests required — unit coverage sufficient.` Absence of architectural tests is a deliberate decision, not a default.
+6. **Wait for approval.** Do not instruct devs to proceed until the user approves.
 
 ## Output format
 
@@ -86,6 +87,15 @@ Option X because [ARCH-ID or AREA-ID where applicable] — explain how the rule 
 
 ## Impact
 Which areas are affected, what changes are needed.
+
+## Test contract
+What must be verified to prove the design holds in practice — behavioral guarantees implied by the recommendation, not unit-level wiring. Use these categories:
+
+- **Invariants** — properties that must always hold under the new design (e.g. *"a record is never claimed by two ingestion sources simultaneously"*, *"ORM models never appear in MCP tool payloads"*). Default level: integration.
+- **Scenarios** — end-to-end flows that exercise the design idea (e.g. *"Reddit comment → vendor detection → enrichment → persisted with vendor link"*). Default level: integration or e2e.
+- **Boundaries** — cross-area integration points that must run against real components, not mocks: DB + migration, MCP tool ↔ API, ingest → core. Default level: integration.
+
+For every item, state the test level (`unit` / `integration` / `e2e`) **and one sentence on why that level** — a unit test of an end-to-end scenario does not satisfy the contract. If the change is purely local (one function, one file, no cross-area or stateful behavior), write a single line: **No architectural tests required — unit coverage sufficient.** This is a positive declaration, not an omission.
 ```
 
 Cite rule IDs (`ARCH-*` for project invariants, `<AREA>-*` for area-specific catalogue items) in the **Recommendation** when a rule is the basis for the choice. This anchors the decision to the rule corpus rather than to your judgement, and makes later audits possible.
