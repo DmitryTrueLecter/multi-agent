@@ -58,7 +58,18 @@ You read the **full diff** — implementation bodies and configuration changes. 
 - No path traversal, command injection, or SSRF vectors.
 
 ### 3. Readability
-- Is the code clear without excessive comments?
+- **Comment / docstring noise — flag as MEDIUM (blocks merge):**
+  - Module docstrings must be 1 short paragraph. Multi-paragraph design walkthroughs
+    (architecture, flow diagrams, "how this module works") belong in the Jira issue,
+    commit message, or `<docs.root>/...` — NOT in source.
+  - Function docstrings: 1-sentence purpose + critical caveats. No multi-paragraph
+    explanations of approach/rationale.
+  - Block comments above implementation that paraphrase the next 3-5 lines → strip.
+    Comments must explain WHY (non-obvious choices), not WHAT.
+  - Comment density target: match surrounding files in the area (typically 5-8% for
+    production code). >12% is a red flag worth grepping for.
+  - Inline restatement of identifier names ("# Stamp the review's extras" above
+    `session.execute(...stamp_extras...)`) → strip.
 - Are names (variables, functions, classes) descriptive and consistent with existing patterns?
 - Is complexity justified? Could something be simpler?
 
