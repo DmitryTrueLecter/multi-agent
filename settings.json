@@ -21,7 +21,6 @@
       "mcp__atlassian__jira_get_issue_development_info",
       "mcp__atlassian__jira_get_issue_sla",
       "mcp__atlassian__jira_get_worklog",
-
       "mcp__atlassian__jira_add_comment",
       "mcp__atlassian__jira_edit_comment",
       "mcp__atlassian__jira_update_issue",
@@ -35,20 +34,16 @@
       "mcp__atlassian__jira_add_watcher",
       "mcp__atlassian__jira_remove_watcher",
       "mcp__atlassian__jira_add_worklog",
-
       "mcp__atlassian__bitbucket_create_pull_request",
-
       "Bash(*pytest*)",
       "Bash(*-m pytest*)",
       "Bash(*vitest*)",
       "Bash(*jest*)",
-
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git show:*)",
       "Bash(git blame:*)",
-
       "Bash(git checkout:*)",
       "Bash(git switch:*)",
       "Bash(git pull:*)",
@@ -70,7 +65,6 @@
       "Bash(git reset:*)",
       "Bash(git clean:*)",
       "Bash(git branch:*)",
-
       "Bash(mkdir:*)",
       "Bash(touch:*)",
       "Bash(cp:*)",
@@ -78,7 +72,6 @@
       "Bash(ln:*)",
       "Bash(chmod:*)",
       "Bash(rm:*)",
-
       "Bash(ruff:*)",
       "Bash(black:*)",
       "Bash(isort:*)",
@@ -91,7 +84,6 @@
       "Bash(npx eslint:*)",
       "Bash(npx prettier:*)",
       "Bash(npx vitest:*)",
-
       "Bash(pip:*)",
       "Bash(uv pip:*)",
       "Bash(uv add:*)",
@@ -108,7 +100,6 @@
       "Bash(npx:*)",
       "Bash(bunx:*)",
       "Bash(bun:*)",
-
       "Bash(psql:*)",
       "Bash(PGPASSWORD=*)",
       "Bash(LOG_FILE=*)",
@@ -117,7 +108,6 @@
       "Bash(* alembic *)",
       "Bash(DATABASE_URL=* alembic *)",
       "Bash(DATABASE_URL=* python *)",
-
       "Bash(docker compose:*)",
       "Bash(docker ps:*)",
       "Bash(docker logs:*)",
@@ -137,7 +127,6 @@
       "Bash(docker network:*)",
       "Bash(docker volume ls:*)",
       "Bash(docker --version)",
-
       "Bash(curl:*)",
       "Bash(http:*)",
       "Bash(httpie:*)",
@@ -163,7 +152,31 @@
       "Bash(command:*)",
       "Bash(which:*)",
       "Bash(echo:*)",
-
+      "Bash(cd * && git:*)",
+      "Bash(cd * && npm:*)",
+      "Bash(cd * && npx:*)",
+      "Bash(cd * && pnpm:*)",
+      "Bash(cd * && yarn:*)",
+      "Bash(cd * && bun:*)",
+      "Bash(cd * && bunx:*)",
+      "Bash(cd * && python:*)",
+      "Bash(cd * && python3:*)",
+      "Bash(cd * && uv:*)",
+      "Bash(cd * && uvx:*)",
+      "Bash(cd * && pytest:*)",
+      "Bash(cd * && pytest -*)",
+      "Bash(cd * && tsc:*)",
+      "Bash(cd * && eslint:*)",
+      "Bash(cd * && prettier:*)",
+      "Bash(cd * && ruff:*)",
+      "Bash(cd * && black:*)",
+      "Bash(cd * && isort:*)",
+      "Bash(cd * && mypy:*)",
+      "Bash(cd * && pyright:*)",
+      "Bash(cd * && alembic:*)",
+      "Bash(cd * && just:*)",
+      "Bash(cd * && make:*)",
+      "Bash(cd * && docker:*)",
       "Bash(just:*)",
       "Bash(make:*)"
     ],
