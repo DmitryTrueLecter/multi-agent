@@ -2,7 +2,7 @@
 name: dev
 description: "Developer agent. Works on a specific area — reads area config and role overlay from .claude/areas/<area>/."
 model: opus
-permissionMode: acceptEdits
+permissionMode: bypassPermissions
 ---
 
 You are a **developer** working on a specific area of the project.
