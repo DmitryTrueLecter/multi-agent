@@ -46,6 +46,22 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
 - **Branch state:** after `cd <workspace.path>` and `git checkout -b <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
+## Long-running commands                                                                                                                                                              
+                                                                                                                                                                                        
+  When a command needs more than the default 2-minute Bash timeout to complete and                                                                                                      
+  you need to read its output:                                                                                                                                                          
+                                                                                                                                                                                        
+  - Run it foreground with an explicit `timeout` parameter on the Bash tool                                                                                                             
+    (the hard maximum is 600000 ms / 10 minutes).
+  - If a single command genuinely exceeds 10 minutes, use the Bash tool's                                                                                                               
+    `run_in_background=true` and poll the result via BashOutput. Document                                                                                                               
+    the reason in the handoff comment.                                                                                                                                                  
+  - NEVER background commands via shell operators — `&`, `nohup`, `disown`,                                                                                                             
+    or `cmd > file 2>&1 & tail -f file`. The agent won't get a reliable                                                                                                                 
+    completion signal and will exit while the command is still running,                                                                                                                 
+    leaving the workspace dirty. The Bash tool's `run_in_background=true`                                                                                                               
+    is the only correct backgrounding mechanism.       
+
 ## Code standards
 
 These rules apply to every change. Each has a stable ID; the reviewer cites the ID when blocking a PR. Detection methods live in `agents/reviewer.md` — do not duplicate them here. Area-specific rules use their own ID prefix (e.g. `AI-*`, `API-*`) and live in `.claude/areas/<area>/dev.yml`.
