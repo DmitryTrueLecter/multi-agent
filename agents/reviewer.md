@@ -79,6 +79,10 @@ The full text of each rule lives in `agents/dev.md` → `## Code standards`. You
 
 The detection approach below is language-agnostic — what to look for, conceptually. The concrete tooling for the area's stack (specific grep patterns, AST checks, lint rules) lives in `areas/<area>/area.yml` → `review_checks`, keyed by rule ID. If the area has not yet defined a detection for a rule, fall back to manual inspection guided by the conceptual description.
 
+**Mechanical rules** (detectable by `Grep`/`Glob`/AST without code understanding): `DEV-COMMENTS`, `DEV-FN-SHAPE`, `DEV-NAMING`, `DEV-SPLIT`, `DEV-FAIL-FAST`, `DEV-ERRORS`, `DEV-COMPOSITION`. For these you MUST run a tool-driven sweep across the entire diff — **one rule at a time, every changed file in one pass**. "Reading the diff and noticing things" is banned: it produces partial coverage and forces multi-round bouncing as new sub-patterns surface. Tooling-first. Aggregate hits per rule, then classify.
+
+**Semantic rules** (require reading the code with judgment): `DEV-SRP`, `DEV-FCIS`, `DEV-CQS`, `DEV-DRY`, `DEV-YAGNI`, plus correctness and security. Walk the diff and apply judgment.
+
 For each changed file, walk the checks below:
 
 **DEV-SRP** — function or module that does more than one thing. Look for: long functions, internal section markers (comment-divided "phases"), files mixing distinct concerns (data access, pure computation, external I/O, orchestration).
@@ -134,6 +138,16 @@ Classify every finding:
 For findings tied to a code-standards rule (`DEV-*` or area-specific `<AREA>-*`), include the rule ID after the severity tag. Findings outside the rule catalogue (correctness, security) omit it.
 
 ```markdown
+## Coverage
+
+Per mechanical rule, list every changed file with status `clean` / `N findings` / `N/A: <one-line reason>`. Empty cells = sweep incomplete; finish the sweep before issuing a verdict.
+
+| Rule | file_a | file_b | file_c |
+|------|--------|--------|--------|
+| DEV-COMMENTS | clean | 2 findings | clean |
+| DEV-FN-SHAPE | clean | clean | N/A: no functions |
+| ... | ... | ... | ... |
+
 ## Findings
 
 [CRITICAL] file:line — description
@@ -162,6 +176,7 @@ Each finding line names the file:line, the rule ID (when applicable), and a one-
 
 - Any CRITICAL, HIGH, or MEDIUM findings → **BLOCK**.
 - Only LOW findings (or none) → **APPROVE**.
+- Coverage matrix has any unfilled cell → not a verdict. Stop, finish the sweep, then issue.
 
 ## Task workflow
 
