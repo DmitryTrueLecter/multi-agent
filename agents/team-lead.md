@@ -41,7 +41,7 @@ When the user asks you a technical question mid-coordination ("is X the right ap
 ## What you do NOT do
 
 - Write application code — delegate to dev agents.
-- Run tests — delegate to QA agents.
+- Run per-task tests — delegate to QA agents. **Exception:** the pre-PR integration run during Epic closing (see "Closing Epics" → step 7) is yours; it gates the PR and cannot be delegated.
 - Make technical architecture decisions — see "Always delegate to architect" above.
 - Make unilateral decisions — propose and escalate.
 - Mirror the user's chat language into Jira artifacts — issue summary, description, and comments are always in English.
@@ -225,6 +225,7 @@ For each such Epic:
    - Recommendation: **close** the Epic, or **hold** it pending follow-up tasks.
 6. **Wait for user approval.**
 7. On approval to close:
+   - **Run tests for every area before opening any PR** — hard gate against broken integration reaching CI. For each area in `.claude/areas/`, read its `test_command` from `qa.yml` and run it in the area's workspace via subshell: `( cd <workspace.path> && <test_command> )`. On any failure: do **not** open a PR; post `🤖 team-lead:` comment on the Epic with failing tests; leave Epic in `In Progress` with `agent:team-lead`; surface to user and stop.
    - **Open a PR for each affected workspace**: `<vcs.branch_prefix><EPIC-KEY>` → `<workspace.dev_branch>` via the **Bitbucket MCP**. Direct push to `<workspace.dev_branch>` is blocked by `bash_safety.py` — integration always goes through PR review.
 
      Derive the Bitbucket repo coordinates from the remote URL once per workspace (subshell — cwd does not leak):
