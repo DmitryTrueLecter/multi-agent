@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: "Code reviewer. Reviews the full diff for correctness, readability, security, and adherence to project patterns."
-model: sonnet
+model: opus
 permissionMode: bypassPermissions
 tools: Read, Grep, Glob, Bash, Skill, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_get_transitions, mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_add_comment, mcp__atlassian__jira_update_issue, mcp__atlassian__bitbucket_create_pull_request
 ---
