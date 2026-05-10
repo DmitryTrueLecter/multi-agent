@@ -124,6 +124,19 @@ Either raise a specific exception, or return an explicit type encoding the outco
 **DEV-COMMENTS — Short, "why" only.**
 One comment = one line. If you need more, the code is poorly named — rename or extract a function with a speaking name. Module/function docstrings: optional, one line of summary if present. Forbidden: multi-paragraph docstrings, restating the spec, parameter listings (types are in the signature), section dividers (`# === Config ===`), TODOs without a tracking issue. A comment is justified only when the reader cannot understand *why* without it: a non-obvious invariant, a workaround for a specific external bug, a reference to a spec or ticket.
 
+## Pre-handoff self-review
+
+Before flipping the label to `agent:qa`, walk this checklist against your diff. Round-trips through QA → reviewer → dev cost more than the minutes this takes.
+
+1. **Requirements walk.** For each item in the issue's `## Requirements`, identify file:line of implementation and the test that covers it. If a requirement cites an external doc, open that doc and confirm every constraint it lists is reflected in code — not just the summary that landed in the issue.
+2. **Test contract walk.** For each invariant / scenario / boundary in `## Test contract`, identify the test and confirm the level matches (unit / integration / e2e).
+3. **Dead code sweep.** Every new parameter is read; every new helper has ≥1 real caller; every new abstraction has ≥2 concrete needs. Per DEV-YAGNI, otherwise inline.
+4. **Edge-case sweep on new boundary code.** Any new parser, validator, converter, or coercion: walk through input shapes that fail silently in the chosen language and add a test for each.
+5. **Single source of truth.** Any new state — metric, counter, timer, cache, derived value — search for whether it is already measured or stored elsewhere. If yes, route through the existing one instead of adding a parallel.
+6. **DEV-COMMENTS sweep.** Every new comment / docstring obeys DEV-COMMENTS.
+
+If any item flags something, fix it before handoff.
+
 ## Task workflow
 
 1. Read your Jira issue with `mcp__atlassian__jira_get_issue`. The description contains Purpose, Requirements, References. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:dev`).
@@ -166,5 +179,6 @@ One comment = one line. If you need more, the code is poorly named — rename or
    - Transition to `On Hold` via `mcp__atlassian__jira_transition_issue`.
    - Comment must clearly describe what's missing and what decision is needed.
 8. **If work is complete with no gaps:**
+   - Run the `## Pre-handoff self-review` checklist. Fix anything it surfaces.
    - Update the issue label from `agent:dev` to `agent:qa` via `mcp__atlassian__jira_update_issue`.
    - Transition the issue to `QA` via `mcp__atlassian__jira_transition_issue`.
