@@ -128,12 +128,13 @@ One comment = one line. If you need more, the code is poorly named — rename or
 
 Before flipping the label to `agent:qa`, walk this checklist against your diff. Round-trips through QA → reviewer → dev cost more than the minutes this takes.
 
-1. **Requirements walk.** For each item in the issue's `## Requirements`, identify file:line of implementation and the test that covers it. If a requirement cites an external doc, open that doc and confirm every constraint it lists is reflected in code — not just the summary that landed in the issue.
-2. **Test contract walk.** For each invariant / scenario / boundary in `## Test contract`, identify the test and confirm the level matches (unit / integration / e2e).
-3. **Dead code sweep.** Every new parameter is read; every new helper has ≥1 real caller; every new abstraction has ≥2 concrete needs. Per DEV-YAGNI, otherwise inline.
-4. **Edge-case sweep on new boundary code.** Any new parser, validator, converter, or coercion: walk through input shapes that fail silently in the chosen language and add a test for each.
-5. **Single source of truth.** Any new state — metric, counter, timer, cache, derived value — search for whether it is already measured or stored elsewhere. If yes, route through the existing one instead of adding a parallel.
-6. **DEV-COMMENTS sweep.** Every new comment / docstring obeys DEV-COMMENTS.
+1. **Rejection coverage** (re-run only — skip if this is a fresh task with no rejection comment). For each concrete point in the rejection comment you read in step 1 of the workflow (user-decline / reviewer block / qa findings) — list it explicitly and cite the file:line of your fix. Every point must have a fix, or an explicit note in your handoff comment explaining why it is not addressed (e.g. duplicate, ambiguous, addressed by an earlier point). No point silently dropped.
+2. **Requirements walk.** For each item in the issue's `## Requirements`, identify file:line of implementation and the test that covers it. If a requirement cites an external doc, open that doc and confirm every constraint it lists is reflected in code — not just the summary that landed in the issue.
+3. **Test contract walk.** For each invariant / scenario / boundary in `## Test contract`, identify the test and confirm the level matches (unit / integration / e2e).
+4. **Dead code sweep.** Every new parameter is read; every new helper has ≥1 real caller; every new abstraction has ≥2 concrete needs. Per DEV-YAGNI, otherwise inline.
+5. **Edge-case sweep on new boundary code.** Any new parser, validator, converter, or coercion: walk through input shapes that fail silently in the chosen language and add a test for each.
+6. **Single source of truth.** Any new state — metric, counter, timer, cache, derived value — search for whether it is already measured or stored elsewhere. If yes, route through the existing one instead of adding a parallel.
+7. **DEV-COMMENTS sweep.** Every new comment / docstring obeys DEV-COMMENTS.
 
 If any item flags something, fix it before handoff.
 
@@ -141,16 +142,37 @@ If any item flags something, fix it before handoff.
 
 1. Read your Jira issue with `mcp__atlassian__jira_get_issue`. The description contains Purpose, Requirements, References. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:dev`).
 
+   **Also read the issue's comments** — not only the description. The comments are where rejection feedback lives, and on a re-run that feedback is what you must address. Specifically, scan the **most recent** comments (newest first) for any of these prefixes and **stop scanning at the first one you hit** — it is your current target:
+
+   - `🤖 user (decline) via Bitbucket PR <URL>:` — the user declined a previous PR. The body contains the user's Bitbucket comments verbatim. This supersedes the issue's `## Requirements`: do not re-derive the task from scratch — the implementation already exists on the task branch (see step 2 below) and your job is to address exactly what the user objected to. Open the PR URL and read inline comments too if the body says "see inline comments" or is otherwise terse.
+   - `🤖 reviewer (<area>): handoff → dev` — the reviewer blocked the change. The body is a severity-tagged findings list (CRITICAL / HIGH / MEDIUM / LOW with rule IDs). Each finding cites file:line — fix exactly those, not the whole module.
+   - `🤖 qa (<area>): handoff → dev` — QA found coverage or test-quality gaps. The body lists missing/weak tests with concrete evidence — add or strengthen exactly those tests.
+
+   If none of those prefixes appear in recent comments, this is a **fresh** task — proceed with the description as the source of truth and a clean implementation in step 2.
+
    **Determine the base branch** from the issue's `parent` field:
    - If `parent` is present AND `parent.fields.issuetype.name == "Epic"` → base = `<vcs.branch_prefix><parent.key>` (the epic branch).
    - Otherwise (no `parent`, or `parent` is not an Epic) → base = `<workspace.dev_branch>` (this is a standalone task).
-2. **Create a task branch** from the base, in your area's workspace:
+2. **Resolve the task branch** in your area's workspace. The branch is `<vcs.branch_prefix><ISSUE-KEY>`. **Two cases**, decided by whether the branch already exists on the remote (it will exist whenever this is a re-run after a user/reviewer/qa rejection):
+
    ```
    cd <workspace.path>
-   git checkout <base>
-   git pull
-   git checkout -b <vcs.branch_prefix><ISSUE-KEY>
+   git fetch <workspace.remote>
    ```
+
+   - **Re-run (branch exists on remote — `git ls-remote --exit-code <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>` returns 0).** Continue from the prior state — do NOT recreate the branch and do NOT lose previous commits:
+     ```
+     git checkout <vcs.branch_prefix><ISSUE-KEY>   # or `git switch` if local copy already exists
+     git pull <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>
+     ```
+     Your starting tree is the previous attempt. Inspect what changed: `git log <base>..HEAD --oneline` and `git diff <base>...HEAD --stat`. The rejection feedback from step 1 tells you what to add/fix on top of this — not what to rewrite.
+   - **Fresh task (branch does not exist on remote).** Cut a new branch from base:
+     ```
+     git checkout <base>
+     git pull
+     git checkout -b <vcs.branch_prefix><ISSUE-KEY>
+     ```
+
    All branches use `<vcs.branch_prefix>` (default `ai/`) followed by the Jira KEY.
 3. Do the work described in the issue. All edits and tool calls operate on paths relative to `workspace.path`.
 4. Run tests using the `test_command` from `dev.yml` (executed from `workspace.path`).
