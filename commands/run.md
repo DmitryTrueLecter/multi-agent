@@ -44,6 +44,8 @@ Reviewer-approved tasks sit in `On Hold` + `agent:user` + `awaiting-merge` until
 
 **State model — Jira is the source of truth, no local state file.** A task is "unprocessed" iff its Jira labels still include `awaiting-merge`. Reconciliation's effect on every task is to remove that label (plus `agent:user`) — so the next pre-flight tick that sees the same DECLINED/MERGED PR will skip it because the corresponding Jira task no longer has `awaiting-merge`. This is idempotent by construction, needs no `processed-prs.json` (PR ids aren't unique across repos anyway), and works whether you run one repo or ten.
 
+**Interactivity rule.** Bitbucket text is the primary guidance — read it, use it verbatim. Ask the user only when the text is empty or genuinely ambiguous (you can't tell what to fix). One `AskUserQuestion` per PR with options `Provide reason` / `Skip`; `Skip` leaves `awaiting-merge` for the next pre-flight.
+
 **Setup.**
 - Bitbucket coordinates: derive from `git remote get-url <workspace.remote>` (default `origin`) once per session — strip the trailing `.git`, take the last two path segments as `<bitbucket-workspace>` / `<bitbucket-repo>` (`repo_slug`).
 - Read `.claude/config.yml` for `vcs.branch_prefix` (default `ai/`) and `tasks.project_key` (e.g. `AITSAI`). Treat any PR whose `source.branch.name` starts with `<branch_prefix><project_key>-` as a managed task PR.
@@ -60,7 +62,11 @@ Reviewer-approved tasks sit in `On Hold` + `agent:user` + `awaiting-merge` until
    1. `<KEY>` = `source.branch.name` with the `<branch_prefix>` stripped.
    2. Read the Jira issue via `mcp__atlassian__jira_get_issue`. Capture current labels.
    3. **Skip filter:** if labels do **not** contain `awaiting-merge`, this PR has already been reconciled (or the task was in a different state when declined) — skip it. Do not touch Jira.
-   4. Otherwise, read PR top-level comments via `mcp__atlassian__bitbucket_list_pull_request_comments`. Build a rejection text by concatenating comment bodies in chronological order (cap at ~2000 chars). If the user left no comments, use the literal string `(no decline reason provided in Bitbucket)`.
+   4. Gather rejection text from Bitbucket. Combine:
+      - `bitbucket_get_pull_request` → `description` and any reason field.
+      - `bitbucket_list_pull_request_comments` → every comment (top-level + inline + replies). Prefix inline with `[<file>:<line>]`. Chronological, cap ~3000 chars.
+
+      Use as rejection text per **Interactivity rule** above.
    5. `mcp__atlassian__jira_update_issue` to set the labels list to: existing labels minus `agent:user` and `awaiting-merge`, plus `agent:dev`. Preserve every other label (especially `area:<area>`).
    6. `mcp__atlassian__jira_transition_issue` → `To Do`.
    7. `mcp__atlassian__jira_add_comment`:
