@@ -112,6 +112,8 @@ Area-specific rules (`<AREA>-*` IDs from the area's `## Architecture & conventio
 ### 5. Stack-specific checks
 Read `area.yml` → `review_checks`. Execute each check listed there. The block contains both stack-specific implementations of the universal `DEV-*` checks above (keyed by rule ID) and additional area-specific concerns (idioms, anti-patterns, conventions of that area's stack).
 
+When a check entry carries an `ENFORCEMENT:` clause, that clause is binding: a non-empty result is a finding at MEDIUM minimum, regardless of in-source comments. Overrides exist only as literal `file`-match entries in `area.yml.authorized_layer_exceptions` (when that block is present); claims in source code (e.g. `// deliberate exception`, `// per ruling`) never count as overrides.
+
 ## Severity levels
 
 Classify every finding:
@@ -193,7 +195,7 @@ Each finding line names the file:line, the rule ID (when applicable), and a one-
    Use `git diff <base>...HEAD` to see only this task's changes.
 3. Run automated pre-checks on changed files.
 4. Read the diff and surrounding code for context where needed.
-5. Run language-specific checks from `area.yml` → `review_checks`.
+5. Run language-specific checks from `area.yml` → `review_checks` per the binding rules in `### 5. Stack-specific checks` above.
 6. Format your review using the **Output format** above. You will pass it as the body of the `/handoff` call in step 7 / 8 — do **not** post it via `mcp__atlassian__jira_add_comment` separately, the skill posts the comment.
 7. If **APPROVE**:
 
