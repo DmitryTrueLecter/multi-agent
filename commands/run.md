@@ -40,10 +40,11 @@ The `agent:` label disambiguates `Code Review`: `agent:reviewer` → reviewer (T
 
 Reviewer-approved tasks sit in `On Hold` + `agent:user` + `awaiting-merge` until the user merges or declines the Bitbucket PR in the UI. Before searching for the next task to run, this pre-flight syncs those user decisions into Jira.
 
-**When to run.** As the very first step of every `/run` invocation — auto-mode, pipeline mode, all mode, single-issue mode, role-only shortcut. Cheap if nothing changed (one or two Bitbucket list calls). On `/run all`, also re-run before each iteration's task pickup.
+**When to run.** As the very first step of every `/run` invocation — auto-mode, pipeline mode, all mode, single-issue mode, role-only shortcut. Cheap if nothing changed (two Bitbucket list calls). On `/run all`, re-runs before each iteration's task pickup.
+
+**State model — Jira is the source of truth, no local state file.** A task is "unprocessed" iff its Jira labels still include `awaiting-merge`. Reconciliation's effect on every task is to remove that label (plus `agent:user`) — so the next pre-flight tick that sees the same DECLINED/MERGED PR will skip it because the corresponding Jira task no longer has `awaiting-merge`. This is idempotent by construction, needs no `processed-prs.json` (PR ids aren't unique across repos anyway), and works whether you run one repo or ten.
 
 **Setup.**
-- State file: `.claude/state/processed-prs.json` — JSON array of PR ID strings already handled. On first run create directory and file: `mkdir -p .claude/state && [ -f .claude/state/processed-prs.json ] || echo '[]' > .claude/state/processed-prs.json`.
 - Bitbucket coordinates: derive from `git remote get-url <workspace.remote>` (default `origin`) once per session — strip the trailing `.git`, take the last two path segments as `<bitbucket-workspace>` / `<bitbucket-repo>` (`repo_slug`).
 - Read `.claude/config.yml` for `vcs.branch_prefix` (default `ai/`) and `tasks.project_key` (e.g. `AITSAI`). Treat any PR whose `source.branch.name` starts with `<branch_prefix><project_key>-` as a managed task PR.
 
@@ -53,43 +54,43 @@ Reviewer-approved tasks sit in `On Hold` + `agent:user` + `awaiting-merge` until
    - `mcp__atlassian__bitbucket_list_pull_requests` with `state=DECLINED` → declined list.
    - `mcp__atlassian__bitbucket_list_pull_requests` with `state=MERGED` → merged list.
 
-2. Filter each list to managed task PRs (branch prefix match). Drop PRs whose `id` is already recorded in `.claude/state/processed-prs.json`.
+2. Filter each list to managed task PRs (branch-prefix match).
 
 3. For each remaining **DECLINED** PR:
    1. `<KEY>` = `source.branch.name` with the `<branch_prefix>` stripped.
-   2. Read PR top-level comments via `mcp__atlassian__bitbucket_list_pull_request_comments`. Build a rejection text by concatenating comment bodies in chronological order (cap at ~2000 chars). If the user left no comments, use the literal string `(no decline reason provided in Bitbucket)`.
-   3. Read the Jira issue via `mcp__atlassian__jira_get_issue`. Capture current labels.
-   4. `mcp__atlassian__jira_update_issue` to set the labels list to: existing labels minus `agent:user` and `awaiting-merge`, plus `agent:dev`. Preserve every other label (especially `area:<area>`).
-   5. `mcp__atlassian__jira_transition_issue` → `To Do`.
-   6. `mcp__atlassian__jira_add_comment`:
+   2. Read the Jira issue via `mcp__atlassian__jira_get_issue`. Capture current labels.
+   3. **Skip filter:** if labels do **not** contain `awaiting-merge`, this PR has already been reconciled (or the task was in a different state when declined) — skip it. Do not touch Jira.
+   4. Otherwise, read PR top-level comments via `mcp__atlassian__bitbucket_list_pull_request_comments`. Build a rejection text by concatenating comment bodies in chronological order (cap at ~2000 chars). If the user left no comments, use the literal string `(no decline reason provided in Bitbucket)`.
+   5. `mcp__atlassian__jira_update_issue` to set the labels list to: existing labels minus `agent:user` and `awaiting-merge`, plus `agent:dev`. Preserve every other label (especially `area:<area>`).
+   6. `mcp__atlassian__jira_transition_issue` → `To Do`.
+   7. `mcp__atlassian__jira_add_comment`:
       ```
       🤖 user (decline) via Bitbucket PR <PR_URL>:
 
       <rejection text>
       ```
-   7. Append the PR `id` (as a string) to `.claude/state/processed-prs.json`.
 
 4. For each remaining **MERGED** PR:
    1. `<KEY>` = `source.branch.name` with the `<branch_prefix>` stripped.
    2. Read the Jira issue. Capture current labels and the `parent` field.
-   3. `mcp__atlassian__jira_update_issue` to set labels: existing minus `agent:user` and `awaiting-merge`. Preserve everything else.
-   4. `mcp__atlassian__jira_transition_issue` → `Done`.
-   5. `mcp__atlassian__jira_add_comment`:
+   3. **Skip filter:** if labels do **not** contain `awaiting-merge`, skip — already reconciled (or never went through the new flow).
+   4. `mcp__atlassian__jira_update_issue` to set labels: existing minus `agent:user` and `awaiting-merge`. Preserve everything else.
+   5. `mcp__atlassian__jira_transition_issue` → `Done`.
+   6. `mcp__atlassian__jira_add_comment`:
       ```
       🤖 user (merge) via Bitbucket PR <PR_URL>: merged into <destination_branch>.
       ```
-   6. **Epic close-out.** If the task has a `parent` and `parent.fields.issuetype.name == "Epic"`:
+   7. **Epic close-out.** If the task has a `parent` and `parent.fields.issuetype.name == "Epic"`:
       - JQL search via `mcp__atlassian__jira_search`: `parent = <parent.key> AND status != Done`.
       - If the result is empty (zero non-Done siblings) — promote the Epic for team-lead sign-off:
         - Read the Epic. `mcp__atlassian__jira_update_issue` to add `agent:team-lead` to its labels (preserve existing).
         - `mcp__atlassian__jira_transition_issue` on the Epic → `Code Review`.
         - `mcp__atlassian__jira_add_comment` on the Epic: `🤖 user (epic-close) via Bitbucket: all child tasks are Done — Epic ready for team-lead final review and closure.`
       - If any sibling is still open, do nothing with the Epic.
-   7. Append the PR `id` to `.claude/state/processed-prs.json`.
 
 5. After processing all DECLINED and MERGED PRs, continue with the active mode.
 
-If any single PR fails reconciliation (Jira rejects a transition, MCP error, etc.), log the failure with the PR `id` and ISSUE-KEY, do **not** add it to the state file (so it's retried next pre-flight), and continue with the next PR. Do not abort the whole pre-flight — one stuck PR must not stop the rest.
+If any single PR fails reconciliation (Jira rejects a transition, MCP error, etc.), log the failure with the PR id and ISSUE-KEY and continue with the next PR — the task still has `awaiting-merge`, so the next pre-flight will retry. Do not abort the whole pre-flight; one stuck PR must not stop the rest.
 
 ## Auto-mode (`/run` without arguments)
 
