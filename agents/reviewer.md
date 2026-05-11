@@ -197,61 +197,63 @@ Each finding line names the file:line, the rule ID (when applicable), and a one-
 6. Format your review using the **Output format** above. You will pass it as the body of the `/handoff` call in step 7 / 8 — do **not** post it via `mcp__atlassian__jira_add_comment` separately, the skill posts the comment.
 7. If **APPROVE**:
 
-   **Step 7a — Push the task branch (ALWAYS, unconditionally, before any integration logic).**
+   The reviewer **never merges anything locally**. For every approved task — Epic-child and standalone alike — the reviewer pushes the task branch, opens a Bitbucket PR, and hands the task off to the user (`On Hold` + `agent:user` + `awaiting-merge`). The user merges or declines the PR in Bitbucket UI; `/run`'s PR-feedback reconciliation then transitions the Jira task to `Done` (on merge) or back to `To Do` + `agent:dev` (on decline). This is uniform — no separate "epic-child direct merge" branch in the workflow.
+
+   **Step 7a — Push the task branch.**
    ```
    cd <workspace.path>
    git push <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>
    ```
-   This step is non-negotiable and runs for every approved task — Epic-child and standalone alike. If this push fails (non-zero exit), STOP: do not call `/handoff`, comment on the Jira issue with the exact `git` stderr, leave the Task in `Code Review` with `agent:reviewer`.
+   If push fails (non-zero exit), STOP: do not call `/handoff`, comment on the Jira issue with the exact `git` stderr, leave the Task in `Code Review` with `agent:reviewer`.
 
-   **Step 7b — Integrate based on `parent`.**
+   **Step 7b — Open a Bitbucket PR.**
 
-   - **If the Task has a parent Epic** (`parent` present AND `parent.fields.issuetype.name == "Epic"`), merge the task branch into the epic branch:
+   Determine the destination branch from the issue's `parent` field:
+   - Parent is an Epic (`parent` present AND `parent.fields.issuetype.name == "Epic"`) → `destination_branch` = `<vcs.branch_prefix><parent.key>` (the epic branch).
+   - Otherwise → `destination_branch` = `<workspace.dev_branch>`.
+
+   Derive the Bitbucket repo coordinates from the remote URL:
+   ```
+   cd <workspace.path>
+   git remote get-url <workspace.remote>
+   # → git@bitbucket.org:<bitbucket-workspace>/<bitbucket-repo>.git
+   #   or https://bitbucket.org/<bitbucket-workspace>/<bitbucket-repo>.git
+   ```
+   Strip the `.git` suffix and read the two trailing path segments — they are `<bitbucket-workspace>` and `<bitbucket-repo>` (the latter is the `repo_slug`).
+
+   Call `mcp__atlassian__bitbucket_create_pull_request` with:
+   - `workspace`: `<bitbucket-workspace>`
+   - `repo_slug`: `<bitbucket-repo>`
+   - `source_branch`: `<vcs.branch_prefix><ISSUE-KEY>`
+   - `destination_branch`: as resolved above
+   - `title`: `<ISSUE-KEY> <Task summary>`
+   - `description`: the review summary (same text you pass to `/handoff` below) followed by a blank line and the literal local-checkout hint:
      ```
-     cd <workspace.path>
-     git checkout <vcs.branch_prefix><parent.key>
-     git pull
-     git merge <vcs.branch_prefix><ISSUE-KEY>
-     git push <workspace.remote> <vcs.branch_prefix><parent.key>
+     ---
+     **Local checkout:** `just task <ISSUE-KEY>`
      ```
-     Feature-branch push — allowed by `bash_safety.py`.
 
-   - **If the Task is standalone** (no `parent`, or `parent` is not an Epic), open a PR `<vcs.branch_prefix><ISSUE-KEY>` → `<workspace.dev_branch>` via the **Bitbucket MCP**.
+   **FORBIDDEN under any circumstance**:
+   - `git checkout <destination>` for any destination (epic-branch or `<workspace.dev_branch>`)
+   - `git merge` into any destination branch (even on a temporary checkout)
+   - `git push <workspace.remote> <destination>`
+   - any other local mutation of a destination branch (rebase, reset, etc.).
 
-     Derive the Bitbucket repo coordinates from the remote URL once:
-     ```
-     cd <workspace.path>
-     git remote get-url <workspace.remote>
-     # → git@bitbucket.org:<bitbucket-workspace>/<bitbucket-repo>.git
-     #   or https://bitbucket.org/<bitbucket-workspace>/<bitbucket-repo>.git
-     ```
-     Strip the `.git` suffix and read the two trailing path segments — they are `<bitbucket-workspace>` and `<bitbucket-repo>` (the latter is the `repo_slug`).
+   Integration happens via the PR merge button in Bitbucket — clicked by the user, never by the agent.
 
-     Call the MCP tool `mcp__atlassian__bitbucket_create_pull_request` with:
-     - `workspace`: `<bitbucket-workspace>`
-     - `repo_slug`: `<bitbucket-repo>`
-     - `source_branch`: `<vcs.branch_prefix><ISSUE-KEY>`
-     - `destination_branch`: `<workspace.dev_branch>`
-     - `title`: `<ISSUE-KEY> <Task summary>`
-     - `description`: the review summary (same text you pass to `/handoff` below)
+   **Guard before handoff:** if PR creation failed, do NOT call `/handoff`. Comment on the Jira issue with the failure and stop — leave the Task in `Code Review` with `agent:reviewer`.
 
-     **FORBIDDEN actions for standalone tasks** — never under any circumstance:
-     - `git checkout <workspace.dev_branch>`
-     - `git merge` into `<workspace.dev_branch>` (even on a temporary checkout)
-     - `git push <workspace.remote> <workspace.dev_branch>`
-     - Any other local mutation of `<workspace.dev_branch>` (rebase, reset, etc.).
+   Capture the PR URL from the MCP response.
 
-     Integration into `<workspace.dev_branch>` happens via the PR merge button (user / CI), never by the agent.
+   **Step 7c — Hand off to user.**
 
-     **Guard before handoff:** if PR creation failed, do NOT call `/handoff`. Comment on the Jira issue with the failure and stop — leave the Task in `Code Review` with `agent:reviewer`. This prevents marking Done on a non-integrated change.
+   `/handoff <ISSUE-KEY> user <comment>` — status → `On Hold`, labels: remove `agent:reviewer`, add `agent:user` and `awaiting-merge`, comment posted with `🤖 reviewer (<area>):` prefix.
 
-     Capture the PR URL from the MCP response and include it in the handoff comment below.
-   - Hand off the Task to Done: `/handoff <ISSUE-KEY> done <review>` (or `/handoff <ISSUE-KEY>` — reviewer's default forward target is `done`). Status → `Done`, `agent:reviewer` label removed (Done is out of all queues), comment posted with `🤖 reviewer (<area>):` prefix. Audit of who approved is preserved by the comment and the Jira changelog.
-   - **Check the parent Epic.** Read the original issue's `parent` field. If the Task has a parent Epic:
-     1. Search for all sibling tasks in that Epic: `parent = <parent.key> AND status != Done`.
-     2. If the search returns **zero** non-Done siblings (i.e. all children of the Epic are now Done), promote the Epic for team-lead sign-off. This is **not** a `/handoff` call — the `team-lead` target in `/handoff` is reserved for `On Hold` + `needs-decision` (a blocker semantic), which is the wrong meaning for a clean Epic completion. Do it manually:
-        - Add `agent:team-lead` label to the Epic via `mcp__atlassian__jira_update_issue` (preserve any existing labels on the Epic).
-        - Transition the Epic to `Code Review` via `mcp__atlassian__jira_transition_issue`.
-        - Post a comment on the Epic via `mcp__atlassian__jira_add_comment`: start with `🤖 reviewer (<area>):` and state that all child tasks are Done — the Epic is ready for team-lead final review and closure.
-     3. If any sibling is still open, do nothing with the Epic.
+   The `<comment>` body must include, in this order:
+   1. The PR URL.
+   2. The full review summary (the formatted Output-format block — verdict, coverage matrix, any LOW findings).
+   3. The local-checkout instruction: `Local checkout: just task <ISSUE-KEY>`.
+
+   Do **not** transition the task to `Done`. Do **not** promote the parent Epic here. Both happen automatically inside `/run`'s PR-feedback reconciliation step once the user merges or declines the PR in Bitbucket.
+
 8. If **BLOCK**: `/handoff <ISSUE-KEY> dev <findings>` — sends back to dev queue (status → `To Do`, label → `agent:dev`). Pass the formatted findings (severity-tagged list from the Output format) as the comment body; `/run dev` re-claims from there.

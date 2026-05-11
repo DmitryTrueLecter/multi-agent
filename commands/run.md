@@ -36,11 +36,67 @@ The `agent:` label disambiguates `Code Review`: `agent:reviewer` → reviewer (T
 
 **Claim model.** Pickup = `mcp__atlassian__jira_transition_issue` → `In Progress`. This is the atomic claim — Jira rejects the second runner because the workflow disallows transition from `In Progress` to `In Progress`. Every queue JQL filters by pre-claim status (`To Do` / `QA` / `Code Review` / `On Hold`), so a claimed task disappears from every queue automatically.
 
+## PR feedback reconciliation (pre-flight, runs first in every mode)
+
+Reviewer-approved tasks sit in `On Hold` + `agent:user` + `awaiting-merge` until the user merges or declines the Bitbucket PR in the UI. Before searching for the next task to run, this pre-flight syncs those user decisions into Jira.
+
+**When to run.** As the very first step of every `/run` invocation — auto-mode, pipeline mode, all mode, single-issue mode, role-only shortcut. Cheap if nothing changed (one or two Bitbucket list calls). On `/run all`, also re-run before each iteration's task pickup.
+
+**Setup.**
+- State file: `.claude/state/processed-prs.json` — JSON array of PR ID strings already handled. On first run create directory and file: `mkdir -p .claude/state && [ -f .claude/state/processed-prs.json ] || echo '[]' > .claude/state/processed-prs.json`.
+- Bitbucket coordinates: derive from `git remote get-url <workspace.remote>` (default `origin`) once per session — strip the trailing `.git`, take the last two path segments as `<bitbucket-workspace>` / `<bitbucket-repo>` (`repo_slug`).
+- Read `.claude/config.yml` for `vcs.branch_prefix` (default `ai/`) and `tasks.project_key` (e.g. `AITSAI`). Treat any PR whose `source.branch.name` starts with `<branch_prefix><project_key>-` as a managed task PR.
+
+**Steps.**
+
+1. List PRs (two MCP calls):
+   - `mcp__atlassian__bitbucket_list_pull_requests` with `state=DECLINED` → declined list.
+   - `mcp__atlassian__bitbucket_list_pull_requests` with `state=MERGED` → merged list.
+
+2. Filter each list to managed task PRs (branch prefix match). Drop PRs whose `id` is already recorded in `.claude/state/processed-prs.json`.
+
+3. For each remaining **DECLINED** PR:
+   1. `<KEY>` = `source.branch.name` with the `<branch_prefix>` stripped.
+   2. Read PR top-level comments via `mcp__atlassian__bitbucket_list_pull_request_comments`. Build a rejection text by concatenating comment bodies in chronological order (cap at ~2000 chars). If the user left no comments, use the literal string `(no decline reason provided in Bitbucket)`.
+   3. Read the Jira issue via `mcp__atlassian__jira_get_issue`. Capture current labels.
+   4. `mcp__atlassian__jira_update_issue` to set the labels list to: existing labels minus `agent:user` and `awaiting-merge`, plus `agent:dev`. Preserve every other label (especially `area:<area>`).
+   5. `mcp__atlassian__jira_transition_issue` → `To Do`.
+   6. `mcp__atlassian__jira_add_comment`:
+      ```
+      🤖 user (decline) via Bitbucket PR <PR_URL>:
+
+      <rejection text>
+      ```
+   7. Append the PR `id` (as a string) to `.claude/state/processed-prs.json`.
+
+4. For each remaining **MERGED** PR:
+   1. `<KEY>` = `source.branch.name` with the `<branch_prefix>` stripped.
+   2. Read the Jira issue. Capture current labels and the `parent` field.
+   3. `mcp__atlassian__jira_update_issue` to set labels: existing minus `agent:user` and `awaiting-merge`. Preserve everything else.
+   4. `mcp__atlassian__jira_transition_issue` → `Done`.
+   5. `mcp__atlassian__jira_add_comment`:
+      ```
+      🤖 user (merge) via Bitbucket PR <PR_URL>: merged into <destination_branch>.
+      ```
+   6. **Epic close-out.** If the task has a `parent` and `parent.fields.issuetype.name == "Epic"`:
+      - JQL search via `mcp__atlassian__jira_search`: `parent = <parent.key> AND status != Done`.
+      - If the result is empty (zero non-Done siblings) — promote the Epic for team-lead sign-off:
+        - Read the Epic. `mcp__atlassian__jira_update_issue` to add `agent:team-lead` to its labels (preserve existing).
+        - `mcp__atlassian__jira_transition_issue` on the Epic → `Code Review`.
+        - `mcp__atlassian__jira_add_comment` on the Epic: `🤖 user (epic-close) via Bitbucket: all child tasks are Done — Epic ready for team-lead final review and closure.`
+      - If any sibling is still open, do nothing with the Epic.
+   7. Append the PR `id` to `.claude/state/processed-prs.json`.
+
+5. After processing all DECLINED and MERGED PRs, continue with the active mode.
+
+If any single PR fails reconciliation (Jira rejects a transition, MCP error, etc.), log the failure with the PR `id` and ISSUE-KEY, do **not** add it to the state file (so it's retried next pre-flight), and continue with the next PR. Do not abort the whole pre-flight — one stuck PR must not stop the rest.
+
 ## Auto-mode (`/run` without arguments)
 
 Search for the first available issue in priority order. Stop at the first match:
 
-1. **On Hold** — Tasks with `agent:team-lead` label. Launch `team-lead` agent.
+0. **Run PR feedback reconciliation** (see above) — process any user merge/decline decisions in Bitbucket before scanning queues.
+1. **On Hold** — Tasks with `agent:team-lead` label. Launch `team-lead` agent. (Tasks with `agent:user` + `awaiting-merge` are intentionally skipped — they are handled by reconciliation, not by an agent run.)
 2. **Code Review (Epic)** — Epics with `agent:team-lead` label. Launch `team-lead` agent for epic close-out.
 3. **Code Review (Task)** — Tasks with `agent:reviewer` label. Launch `reviewer` agent.
 4. **QA** — Tasks with `agent:qa` label. Launch `qa` agent.
@@ -51,6 +107,8 @@ If nothing found at any level, report that the board is clear.
 ## Pipeline mode (`/run pipeline [ISSUE-KEY]`)
 
 Run a single task through the **full lifecycle** until Done (or until it gets stuck on On Hold).
+
+0. **Run PR feedback reconciliation** (see above) before the first stage.
 
 1. **Find the task:**
    - If `ISSUE-KEY` given: use it.
@@ -73,11 +131,12 @@ Run a single task through the **full lifecycle** until Done (or until it gets st
 
 Run tasks until the board is clear.
 
-1. Use auto-mode priority to find a task.
-2. Run it through the **full pipeline** (same as pipeline mode).
-3. After the task reaches Done (or On Hold), go back to step 1.
-4. Stop when no tasks are found at any priority level.
-5. Report a summary of what was completed.
+1. **Run PR feedback reconciliation** (see above) — sync user merge/decline decisions from Bitbucket into Jira before picking up work.
+2. Use auto-mode priority to find a task.
+3. Run it through the **full pipeline** (same as pipeline mode).
+4. After the task reaches Done (or On Hold), go back to step 1 (reconciliation runs again before the next iteration).
+5. Stop when no tasks are found at any priority level.
+6. Report a summary of what was completed.
 
 **Guard**: after **3 consecutive On Hold** results, stop and report — the board likely needs human attention.
 
@@ -98,6 +157,8 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
 **Kill latency.** `TaskStop` interrupts the subagent at its next decision point — between tool calls, not in the middle of one. If the subagent is currently inside a long-running Bash command (e.g. a slow test suite), it finishes that command first and exits afterwards. In typical multi-agent flows (many short Jira / git / file operations) the kill takes seconds.
 
 ## Steps (for single-step modes)
+
+0. **Run PR feedback reconciliation** (see above) before parsing arguments — applies even when the user invokes `/run <ISSUE-KEY>` directly, so a queued user-decline is processed before this manual run picks anything up.
 
 1. Parse `$ARGUMENTS`:
    - If empty: auto-mode (see above).
