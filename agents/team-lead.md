@@ -225,7 +225,23 @@ For each such Epic:
    - Recommendation: **close** the Epic, or **hold** it pending follow-up tasks.
 6. **Wait for user approval.**
 7. On approval to close:
-   - **Run tests for every area before opening any PR** — hard gate against broken integration reaching CI. For each area in `.claude/areas/`, read its `test_command` from `qa.yml` and run it in the area's workspace via subshell: `( cd <workspace.path> && <test_command> )`. On any failure: do **not** open a PR; post `🤖 team-lead:` comment on the Epic with failing tests; leave Epic in `In Progress` with `agent:team-lead`; surface to user and stop.
+   - **Integration-drift check — run BEFORE any tests or PRs.** Agent-reported "tests passed" comments in Jira are from when each task was authored; they say nothing about whether the epic branch still integrates cleanly with the *current* `<workspace.dev_branch>`. For each affected workspace, in a subshell:
+     ```
+     ( cd <workspace.path> && git fetch <workspace.remote> <workspace.dev_branch> )
+     ( cd <workspace.path> && git merge-base <vcs.branch_prefix><EPIC-KEY> <workspace.remote>/<workspace.dev_branch> )
+     ( cd <workspace.path> && git rev-list <merge-base>..<workspace.remote>/<workspace.dev_branch> --count )
+     ```
+     If the third command returns a non-zero count — i.e. `<workspace.remote>/<workspace.dev_branch>` has advanced past the merge-base since the epic branch was cut — drift exists and you MUST resolve it before proceeding:
+     - Rebase the epic branch onto current `<workspace.dev_branch>`: `( cd <workspace.path> && git checkout <vcs.branch_prefix><EPIC-KEY> && git rebase <workspace.remote>/<workspace.dev_branch> )`. If rebase conflicts arise that you cannot resolve mechanically (any semantic conflict touching code from an affected dev agent's task), STOP the close-out, post a `🤖 team-lead:` comment on the Epic listing the conflicting paths, and coordinate with the affected dev agent(s) to resolve. Do not force-push or merge-resolve unilaterally.
+     - After a clean rebase, force-push the epic branch: `( cd <workspace.path> && git push --force-with-lease <workspace.remote> <vcs.branch_prefix><EPIC-KEY> )`.
+     - Re-run the area test suites against the rebased state (next bullet) — the prior agent-reported passes are now invalidated.
+
+     Only when every affected workspace shows a zero count from `git rev-list <merge-base>..<workspace.remote>/<workspace.dev_branch>`, or has been rebased to that state, may you proceed.
+   - **Independent import smoke + test re-run — hard gate against broken integration reaching CI.** Agent-reported test counts in per-task Jira comments are **input signals only, not ground truth**. You re-run from scratch on the merged epic-branch state, per area:
+     - **Import smoke**: for every `area:*` label that appeared on any child Task of this Epic, run `( cd <workspace.path> && <runtime.python> -c "import apps.<area>.main" )` (substitute the area's actual entrypoint module if it differs — `frontend` and other non-Python areas skip this step). A non-zero exit is a hard fail: the most common production-breaking regression caught by this check is an undeclared dependency or a stale aliased import that the per-task test suite happened not to exercise.
+     - **Full test suite per area**: for each `area:*` touched by the Epic, read its `test_command` from `.claude/areas/<area>/qa.yml` and run it in the area's workspace via subshell: `( cd <workspace.path> && <test_command> )`.
+
+     On any failure (import smoke or tests) for any area: do **not** open a PR; post `🤖 team-lead:` comment on the Epic with the failing area, command, and last 50 lines of output; leave Epic in `In Progress` with `agent:team-lead`; surface to user and stop.
    - **Open a PR for each affected workspace**: `<vcs.branch_prefix><EPIC-KEY>` → `<workspace.dev_branch>` via the **Bitbucket MCP**. Direct push to `<workspace.dev_branch>` is blocked by `bash_safety.py` — integration always goes through PR review.
 
      Derive the Bitbucket repo coordinates from the remote URL once per workspace (subshell — cwd does not leak):

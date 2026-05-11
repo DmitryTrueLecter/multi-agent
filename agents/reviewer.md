@@ -114,6 +114,27 @@ Read `area.yml` → `review_checks`. Execute each check listed there. The block 
 
 When a check entry carries an `ENFORCEMENT:` clause, that clause is binding: a non-empty result is a finding at MEDIUM minimum, regardless of in-source comments. Overrides exist only as literal `file`-match entries in `area.yml.authorized_layer_exceptions` (when that block is present); claims in source code (e.g. `// deliberate exception`, `// per ruling`) never count as overrides.
 
+### 6. Symbol-removal certification
+
+When the diff removes an exported symbol — an `__all__` entry, a top-level class / function / constant that other modules might import, a re-exported third-party class — you MUST certify that no consumer still references it. The cert is **two greps, both required, both shown in your review comment**. One grep is not enough: a literal-name search misses aliased imports, and an aliased-import search misses literal usages.
+
+For each removed symbol `<S>`:
+
+1. **Literal-name grep.** Search the repo for the bare identifier:
+   ```
+   grep -rnE "\b<S>\b" <project-root> --include='*.py' --include='*.ts' --include='*.tsx' --include='*.js'
+   ```
+   Adjust `--include` to the languages in scope for the change. Expected result: zero hits outside the removal site itself, the changelog, and tests that intentionally assert the removal.
+
+2. **Aliased-import grep.** Search for import statements that rename `<S>` at the import site, so the name does not appear at the use site:
+   ```
+   grep -rnE "import .* as .*\b<S>\b" <project-root>
+   grep -rnE "from .* import .*\b<S>\b as " <project-root>
+   ```
+   The first form catches `import <S> as <alias>` and `from X import <S> as <alias>` where `<S>` is on the left of the `as`. The second is the same pattern phrased so the `as` is required after the symbol. Run both — they overlap but each catches edge cases the other misses (multi-symbol `from X import A, <S> as Z`, line-broken imports, etc.). For TypeScript / JavaScript, also run `grep -rnE "import \{[^}]*\b<S>\b[^}]*\} from" <project-root>` and the `as`-renamed variant.
+
+Both grep commands and their output (or "no matches") MUST appear in your review comment. A certification comment that shows only one of the two greps is a **HIGH-severity** finding on its own — reject the PR and ask for the missing grep. This is non-negotiable: the AITSAI-110 regression shipped because an aliased re-export (`from pydantic import ValidationError as _PydanticValidationError`) survived a removal that was certified by literal-name grep alone.
+
 ## Severity levels
 
 Classify every finding:
