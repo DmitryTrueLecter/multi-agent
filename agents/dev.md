@@ -153,7 +153,7 @@ If any item flags something, fix it before handoff.
    **Determine the base branch** from the issue's `parent` field:
    - If `parent` is present AND `parent.fields.issuetype.name == "Epic"` → base = `<vcs.branch_prefix><parent.key>` (the epic branch).
    - Otherwise (no `parent`, or `parent` is not an Epic) → base = `<workspace.dev_branch>` (this is a standalone task).
-2. **Resolve the task branch** in your area's workspace. The branch is `<vcs.branch_prefix><ISSUE-KEY>`. **Two cases**, decided by whether the branch already exists on the remote (it will exist whenever this is a re-run after a user/reviewer/qa rejection):
+2. **Resolve the task branch** in your area's workspace. The branch is `<vcs.branch_prefix><ISSUE-KEY>`. **Two cases**, decided by whether the branch already exists on the remote (it will exist whenever this is a re-run after a user/reviewer/qa rejection). On a **fresh** epic-parented task, an additional **epic-branch sync** step (2a below) runs before branch creation — this enforces `ARCH-EPIC-SYNC` and is the single mechanical step that prevents long-lived-epic drift incidents:
 
    ```
    cd <workspace.path>
@@ -167,9 +167,35 @@ If any item flags something, fix it before handoff.
      ```
      Your starting tree is the previous attempt. Inspect what changed: `git log <base>..HEAD --oneline` and `git diff <base>...HEAD --stat`. The rejection feedback from step 1 tells you what to add/fix on top of this — not what to rewrite.
    - **Fresh task (branch does not exist on remote).** Cut a new branch from base:
+
+     **2a. `ARCH-EPIC-SYNC` — only when base is an epic branch** (i.e. issue's `parent.fields.issuetype.name == "Epic"`). Skip when `base == <workspace.dev_branch>` (standalone task — nothing to sync into).
+
      ```
-     git checkout <base>
-     git pull
+     git checkout <base>                                              # base = <vcs.branch_prefix><EPIC-KEY>
+     git pull <workspace.remote> <base>
+     git merge --no-edit <workspace.remote>/<workspace.dev_branch>
+     ```
+
+     - **Clean merge** → push the updated epic branch and continue to 2c:
+       ```
+       git push <workspace.remote> <base>
+       ```
+     - **Conflict** → fail out per 2b below. Do NOT resolve.
+
+     **2b. On conflict during `ARCH-EPIC-SYNC` — fail out, do not resolve.**
+     Reconciling architectural rewrites that landed independently on `<workspace.dev_branch>` is out of dev scope (`ARCH-EPIC-SYNC`). Do this and stop:
+
+     1. `git merge --abort` in `<workspace.path>`. Confirm `git status` is clean. Do **not** push the epic branch.
+     2. Add a comment to the Jira issue via `mcp__atlassian__jira_add_comment` starting `🤖 dev (<area>): handoff → team-lead (ARCH-EPIC-SYNC drift)`. Body must list, verbatim:
+        - the epic branch (`<vcs.branch_prefix><EPIC-KEY>`) and the `<workspace.dev_branch>` SHA you tried to merge in;
+        - the file paths reported by `git status` as conflicted (one per line);
+        - the message: `Dev is not resolving — team-lead to schedule a merge-resolution task. This task resumes after the resolution lands on the epic branch.`
+     3. Update labels via `mcp__atlassian__jira_update_issue`: remove `agent:dev`, add `agent:team-lead` and `needs-decision`.
+     4. Transition to `On Hold` via `mcp__atlassian__jira_transition_issue`.
+     5. Stop. Do not cut the task branch.
+
+     **2c. Cut the task branch from the (now-current) base.**
+     ```
      git checkout -b <vcs.branch_prefix><ISSUE-KEY>
      ```
 

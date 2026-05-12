@@ -54,6 +54,7 @@ The project has three rule namespaces, each with its own home and pairing:
 |-----------|-----------------|---------------------|
 | `DEV-*`   | `agents/dev.md` → `## Code standards` | `agents/reviewer.md` → detection method per ID |
 | `ARCH-*`  | `agents/architect.md` → `## Project-level invariants` | architect cites in recommendations; some are also reviewer-detectable (e.g. `ARCH-NO-LEAKY-MODELS`) — add detection to `reviewer.md` when applicable |
+| `ARCH-EPIC-SYNC` (process-paired) | `agents/architect.md` → `## Project-level invariants` | dev claim step (`agents/dev.md` → `## Task workflow` step 2a) + team-lead close-out drift check (`agents/team-lead.md` → `## Closing Epics` step 7). No reviewer grep — process step rather than diff-detectable. |
 | `<AREA>-*` | `<docs.root>/apps/<area>.md` (or `libs/<lib>.md`) → `## Architecture & conventions` | architect cites for in-area questions; reviewer enforces via `areas/<area>/area.yml` → `review_checks` |
 
 When the user authorizes a change to any rule:
@@ -188,6 +189,7 @@ For each On Hold task:
    - Is the spec wrong or incomplete?
    - Did the dev misunderstand the requirement?
    - Is this a real gap that needs new work?
+   - **Is this an `ARCH-EPIC-SYNC` drift handoff?** Look for `🤖 dev (<area>): handoff → team-lead (ARCH-EPIC-SYNC drift)` as the most recent dev comment. If yes: create a new Task `<EPIC-KEY>: reconcile <dev_branch> drift into epic branch` in the affected area, label `area:<area> agent:dev`, link `Blocks` the on-hold task, description names the conflicting files copied from the dev's comment and the two SHAs being merged. Once the reconcile task reaches Done, return the original task to `To Do` + `agent:dev` so the dev re-runs step 2 (which will now find the epic branch current). Do not skip this routing — sending the dev back to the same conflict produces a bounce loop on the original task.
 5. Read the spec and relevant architecture docs to verify.
 6. Present your analysis and proposed action to the user:
    - What the dev flagged
@@ -225,7 +227,7 @@ For each such Epic:
    - Recommendation: **close** the Epic, or **hold** it pending follow-up tasks.
 6. **Wait for user approval.**
 7. On approval to close:
-   - **Integration-drift check — run BEFORE any tests or PRs.** Agent-reported "tests passed" comments in Jira are from when each task was authored; they say nothing about whether the epic branch still integrates cleanly with the *current* `<workspace.dev_branch>`. For each affected workspace, in a subshell:
+   - **Integration-drift check (`ARCH-EPIC-SYNC` belt-and-suspenders) — run BEFORE any tests or PRs.** If devs honored `ARCH-EPIC-SYNC` at every claim, this check finds zero drift and is a no-op. A non-zero rev-count here means dev-side sync did not happen for at least one claim during the Epic's life — log this as a process incident in the closing comment before resolving, so the gap is visible. Agent-reported "tests passed" comments in Jira are from when each task was authored; they say nothing about whether the epic branch still integrates cleanly with the *current* `<workspace.dev_branch>`. For each affected workspace, in a subshell:
      ```
      ( cd <workspace.path> && git fetch <workspace.remote> <workspace.dev_branch> )
      ( cd <workspace.path> && git merge-base <vcs.branch_prefix><EPIC-KEY> <workspace.remote>/<workspace.dev_branch> )
