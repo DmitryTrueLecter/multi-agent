@@ -1,6 +1,6 @@
 ---
 name: pr-open
-description: Open a pull request from a source branch to a destination branch. Derives the VCS platform repo coordinates from the git remote URL. Returns the PR URL on success or the error on failure. Invocation: /pr-open <source-branch> <destination-branch> <title> [workspace-path:<path>] [remote:<name>] [description:<text>].
+description: Open a pull request from a source branch to a destination branch. Derives repo coordinates from the git remote URL. Returns the PR URL on success or an error on failure. Invocation: /pr-open <source-branch> <destination-branch> <title> [workspace-path:<path>] [remote:<name>] [description:<text>].
 tools: mcp__atlassian__bitbucket_create_pull_request
 ---
 
@@ -23,22 +23,45 @@ Open a pull request for a branch.
 
 ## Steps
 
-1. Determine the workspace path (from `workspace-path:` argument or cwd) and the remote name (from `remote:` argument or `origin`).
+1. Read `.claude/config.yml` → `tasks.provider`.
+2. Follow the section for your provider.
 
-2. Derive the VCS platform repo coordinates from the git remote URL. In the workspace (use a subshell — do not change cwd):
+---
+
+## jira
+
+Uses Bitbucket MCP.
+
+1. In the workspace (subshell — do not change cwd):
    ```
    ( cd <workspace-path> && git remote get-url <remote> )
    # → git@bitbucket.org:<bitbucket-workspace>/<repo>.git
    #   or https://bitbucket.org/<bitbucket-workspace>/<repo>.git
    ```
-   Strip the `.git` suffix and read the two trailing path segments: `<bitbucket-workspace>` and `<repo-slug>`.
-
-3. Call `mcp__atlassian__bitbucket_create_pull_request` with:
+   Strip `.git`, read the two trailing segments: `<bitbucket-workspace>` and `<repo-slug>`.
+2. Call `mcp__atlassian__bitbucket_create_pull_request`:
    - `workspace`: `<bitbucket-workspace>`
    - `repo_slug`: `<repo-slug>`
    - `source_branch`: `<source-branch>`
    - `destination_branch`: `<destination-branch>`
    - `title`: `<title>`
    - `description`: `<description>` if provided
+3. Return the PR URL from the response, or the error. Do not handle errors — caller decides.
 
-4. Return the PR URL from the MCP response to the caller. If PR creation fails, return the error — do **not** handle it; the calling context decides what to do.
+---
+
+## linear
+
+Uses GitHub CLI.
+
+1. In the workspace (subshell — do not change cwd):
+   ```
+   ( cd <workspace-path> && \
+     gh pr create \
+       --title "<title>" \
+       --body "<description or empty>" \
+       --base <destination-branch> \
+       --head <source-branch> )
+   ```
+2. Capture the PR URL from stdout.
+3. Return the PR URL, or the error (non-zero exit). Do not handle errors — caller decides.

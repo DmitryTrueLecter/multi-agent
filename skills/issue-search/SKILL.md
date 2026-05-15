@@ -1,7 +1,7 @@
 ---
 name: issue-search
 description: Search issues using tracker-agnostic named parameters. Reads project/team key from .claude/config.yml. Invocation: /issue-search [status:<s>] [label:<l>] [type:<task|group>] [parent:<KEY>].
-tools: mcp__atlassian__jira_search
+tools: mcp__atlassian__jira_search, mcp__linear__list_issues, mcp__linear__get_issue
 ---
 
 # issue-search
@@ -19,18 +19,37 @@ Search for issues using named filter parameters. The skill translates them to th
 | `type:<t>` | `task` = regular task, `group` = epic/feature-group | `type:group` |
 | `parent:<KEY>` | Filter children of a parent issue | `parent:PROJ-50` |
 
-All parameters are optional and combinable. If no parameters are given, returns all open issues.
-
 ## Steps
 
-1. Read `<project-root>/.claude/config.yml` → `tasks.project_key`.
-2. Translate the named parameters to a JQL query:
+1. Read `.claude/config.yml` → `tasks.provider`.
+2. Follow the section for your provider.
+
+---
+
+## jira
+
+1. Read `tasks.project_key` from config.
+2. Translate parameters to JQL:
    - `status:<s>` → `status = "<s>"`
    - `label:<l>` → `labels = "<l>"`
    - `type:group` → `issuetype = Epic`
    - `type:task` → `issuetype = Task`
    - `parent:<KEY>` → `parent = "<KEY>"`
-   - Always prepend `project = <project_key>` unless `parent:` is the only parameter (parent search is already project-scoped).
-   - Combine multiple conditions with `AND`.
-3. Call `mcp__atlassian__jira_search` with the assembled JQL.
-4. Return the list of matching issues to the caller. For each: `key`, `summary`, `status`, `labels`, `parent` (if present).
+   - Prepend `project = <project_key> AND` unless `parent:` is the only parameter.
+   - Combine conditions with `AND`.
+3. Call `mcp__atlassian__jira_search(jql=<assembled-query>)`.
+4. Return list of issues: `key`, `summary` (as `title`), `status`, `labels`, `parent` (if present).
+
+---
+
+## linear
+
+1. Read `tasks.team_key` and `tasks.project` from config.
+2. Build `mcp__linear__list_issues` parameters:
+   - Always pass `team=<team_key>` and `project=<project>`.
+   - `status:<s>` → `state="<s>"`
+   - `label:<l>` → `label="<l>"`
+   - `type:` → ignored (Linear has no issue types; state+label is sufficient to identify queues)
+   - `parent:<KEY>` → first call `mcp__linear__get_issue(id=<KEY>)` to get the UUID, then pass `parentId=<uuid>`
+3. Call `mcp__linear__list_issues(...)`.
+4. Return list of issues: `identifier` (as `key`), `title`, `state.name` (as `status`), `labels`, `parent` (if present).

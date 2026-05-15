@@ -1,7 +1,7 @@
 ---
 name: issue-update-labels
-description: Update the labels on an issue without changing its status. Accepts explicit add/remove lists; always preserves unlisted labels. Use for label-only changes that are not part of a handoff (e.g. removing agent:team-lead from an Epic while keeping it in In Progress). Invocation: /issue-update-labels <ISSUE-KEY> [add:<l1>,<l2>] [remove:<l1>,<l2>].
-tools: mcp__atlassian__jira_get_issue, mcp__atlassian__jira_update_issue
+description: Update labels on an issue without changing its status. Accepts add/remove lists; preserves all other labels. Use for label-only changes not covered by /handoff. Invocation: /issue-update-labels <ISSUE-KEY> [add:<l1>,<l2>] [remove:<l1>,<l2>].
+tools: mcp__atlassian__jira_get_issue, mcp__atlassian__jira_update_issue, mcp__linear__get_issue, mcp__linear__save_issue
 ---
 
 # issue-update-labels
@@ -16,7 +16,23 @@ At least one of `add:` or `remove:` must be provided.
 
 ## Steps
 
-1. Read the issue via `mcp__atlassian__jira_get_issue` to get the current full label list.
-2. Build the new label list: start from the current list, remove each label in the `remove:` set (if present), add each label in the `add:` set (if not already present).
-3. Call `mcp__atlassian__jira_update_issue` with the complete new label list (the MCP replaces the field as a whole).
-4. Confirm to the caller what changed.
+1. Read `.claude/config.yml` → `tasks.provider`.
+2. Follow the section for your provider.
+
+---
+
+## jira
+
+1. Call `mcp__atlassian__jira_get_issue(issue_key=<ISSUE-KEY>)` to get current labels.
+2. Build new label list: start from current, remove each label in `remove:` set, add each in `add:` set.
+3. Call `mcp__atlassian__jira_update_issue(issue_key=<ISSUE-KEY>, fields={"labels": [<new list>]})`.
+4. Confirm what changed.
+
+---
+
+## linear
+
+1. Call `mcp__linear__get_issue(id=<ISSUE-KEY>)` to get current labels.
+2. Build new label list: start from current, remove each label in `remove:` set, add each in `add:` set.
+3. Call `mcp__linear__save_issue(id=<ISSUE-KEY>, labels=[<new list>])`.
+4. Confirm what changed.
