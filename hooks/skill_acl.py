@@ -23,9 +23,9 @@ import sys
 ALLOWED: dict[str, set[str] | str] = {
     # Project multi-agent roles
     "team-lead": "*",
-    "dev":       {"handoff"},
-    "qa":        {"handoff"},
-    "reviewer":  {"handoff"},
+    "dev":       {"handoff", "task-read", "issue-comment"},
+    "qa":        {"handoff", "task-read"},
+    "reviewer":  {"handoff", "task-read", "pr-open", "issue-comment"},
     "architect": set(),
 
     # Built-in research / utility agents — no ACL needed

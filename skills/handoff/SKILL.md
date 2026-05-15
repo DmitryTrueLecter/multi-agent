@@ -1,13 +1,13 @@
 ---
 name: handoff
-description: Hand off a Jira task between roles in the multi-agent system — swap the `agent:<role>` label, transition status, and add a `🤖 <from-role> (<area>):` comment in one step. Use whenever a dev/qa/reviewer/team-lead agent finishes its part of a task and is ready to pass it to the next role, or when manually re-routing a task between queues. Invocation: `/handoff <ISSUE-KEY> [to-role] [comment]`.
+description: Hand off a task between roles in the multi-agent system — swap the `agent:<role>` label, transition status, and add a `🤖 <from-role> (<area>):` comment in one step. Use whenever a dev/qa/reviewer/team-lead agent finishes its part of a task and is ready to pass it to the next role, or when manually re-routing a task between queues. Invocation: `/handoff <ISSUE-KEY> [to-role] [comment]`.
 ---
 
 # Handoff
 
-Hand off a Jira task between roles in one step: swap the `agent:<role>` label, transition the status, and add a comment with the standard `🤖 <from-role> (<area>):` prefix.
+Hand off a task between roles in one step: swap the `agent:<role>` label, transition the status, and add a comment with the standard `🤖 <from-role> (<area>):` prefix.
 
-The status names below match `.claude/config.yml` → `tasks.workflow.statuses` for project AITSAI. If that workflow changes, update the table in this skill — the names are referenced literally by `mcp__atlassian__jira_transition_issue`.
+The status names below match `.claude/config.yml` → `tasks.workflow.statuses`. If that workflow changes, update the table in this skill — the names are referenced literally by `mcp__atlassian__jira_transition_issue`.
 
 ## Usage
 
@@ -32,11 +32,10 @@ The status names below match `.claude/config.yml` → `tasks.workflow.statuses` 
 
 Why these rules:
 
-- **`area:<area>` is never touched.** It's the permanent area-ownership label, not a queue marker. It outlives every handoff and is what scopes JQL queries per area.
-- **For `done`, drop `agent:<from>`.** `agent:<role>` is a queue marker, not an audit marker — a Done task is out of every queue. Keeping `agent:reviewer` on Done would pollute JQL like `agent:reviewer AND status != Done` (open reviewer queue). The audit trail is preserved by the handoff comment (`🤖 <from> (<area>): handoff → done`) and the Jira changelog, both of which record who delivered the final approval.
-- **For `team-lead`, the extra `needs-decision` label is mandatory.** The team-lead's "On Hold queue" JQL filters on it — without that label the task lands in On Hold with no routing hint and gets lost.
-- **For `user`, the extra `awaiting-merge` label is mandatory.** Same reason as `needs-decision`: it disambiguates the "user must merge a Bitbucket PR" sub-queue from the "team-lead must decide something" sub-queue. Both share `On Hold` status. `/run` ignores `agent:user` tasks (they wait for human action in Bitbucket UI, not for any agent); reconciliation in `/run` flips them to `Done` (on PR merge) or `To Do` + `agent:dev` (on PR decline) by polling Bitbucket.
-- **Default `reviewer → user` is intentional.** Reviewer approval no longer terminates the task — the user must merge the PR in Bitbucket before the task is `Done`. The `/run` reconciliation step polls Bitbucket and transitions on merge/decline.
+- **`area:<area>` is never touched.** It's the permanent area-ownership label, not a queue marker. It outlives every handoff and scopes board queries per area.
+- **For `done`, drop `agent:<from>`.** `agent:<role>` is a queue marker, not an audit marker — a Done task is out of every queue. The audit trail is preserved by the handoff comment and the tracker's changelog.
+- **For `team-lead`, the extra `needs-decision` label is mandatory.** The team-lead's On Hold queue filters on it — without it the task lands in On Hold with no routing hint and gets lost.
+- **For `user`, the extra `awaiting-merge` label is mandatory.** It disambiguates "user must merge a PR" from "team-lead must decide something" — both share `On Hold` status. `/run` skips `agent:user` tasks; `/pr-feedback` transitions them to `Done` (merged) or `To Do` + `agent:dev` (declined).
 
 ## Steps
 

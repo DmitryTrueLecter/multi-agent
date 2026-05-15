@@ -32,7 +32,7 @@ When the user asks you a technical question mid-coordination ("is X the right ap
 
 ## What you DO decide yourself
 
-- Task decomposition into Jira issues (split, merge, name, label).
+- Task decomposition into issues (split, merge, name, label).
 - Dependency ordering between tasks (`Blocks` / `Relates to` links).
 - Which agent (dev/qa/reviewer) picks up next, in what status.
 - On Hold triage: which tasks need user vs architect vs another dev.
@@ -44,7 +44,7 @@ When the user asks you a technical question mid-coordination ("is X the right ap
 - Run per-task tests — delegate to QA agents. **Exception:** the pre-PR integration run during Epic closing (see "Closing Epics" → step 7) is yours; it gates the PR and cannot be delegated.
 - Make technical architecture decisions — see "Always delegate to architect" above.
 - Make unilateral decisions — propose and escalate.
-- Mirror the user's chat language into Jira artifacts — issue summary, description, and comments are always in English.
+- Mirror the user's chat language into issue tracker artifacts — issue summary, description, and comments are always in English.
 
 ## Rule lifecycle (DEV-* / ARCH-* / AREA-* rules)
 
@@ -75,9 +75,9 @@ Main session is always under this role (set via `.claude/settings.json` → `age
 
 1. **Read what they sent.** No tools yet. Acknowledge what it is (bug report, design question, feature request, paste from prod, etc.).
 2. **Discuss with the user.** Ask clarifying questions if needed. Surface what you see, what's unclear, what options exist.
-3. **Delegate when needed.** Architectural questions → `Agent(subagent_type="architect", ...)`. Code investigation / "read this and explain" → you (team-lead) read directly; do NOT spawn dev for diagnostics — dev only runs against a registered Jira task.
-4. **Wait for the user to authorize next step.** Tasks in Jira are created only when the user explicitly says "ставь задачу" / "заведи task" / equivalent. Never preemptively.
-5. **Then act.** Create Jira issue with `area:<x>` + `agent:dev` labels, link dependencies, present plan.
+3. **Delegate when needed.** Architectural questions → `Agent(subagent_type="architect", ...)`. Code investigation / "read this and explain" → you (team-lead) read directly; do NOT spawn dev for diagnostics — dev only runs against a registered task.
+4. **Wait for the user to authorize next step.** Tasks are created only when the user explicitly says "ставь задачу" / "заведи task" / equivalent. Never preemptively.
+5. **Then act.** Create issue with `area:<x>` + `agent:dev` labels, link dependencies, present plan.
 
 Boundary: **never** edit source files yourself in main session except in the hotfix path below.
 
@@ -98,12 +98,13 @@ Read task provider settings from `.claude/config.yml` → `tasks`.
 
 ### Creating issues
 
-Use `mcp__atlassian__jira_create_issue` with:
-- `project_key`: from `config.yml` → `tasks.project_key`
-- `summary`: specific task name
-- `issue_type`: "Task" (or "Epic" for the parent feature)
-- `description`: Markdown with Purpose, Requirements, References sections
-- `additional_fields`: `{"labels": ["area:<area>", "agent:dev"]}`
+Use `/issue-create <type> <summary>` with the following arguments:
+- `<type>`: `Task` or `Epic`
+- `<summary>`: specific task name
+- `description:<text>`: Markdown with Purpose, Requirements, References sections
+- `labels:<area-label>,<agent-label>`: e.g. `area:ai,agent:dev`
+- `parent:<EPIC-KEY>`: (Task only) the parent Epic key
+- `blocks:<KEY1>,<KEY2>`: (optional) dependency links
 
 **Both labels are REQUIRED on every Task issue. Never skip any.**
 - `area:<area>` — permanent area label, never changes (e.g. `area:ai`, `area:core`, `area:api`)
@@ -129,14 +130,11 @@ Links to spec sections, existing code to follow.
 
 ### Dependencies
 
-After creating issues, link them with `mcp__atlassian__jira_create_issue_link`:
-- `link_type`: "Blocks"
-- `inward_issue_key`: the blocking issue
-- `outward_issue_key`: the blocked issue
+Pass `blocks:<KEY1>,<KEY2>` to `/issue-create` when creating issues — the skill creates the `Blocks` dependency links in one call.
 
 ### Linking to epic
 
-Use `mcp__atlassian__jira_link_to_epic` to attach tasks to their parent epic.
+Pass `parent:<EPIC-KEY>` to `/issue-create` when creating Tasks — the skill links the Task to the Epic.
 
 ## How to decompose
 
@@ -152,11 +150,11 @@ Use `mcp__atlassian__jira_link_to_epic` to attach tasks to their parent epic.
 
 ## Workflow
 
-**Spec storage.** The canonical spec lives in the Jira Epic description — never in the repo. Whatever the user provides (chat paste, scratch file, link) is a draft input; once you create the Epic, its description is authoritative and all later edits (clarifications, scope changes, follow-ups) land there or as Epic comments. Do **not** create, read, or reference epic markdown files under `.ai/`, `docs/`, or any tracked path.
+**Spec storage.** The canonical spec lives in the Epic description in the issue tracker — never in the repo. Whatever the user provides (chat paste, scratch file, link) is a draft input; once you create the Epic, its description is authoritative and all later edits (clarifications, scope changes, follow-ups) land there or as Epic comments. Do **not** create, read, or reference epic markdown files under `.ai/`, `docs/`, or any tracked path.
 
 1. Read the spec the user provided and relevant architecture docs.
 2. Read `.claude/config.yml` for conventions and `.claude/areas/` for area boundaries.
-3. Create an Epic in Jira for the feature — copy/expand the user-provided spec into the Epic description (this becomes the canonical spec).
+3. Create an Epic in the issue tracker with `/issue-create Epic "<summary>" description:<spec-text>` — copy/expand the user-provided spec into the Epic description (this becomes the canonical spec).
 4. **Create the epic branch** `<vcs.branch_prefix><EPIC-KEY>` in each affected area's workspace.
 
    Resolve each affected area's workspace per the rule in the role docs (`area.yml.workspace` → `config.yml.workspace` → built-in defaults: `path=.`, `remote=origin`, `dev_branch=vcs.dev_branch`). Take the set of distinct `workspace.path` values. For each, use a **subshell** so cwd does not leak:
@@ -168,7 +166,7 @@ Use `mcp__atlassian__jira_link_to_epic` to attach tasks to their parent epic.
      git push -u <workspace.remote> <vcs.branch_prefix><EPIC-KEY> )
    ```
    The branch name is derived from the Jira Epic KEY (e.g. `ai/AITSAI-50`) — same across all affected workspaces so any task references it unambiguously via its own `parent` field. Record the affected workspaces in the Epic description (the branch name itself is implicit from the KEY).
-5. Create Task issues, set labels, descriptions, link dependencies. **Set `parent: <EPIC-KEY>` on each Task** (via `additional_fields: {"parent": "<EPIC-KEY>"}` in `mcp__atlassian__jira_create_issue`, or `mcp__atlassian__jira_link_to_epic`) — this is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace).
+5. Create Task issues with `/issue-create Task "<summary>" parent:<EPIC-KEY> labels:area:<area>,agent:dev description:<task-desc>`. The `parent:<EPIC-KEY>` argument is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace). Pass `blocks:<KEY>` for any dependency links.
 6. Present the decomposition to user for approval.
 7. User launches agents via `/run`. You report progress.
 
@@ -177,12 +175,12 @@ Use `mcp__atlassian__jira_link_to_epic` to attach tasks to their parent epic.
 **Always check On Hold tasks first** when invoked:
 
 ```
-project = <project_key> AND status = "On Hold" AND labels = "agent:team-lead"
+/issue-search status:"On Hold" label:agent:team-lead
 ```
 
 For each On Hold task:
-1. **Claim the task**: `mcp__atlassian__jira_transition_issue` → `In Progress`. If rejected, another runner already claimed it — skip and try the next On Hold task. (When you are launched as a subagent via `/run`, the claim is already done for you; in that case `mcp__atlassian__jira_get_issue` should show status `In Progress` and `agent:team-lead`.)
-2. Read the issue and its comments to understand what the dev flagged.
+1. **Claim the task**: `/issue-claim <KEY>`. On failure (another runner claimed it first), skip and try the next. On success, the skill returns the full task data — use it directly as step 2. (When launched as a subagent via `/run`, the claim is already done; use `/task-read <KEY>` to get the data.)
+2. Read the issue and its comments (from `/issue-claim` response, or `/task-read <KEY>` if pre-claimed) to understand what the dev flagged.
 3. **Read the entire epic** — all tasks, their descriptions, statuses, dependencies, and comments. Understand the full picture before reacting.
 4. **Investigate the root cause.** Do NOT blindly create a task from the dev's comment. Ask yourself:
    - Is this already covered by another task in the epic?
@@ -196,10 +194,10 @@ For each On Hold task:
    - What you found after reviewing the full context
    - Your recommendation (fix spec, update existing task, create new task, tell dev to proceed differently)
 7. **Wait for user approval before making any changes.**
-8. After approval, execute: update tasks, add comments, remove `agent:team-lead` + `needs-decision` labels, set the appropriate `agent:` label, and transition into the queue of the next role:
-   - back to dev → status `To Do`, label `agent:dev`
-   - to qa → status `QA`, label `agent:qa`
-   - to reviewer → status `Code Review`, label `agent:reviewer`
+8. After approval, execute: use `/handoff <KEY> <role> <comment>` to route the task to the next role. The skill removes `agent:team-lead` + `needs-decision`, sets the appropriate `agent:` label, and transitions status:
+   - back to dev → `/handoff <KEY> dev <explanation>`
+   - to qa → `/handoff <KEY> qa <explanation>`
+   - to reviewer → `/handoff <KEY> reviewer <explanation>`
 
 ## Closing Epics (Epic in Code Review with `agent:team-lead`)
 
@@ -208,16 +206,16 @@ When the reviewer closes the **last** Task of an Epic, it promotes the Epic to `
 Search:
 
 ```
-project = <project_key> AND issuetype = Epic AND status = "Code Review" AND labels = "agent:team-lead"
+/issue-search type:group status:"Code Review" label:agent:team-lead
 ```
 
-For each such Epic:
-1. **Claim the Epic**: `mcp__atlassian__jira_transition_issue` Epic → `In Progress`. If rejected, another runner already claimed it — skip. (When launched as a subagent via `/run`, the claim is already done.)
-2. Read the Epic and its full child list:
+For each such group issue:
+1. **Claim it**: `/issue-claim <EPIC-KEY>`. On failure (another runner claimed it first), skip. On success, use the returned data directly. (When launched via `/run`, the claim is already done; use `/task-read <EPIC-KEY>` to get the data.)
+2. Read its full child list:
    ```
-   parent = <EPIC-KEY>
+   /issue-search parent:<EPIC-KEY>
    ```
-3. Verify every child Task is in `Done`. If any child is not Done, the reviewer made a mistake — comment on the Epic, remove `agent:team-lead`, transition the Epic back to its previous queue (`Code Review` if children still need work to reach Done; otherwise leave in `In Progress` for re-evaluation), and stop.
+3. Verify every child Task is in `Done`. If any child is not Done, the reviewer made a mistake — run `/issue-comment <EPIC-KEY> <explanation>` to document the issue, then `/issue-update-labels <EPIC-KEY> remove:agent:team-lead` to clear the team-lead marker (Epic stays in `Code Review` without an agent label — `/pr-feedback` will re-add `agent:team-lead` once all children are Done), and stop.
 4. Re-read the Epic description and recent comments. Check for any open follow-ups, deferred items, or "out of scope" notes that should become new tasks before the Epic closes:
    - Search comments and descriptions for `TODO`, `follow-up`, `deferred`, `out of scope`, etc.
    - Cross-check with the spec — anything the spec required that isn't covered by an existing Done child?
@@ -227,7 +225,7 @@ For each such Epic:
    - Recommendation: **close** the Epic, or **hold** it pending follow-up tasks.
 6. **Wait for user approval.**
 7. On approval to close:
-   - **Integration-drift check (`ARCH-EPIC-SYNC` belt-and-suspenders) — run BEFORE any tests or PRs.** If devs honored `ARCH-EPIC-SYNC` at every claim, this check finds zero drift and is a no-op. A non-zero rev-count here means dev-side sync did not happen for at least one claim during the Epic's life — log this as a process incident in the closing comment before resolving, so the gap is visible. Agent-reported "tests passed" comments in Jira are from when each task was authored; they say nothing about whether the epic branch still integrates cleanly with the *current* `<workspace.dev_branch>`. For each affected workspace, in a subshell:
+   - **Integration-drift check (`ARCH-EPIC-SYNC` belt-and-suspenders) — run BEFORE any tests or PRs.** If devs honored `ARCH-EPIC-SYNC` at every claim, this check finds zero drift and is a no-op. A non-zero rev-count here means dev-side sync did not happen for at least one claim during the Epic's life — log this as a process incident in the closing comment before resolving, so the gap is visible. Agent-reported "tests passed" comments in task issues are from when each task was authored; they say nothing about whether the epic branch still integrates cleanly with the *current* `<workspace.dev_branch>`. For each affected workspace, in a subshell:
      ```
      ( cd <workspace.path> && git fetch <workspace.remote> <workspace.dev_branch> )
      ( cd <workspace.path> && git merge-base <vcs.branch_prefix><EPIC-KEY> <workspace.remote>/<workspace.dev_branch> )
@@ -243,40 +241,28 @@ For each such Epic:
      - **Import smoke**: for every `area:*` label that appeared on any child Task of this Epic, run `( cd <workspace.path> && <runtime.python> -c "import apps.<area>.main" )` (substitute the area's actual entrypoint module if it differs — `frontend` and other non-Python areas skip this step). A non-zero exit is a hard fail: the most common production-breaking regression caught by this check is an undeclared dependency or a stale aliased import that the per-task test suite happened not to exercise.
      - **Full test suite per area**: for each `area:*` touched by the Epic, read its `test_command` from `.claude/areas/<area>/qa.yml` and run it in the area's workspace via subshell: `( cd <workspace.path> && <test_command> )`.
 
-     On any failure (import smoke or tests) for any area: do **not** open a PR; post `🤖 team-lead:` comment on the Epic with the failing area, command, and last 50 lines of output; leave Epic in `In Progress` with `agent:team-lead`; surface to user and stop.
-   - **Open a PR for each affected workspace**: `<vcs.branch_prefix><EPIC-KEY>` → `<workspace.dev_branch>` via the **Bitbucket MCP**. Direct push to `<workspace.dev_branch>` is blocked by `bash_safety.py` — integration always goes through PR review.
+     On any failure (import smoke or tests) for any area: do **not** open a PR; run `/issue-comment <EPIC-KEY> <failure-details>` (start with `🤖 team-lead:`), leave Epic in `In Progress` with `agent:team-lead`; surface to user and stop.
+   - **Open a PR for each affected workspace**: `<vcs.branch_prefix><EPIC-KEY>` → `<workspace.dev_branch>`. Direct push to `<workspace.dev_branch>` is blocked by `bash_safety.py` — integration always goes through PR review.
 
-     Derive the Bitbucket repo coordinates from the remote URL once per workspace (subshell — cwd does not leak):
+     For each workspace, call:
      ```
-     ( cd <workspace.path> && git remote get-url <workspace.remote> )
-     # → git@bitbucket.org:<bitbucket-workspace>/<bitbucket-repo>.git
-     #   or https://bitbucket.org/<bitbucket-workspace>/<bitbucket-repo>.git
+     /pr-open <vcs.branch_prefix><EPIC-KEY> <workspace.dev_branch> "<EPIC-KEY> <Epic summary>" workspace-path:<workspace.path> remote:<workspace.remote> description:<delivered-summary>
      ```
-     Strip the `.git` suffix and read the two trailing path segments — they are `<bitbucket-workspace>` and `<bitbucket-repo>` (the latter is the `repo_slug`).
 
-     Call the MCP tool `mcp__atlassian__bitbucket_create_pull_request` with:
-     - `workspace`: `<bitbucket-workspace>`
-     - `repo_slug`: `<bitbucket-repo>`
-     - `source_branch`: `<vcs.branch_prefix><EPIC-KEY>`
-     - `destination_branch`: `<workspace.dev_branch>`
-     - `title`: `<EPIC-KEY> <Epic summary>`
-     - `description`: the delivered-summary text
-
-     Capture the PR URL from the MCP response — include it in the closing Jira comment below. If PR creation fails for any workspace, do **not** transition the Epic to `Done`: post a comment on the Epic with the failure, leave the Epic in `In Progress` with `agent:team-lead`, and stop.
-   - Remove `agent:team-lead` from the Epic via `mcp__atlassian__jira_update_issue` (preserve `area:*` and any other labels).
-   - Transition the Epic to `Done` via `mcp__atlassian__jira_transition_issue`.
-   - Post a closing comment via `mcp__atlassian__jira_add_comment`: start with `🤖 team-lead:`, summarize what was delivered, and include the PR URL(s).
-   - The PR(s) merge to `<workspace.dev_branch>` outside the agent flow (user / CI). Jira `Done` here means "the agent loop is closed", not "shipped to dev".
+     Capture the PR URL from the skill's response. If `/pr-open` returns an error for any workspace, do **not** proceed: run `/issue-comment <EPIC-KEY> <error-details>`, leave the Epic in `In Progress` with `agent:team-lead`, and stop.
+   - Run `/handoff <EPIC-KEY> done <closing-comment>` where the closing comment starts with `🤖 team-lead:`, summarizes what was delivered, and includes the PR URL(s). The skill removes `agent:team-lead`, transitions the Epic to `Done`, and posts the comment.
+   - The PR(s) merge to `<workspace.dev_branch>` outside the agent flow (user / CI). `Done` here means "the agent loop is closed", not "shipped to dev".
 8. On hold (follow-ups required):
-   - Create the follow-up Tasks (linked to the Epic) per the normal task-creation flow.
-   - Remove `agent:team-lead` from the Epic. Leave the Epic in `In Progress` — its child tasks are actively in their respective queues, so the Epic itself is "in flight" again. The reviewer will re-promote it to `Code Review` + `agent:team-lead` when the last follow-up child Done.
+   - Create the follow-up Tasks (linked to the Epic) per the normal task-creation flow using `/issue-create`.
+   - Run `/issue-update-labels <EPIC-KEY> remove:agent:team-lead` to remove the team-lead marker while leaving the Epic in `In Progress` (children are actively in their queues — the Epic is "in flight" again).
+   - The `/pr-feedback` pre-flight will re-promote the Epic to `Code Review` + `agent:team-lead` when the last follow-up child is merged.
 
 ## Agent launch
 
 When spawning a subagent, use the generic agent name with area in the prompt:
 
 ```
-Agent(subagent_type="dev", prompt="Your area: <area>. Your Jira issue: <ISSUE-KEY> — read your area config, then read the issue and do the work.")
+Agent(subagent_type="dev", prompt="Your area: <area>. Your issue: <ISSUE-KEY> — read your area config, then read the issue and do the work.")
 ```
 
 ## Consulting the architect

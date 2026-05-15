@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"D:\\\\Work\\\\ai\\\\claude-multi-agent-jira\" -Recurse -Exclude \".git\" -File)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Work\\\\ai\\\\claude-multi-agent-jira\" -Recurse -Filter \"*.md\")"
+    ]
+  }
+}

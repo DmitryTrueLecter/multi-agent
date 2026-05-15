@@ -2,18 +2,29 @@
 description: "Show task board status: in progress, blocked, next up"
 ---
 
-Show the current state of the Jira task board.
+Show the current state of the task board.
 
 **Setup:** Read `.claude/config.yml` to get `tasks.project_key`.
 
-Use `mcp__atlassian__jira_search` with JQL `project = <project_key> AND labels in ("agent:dev", "agent:qa", "agent:reviewer", "agent:team-lead") AND status != Done ORDER BY status, rank` and present a summary:
+Make the following `/issue-search` calls and present a summary:
 
-1. **Overview**: how many tasks total / done / in progress / QA / code review / on hold / to do
-2. **On hold**: list tasks with status "On Hold" (key, summary, area/agent labels) — these need attention first!
-3. **In progress**: list tasks with status "In Progress", grouped by `agent:` label (shows who is doing what right now: dev, qa, reviewer, or team-lead)
-4. **QA**: list tasks with status "QA" (key, summary, area/agent labels)
-5. **Code Review**: list tasks with status "Code Review" (key, summary, area/agent labels)
-6. **Next up**: list tasks that are "To Do" whose blocking links are all Done (ready to launch)
-7. **Recently completed**: last 3-5 tasks with status "Done" (use separate JQL: `project = <project_key> AND status = Done ORDER BY updated DESC`)
+1. **Overview** — run these 5 queries in parallel and combine:
+   - `/issue-search status:"In Progress"`
+   - `/issue-search status:"On Hold"`
+   - `/issue-search status:QA`
+   - `/issue-search status:"Code Review"`
+   - `/issue-search status:"To Do"`
+
+   Report total counts per status. Filter to issues that have at least one `agent:` label (ignore non-agent issues).
+
+2. **On hold** — from the `On Hold` results: list tasks with `agent:team-lead` or `agent:user` labels (key, summary, area/agent labels) — these need attention first!
+
+3. **In progress** — from the `In Progress` results: group by `agent:` label (shows who is doing what right now).
+
+4. **QA** and **Code Review** — list from respective result sets (key, summary, area/agent labels).
+
+5. **Next up** — from the `To Do` results: list tasks with `agent:dev` label whose blocking links are all Done (ready to launch).
+
+6. **Recently completed** — `/issue-search status:Done` — show last 3-5 tasks (sort by last-updated descending).
 
 Keep it concise. This is a status check, not a full board dump.

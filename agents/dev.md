@@ -140,18 +140,18 @@ If any item flags something, fix it before handoff.
 
 ## Task workflow
 
-1. Read your Jira issue with `mcp__atlassian__jira_get_issue`. The description contains Purpose, Requirements, References. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:dev`).
+1. Read your issue with `/task-read <ISSUE-KEY>`. The description contains Purpose, Requirements, References. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:dev`).
 
    **Also read the issue's comments** — not only the description. The comments are where rejection feedback lives, and on a re-run that feedback is what you must address. Specifically, scan the **most recent** comments (newest first) for any of these prefixes and **stop scanning at the first one you hit** — it is your current target:
 
-   - `🤖 user (decline) via Bitbucket PR <URL>:` — the user declined a previous PR. The body contains the user's Bitbucket comments verbatim. This supersedes the issue's `## Requirements`: do not re-derive the task from scratch — the implementation already exists on the task branch (see step 2 below) and your job is to address exactly what the user objected to. Open the PR URL and read inline comments too if the body says "see inline comments" or is otherwise terse.
+   - `🤖 user (decline) via PR <URL>:` — the user declined a previous PR. The body contains the user's PR review comments verbatim. This supersedes the issue's `## Requirements`: do not re-derive the task from scratch — the implementation already exists on the task branch (see step 2 below) and your job is to address exactly what the user objected to. Open the PR URL and read inline comments too if the body says "see inline comments" or is otherwise terse.
    - `🤖 reviewer (<area>): handoff → dev` — the reviewer blocked the change. The body is a severity-tagged findings list (CRITICAL / HIGH / MEDIUM / LOW with rule IDs). Each finding cites file:line — fix exactly those, not the whole module.
    - `🤖 qa (<area>): handoff → dev` — QA found coverage or test-quality gaps. The body lists missing/weak tests with concrete evidence — add or strengthen exactly those tests.
 
    If none of those prefixes appear in recent comments, this is a **fresh** task — proceed with the description as the source of truth and a clean implementation in step 2.
 
    **Determine the base branch** from the issue's `parent` field:
-   - If `parent` is present AND `parent.fields.issuetype.name == "Epic"` → base = `<vcs.branch_prefix><parent.key>` (the epic branch).
+   - If `parent` is present AND `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>` (the epic branch).
    - Otherwise (no `parent`, or `parent` is not an Epic) → base = `<workspace.dev_branch>` (this is a standalone task).
 2. **Resolve the task branch** in your area's workspace. The branch is `<vcs.branch_prefix><ISSUE-KEY>`. **Two cases**, decided by whether the branch already exists on the remote (it will exist whenever this is a re-run after a user/reviewer/qa rejection). On a **fresh** epic-parented task, an additional **epic-branch sync** step (2a below) runs before branch creation — this enforces `ARCH-EPIC-SYNC` and is the single mechanical step that prevents long-lived-epic drift incidents:
 
@@ -168,7 +168,7 @@ If any item flags something, fix it before handoff.
      Your starting tree is the previous attempt. Inspect what changed: `git log <base>..HEAD --oneline` and `git diff <base>...HEAD --stat`. The rejection feedback from step 1 tells you what to add/fix on top of this — not what to rewrite.
    - **Fresh task (branch does not exist on remote).** Cut a new branch from base:
 
-     **2a. `ARCH-EPIC-SYNC` — only when base is an epic branch** (i.e. issue's `parent.fields.issuetype.name == "Epic"`). Skip when `base == <workspace.dev_branch>` (standalone task — nothing to sync into).
+     **2a. `ARCH-EPIC-SYNC` — only when base is an epic branch** (i.e. issue's `parent.type == "group"`). Skip when `base == <workspace.dev_branch>` (standalone task — nothing to sync into).
 
      ```
      git checkout <base>                                              # base = <vcs.branch_prefix><EPIC-KEY>
@@ -186,13 +186,17 @@ If any item flags something, fix it before handoff.
      Reconciling architectural rewrites that landed independently on `<workspace.dev_branch>` is out of dev scope (`ARCH-EPIC-SYNC`). Do this and stop:
 
      1. `git merge --abort` in `<workspace.path>`. Confirm `git status` is clean. Do **not** push the epic branch.
-     2. Add a comment to the Jira issue via `mcp__atlassian__jira_add_comment` starting `🤖 dev (<area>): handoff → team-lead (ARCH-EPIC-SYNC drift)`. Body must list, verbatim:
-        - the epic branch (`<vcs.branch_prefix><EPIC-KEY>`) and the `<workspace.dev_branch>` SHA you tried to merge in;
-        - the file paths reported by `git status` as conflicted (one per line);
-        - the message: `Dev is not resolving — team-lead to schedule a merge-resolution task. This task resumes after the resolution lands on the epic branch.`
-     3. Update labels via `mcp__atlassian__jira_update_issue`: remove `agent:dev`, add `agent:team-lead` and `needs-decision`.
-     4. Transition to `On Hold` via `mcp__atlassian__jira_transition_issue`.
-     5. Stop. Do not cut the task branch.
+     2. Run `/handoff <ISSUE-KEY> team-lead` with the comment body:
+        ```
+        ARCH-EPIC-SYNC drift detected.
+        Epic branch: <vcs.branch_prefix><EPIC-KEY>
+        dev_branch SHA tried: <SHA>
+        Conflicted files:
+        <file paths from git status, one per line>
+        Dev is not resolving — team-lead to schedule a merge-resolution task. This task resumes after the resolution lands on the epic branch.
+        ```
+        The skill will prefix the comment with `🤖 dev (<area>): handoff → team-lead`, set label `agent:team-lead` + `needs-decision`, and transition to `On Hold`.
+     3. Stop. Do not cut the task branch.
 
      **2c. Cut the task branch from the (now-current) base.**
      ```
@@ -220,13 +224,10 @@ If any item flags something, fix it before handoff.
    Touches <files/areas>. Edge case <case> handled by <strategy>;
    errors in <path> are logged without stopping the batch.
    ```
-6. Add a comment to the issue via `mcp__atlassian__jira_add_comment`. **Start every comment with `🤖 dev (<area>):`** so it's clear which agent wrote it. Include: what you did, files created/modified, whether requirements are met, and the actual branch name (`<vcs.branch_prefix><ISSUE-KEY>`).
+6. Add a progress comment via `/issue-comment <ISSUE-KEY> <body>`. **Start every comment with `🤖 dev (<area>):`** so it's clear which agent wrote it. Include: what you did, files created/modified, whether requirements are met, and the actual branch name (`<vcs.branch_prefix><ISSUE-KEY>`).
 7. **If there are gaps, missing prerequisites, or decisions needed from team lead/other areas:**
    - Do NOT move to QA.
-   - Add labels `agent:team-lead` and `needs-decision` via `mcp__atlassian__jira_update_issue`. Remove `agent:dev`.
-   - Transition to `On Hold` via `mcp__atlassian__jira_transition_issue`.
-   - Comment must clearly describe what's missing and what decision is needed.
+   - Run `/handoff <ISSUE-KEY> team-lead <comment>` — the comment must clearly describe what's missing and what decision is needed. The skill sets labels `agent:team-lead` + `needs-decision` and transitions to `On Hold`.
 8. **If work is complete with no gaps:**
    - Run the `## Pre-handoff self-review` checklist. Fix anything it surfaces.
-   - Update the issue label from `agent:dev` to `agent:qa` via `mcp__atlassian__jira_update_issue`.
-   - Transition the issue to `QA` via `mcp__atlassian__jira_transition_issue`.
+   - Run `/handoff <ISSUE-KEY> qa` — the skill sets label `agent:qa` and transitions to `QA`.

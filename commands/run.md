@@ -4,7 +4,7 @@ description: "Run agent: /run | /run <ISSUE-KEY> | /run pipeline | /run all | /r
 
 Launch a subagent to work on a Jira task.
 
-**Setup:** Read `.claude/config.yml` to get `tasks.project_key` and known areas (scan `.claude/areas/` subdirectory names).
+**Setup:** Read `.claude/config.yml` to get `tasks.project_key` and known areas (scan `.claude/areas/` subdirectory names). The task/PR operations use skills — no direct tracker or VCS platform MCP calls in this command.
 
 **Usage patterns:**
 
@@ -38,76 +38,22 @@ The `agent:` label disambiguates `Code Review`: `agent:reviewer` → reviewer (T
 
 ## PR feedback reconciliation (pre-flight, runs first in every mode)
 
-Reviewer-approved tasks sit in `On Hold` + `agent:user` + `awaiting-merge` until the user merges or declines the Bitbucket PR in the UI. Before searching for the next task to run, this pre-flight syncs those user decisions into Jira.
+Reviewer-approved tasks sit in `On Hold` + `agent:user` + `awaiting-merge` until the user merges or declines the PR in the VCS platform. Before searching for the next task to run, this pre-flight syncs those user decisions into the issue tracker.
 
-**When to run.** As the very first step of every `/run` invocation — auto-mode, pipeline mode, all mode, single-issue mode, role-only shortcut. Cheap if nothing changed (two Bitbucket list calls). On `/run all`, re-runs before each iteration's task pickup.
+**When to run.** As the very first step of every `/run` invocation — auto-mode, pipeline mode, all mode, single-issue mode, role-only shortcut. On `/run all`, re-runs before each iteration's task pickup.
 
-**State model — Jira is the source of truth, no local state file.** A task is "unprocessed" iff its Jira labels still include `awaiting-merge`. Reconciliation's effect on every task is to remove that label (plus `agent:user`) — so the next pre-flight tick that sees the same DECLINED/MERGED PR will skip it because the corresponding Jira task no longer has `awaiting-merge`. This is idempotent by construction, needs no `processed-prs.json` (PR ids aren't unique across repos anyway), and works whether you run one repo or ten.
-
-**Interactivity rule.** Bitbucket text is the primary guidance — read it, use it verbatim. Ask the user only when the text is empty or genuinely ambiguous (you can't tell what to fix). One `AskUserQuestion` per PR with options `Provide reason` / `Skip`; `Skip` leaves `awaiting-merge` for the next pre-flight.
-
-**Setup.**
-- Bitbucket coordinates: derive from `git remote get-url <workspace.remote>` (default `origin`) once per session — strip the trailing `.git`, take the last two path segments as `<bitbucket-workspace>` / `<bitbucket-repo>` (`repo_slug`).
-- Read `.claude/config.yml` for `vcs.branch_prefix` (default `ai/`) and `tasks.project_key` (e.g. `AITSAI`). Treat any PR whose `source.branch.name` starts with `<branch_prefix><project_key>-` as a managed task PR.
-
-**Steps.**
-
-1. List PRs (two MCP calls):
-   - `mcp__atlassian__bitbucket_list_pull_requests` with `state=DECLINED` → declined list.
-   - `mcp__atlassian__bitbucket_list_pull_requests` with `state=MERGED` → merged list.
-
-2. Filter each list to managed task PRs (branch-prefix match).
-
-3. For each remaining **DECLINED** PR:
-   1. `<KEY>` = `source.branch.name` with the `<branch_prefix>` stripped.
-   2. Read the Jira issue via `mcp__atlassian__jira_get_issue`. Capture current labels.
-   3. **Skip filter:** if labels do **not** contain `awaiting-merge`, this PR has already been reconciled (or the task was in a different state when declined) — skip it. Do not touch Jira.
-   4. Gather rejection text from Bitbucket. Combine:
-      - `bitbucket_get_pull_request` → `description` and any reason field.
-      - `bitbucket_list_pull_request_comments` → every comment (top-level + inline + replies). Prefix inline with `[<file>:<line>]`. Chronological, cap ~3000 chars.
-
-      Use as rejection text per **Interactivity rule** above.
-   5. `mcp__atlassian__jira_update_issue` to set the labels list to: existing labels minus `agent:user` and `awaiting-merge`, plus `agent:dev`. Preserve every other label (especially `area:<area>`).
-   6. `mcp__atlassian__jira_transition_issue` → `To Do`.
-   7. `mcp__atlassian__jira_add_comment`:
-      ```
-      🤖 user (decline) via Bitbucket PR <PR_URL>:
-
-      <rejection text>
-      ```
-
-4. For each remaining **MERGED** PR:
-   1. `<KEY>` = `source.branch.name` with the `<branch_prefix>` stripped.
-   2. Read the Jira issue. Capture current labels and the `parent` field.
-   3. **Skip filter:** if labels do **not** contain `awaiting-merge`, skip — already reconciled (or never went through the new flow).
-   4. `mcp__atlassian__jira_update_issue` to set labels: existing minus `agent:user` and `awaiting-merge`. Preserve everything else.
-   5. `mcp__atlassian__jira_transition_issue` → `Done`.
-   6. `mcp__atlassian__jira_add_comment`:
-      ```
-      🤖 user (merge) via Bitbucket PR <PR_URL>: merged into <destination_branch>.
-      ```
-   7. **Epic close-out.** If the task has a `parent` and `parent.fields.issuetype.name == "Epic"`:
-      - JQL search via `mcp__atlassian__jira_search`: `parent = <parent.key> AND status != Done`.
-      - If the result is empty (zero non-Done siblings) — promote the Epic for team-lead sign-off:
-        - Read the Epic. `mcp__atlassian__jira_update_issue` to add `agent:team-lead` to its labels (preserve existing).
-        - `mcp__atlassian__jira_transition_issue` on the Epic → `Code Review`.
-        - `mcp__atlassian__jira_add_comment` on the Epic: `🤖 user (epic-close) via Bitbucket: all child tasks are Done — Epic ready for team-lead final review and closure.`
-      - If any sibling is still open, do nothing with the Epic.
-
-5. After processing all DECLINED and MERGED PRs, continue with the active mode.
-
-If any single PR fails reconciliation (Jira rejects a transition, MCP error, etc.), log the failure with the PR id and ISSUE-KEY and continue with the next PR — the task still has `awaiting-merge`, so the next pre-flight will retry. Do not abort the whole pre-flight; one stuck PR must not stop the rest.
+Run `/pr-feedback` — the skill handles all PR list queries, issue tracker label/status updates, epic close-out promotion, and error recovery. It returns once all pending decisions are synced.
 
 ## Auto-mode (`/run` without arguments)
 
 Search for the first available issue in priority order. Stop at the first match:
 
-0. **Run PR feedback reconciliation** (see above) — process any user merge/decline decisions in Bitbucket before scanning queues.
-1. **On Hold** — Tasks with `agent:team-lead` label. Launch `team-lead` agent. (Tasks with `agent:user` + `awaiting-merge` are intentionally skipped — they are handled by reconciliation, not by an agent run.)
-2. **Code Review (Epic)** — Epics with `agent:team-lead` label. Launch `team-lead` agent for epic close-out.
-3. **Code Review (Task)** — Tasks with `agent:reviewer` label. Launch `reviewer` agent.
-4. **QA** — Tasks with `agent:qa` label. Launch `qa` agent.
-5. **To Do** — Tasks with `agent:dev` label (whose blockers are all Done). Launch `dev` agent.
+0. **Run PR feedback reconciliation** (see above) — run `/pr-feedback`.
+1. **On Hold** — `/issue-search status:"On Hold" label:agent:team-lead`. Launch `team-lead` agent. (Tasks with `agent:user` + `awaiting-merge` are skipped — handled by `/pr-feedback`, not by an agent run.)
+2. **Code Review (group)** — `/issue-search type:group status:"Code Review" label:agent:team-lead`. Launch `team-lead` agent for group close-out.
+3. **Code Review (Task)** — `/issue-search type:task status:"Code Review" label:agent:reviewer`. Launch `reviewer` agent.
+4. **QA** — `/issue-search status:QA label:agent:qa`. Launch `qa` agent.
+5. **To Do** — `/issue-search status:"To Do" label:agent:dev` (filter out tasks whose blockers are not all Done). Launch `dev` agent.
 
 If nothing found at any level, report that the board is clear.
 
@@ -138,7 +84,7 @@ Run a single task through the **full lifecycle** until Done (or until it gets st
 
 Run tasks until the board is clear.
 
-1. **Run PR feedback reconciliation** (see above) — sync user merge/decline decisions from Bitbucket into Jira before picking up work.
+1. **Run PR feedback reconciliation** (see above) — run `/pr-feedback`.
 2. Use auto-mode priority to find a task.
 3. Run it through the **full pipeline** (same as pipeline mode).
 4. After the task reaches Done (or On Hold), go back to step 1 (reconciliation runs again before the next iteration).
@@ -161,7 +107,7 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
 
 **Fallback** if `TaskStop` fails or returns an error: do not spawn the next agent, let the current one finish on its own, then exit the loop. Tell the user explicitly: "TaskStop failed — waiting for current subagent to complete, then will exit. New subagents will not be started."
 
-**Kill latency.** `TaskStop` interrupts the subagent at its next decision point — between tool calls, not in the middle of one. If the subagent is currently inside a long-running Bash command (e.g. a slow test suite), it finishes that command first and exits afterwards. In typical multi-agent flows (many short Jira / git / file operations) the kill takes seconds.
+**Kill latency.** `TaskStop` interrupts the subagent at its next decision point — between tool calls, not in the middle of one. If the subagent is currently inside a long-running Bash command (e.g. a slow test suite), it finishes that command first and exits afterwards. In typical multi-agent flows (many short tracker / git / file operations) the kill takes seconds.
 
 ## Steps (for single-step modes)
 
@@ -176,29 +122,27 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
    - Multiple issue keys: launch parallel agents.
 
 2. Find target task(s):
-   - If issue keys given: read each issue, determine role from `agent:` label and area from `area:` label.
+   - If issue keys given: use `/task-read <KEY>` on each — determine role from `agent:` label and area from `area:` label.
      - `agent:dev` → role is `dev`.
      - `agent:qa` → role is `qa`.
      - `agent:reviewer` → role is `reviewer`.
      - `agent:team-lead` → role is `team-lead`.
-   - If role-only: search for tasks with `agent:<role>` label in the corresponding status.
+   - If role-only: use `/issue-search status:<queue-status> label:agent:<role>`.
    - Take the **first** result only (unless multiple keys given).
 
 3. If no tasks found, report why and stop.
 
 4. Determine area from `area:` label on the issue (e.g. `area:ai` → area is `ai`).
 
-5. Read the issue with `mcp__atlassian__jira_get_issue` to see description and linked (blocking) issues.
+5. Verify blocked-by issues are all Done (for dev tasks, using data already returned in step 2). If not, report and stop.
 
-6. Verify blocked-by issues are all Done (for dev tasks). If not, report and stop.
+6. **Claim the task**: `/issue-claim <KEY>` (for every role). On failure (another runner claimed it first), drop this task and pick the next one. If the queue is now empty, report "board contended, nothing else to take" and stop. On success, use the full task data returned by the skill — no separate `/task-read` needed.
 
-7. **Claim the task**: `mcp__atlassian__jira_transition_issue` → `In Progress` (for every role, including `team-lead` on On Hold tasks and Epic close-out). If the transition is rejected (Jira returns an error because the issue already left the source status — another runner claimed it), drop this task and pick the next one from the queue. If the queue is now empty, report "board contended, nothing else to take" and stop.
+7. **Resolve absolute paths** (dev/qa/reviewer only). `<abs-project-root>` = `pwd` (your cwd). `<abs-workspace-path>` = `(cd <workspace.path> && pwd)` where `workspace.path` is `area.yml.workspace.path` → `config.yml.workspace.path` → `.`. Pass both in the prompt.
 
-8. **Resolve absolute paths** (dev/qa/reviewer only). `<abs-project-root>` = `pwd` (your cwd). `<abs-workspace-path>` = `(cd <workspace.path> && pwd)` where `workspace.path` is `area.yml.workspace.path` → `config.yml.workspace.path` → `.`. Pass both in the prompt.
+8. **Cwd contract.** Don't let cwd drift between `Agent(...)` spawns. For workspace ops, use a subshell: `(cd <workspace.path> && <cmd>)`. Never bare `cd <ws> && <cmd>`.
 
-9. **Cwd contract.** Don't let cwd drift between `Agent(...)` spawns. For workspace ops, use a subshell: `(cd <workspace.path> && <cmd>)`. Never bare `cd <ws> && <cmd>`.
-
-10. Launch **one Agent tool per task** in **background mode** (see "Stop semantics" below). Report `▶ <role> on <ISSUE-KEY> (<area>)`. Use `run_in_background=true`. Capture `agentId` for `TaskStop`.
+9. Launch **one Agent tool per task** in **background mode** (see "Stop semantics" below). Report `▶ <role> on <ISSUE-KEY> (<area>)`. Use `run_in_background=true`. Capture `agentId` for `TaskStop`.
 
     - `dev`/`qa`/`reviewer`:
       ```
@@ -212,12 +156,12 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
       ```
       Agent(subagent_type="team-lead", prompt="On Hold task: <ISSUE-KEY>.", run_in_background=true)
       ```
-    - `team-lead` on Epic in `Code Review`:
+    - `team-lead` on group issue in `Code Review`:
       ```
-      Agent(subagent_type="team-lead", prompt="Epic close-out: <ISSUE-KEY>.", run_in_background=true)
+      Agent(subagent_type="team-lead", prompt="Group close-out: <ISSUE-KEY>.", run_in_background=true)
       ```
 
-11. **End your turn after the spawn** — do **not** poll, do **not** sleep. The harness will notify you automatically when the background subagent completes. When the notification arrives:
+10. **End your turn after the spawn** — do **not** poll, do **not** sleep. The harness will notify you automatically when the background subagent completes. When the notification arrives:
     - Process the subagent's final result.
     - Report a one-line status to the user: `✓ <ISSUE-KEY> done — <one-sentence summary>` or `✗ <ISSUE-KEY> blocked — <reason>`.
     - Continue per the active mode: next stage in pipeline mode, next task in all mode, or stop in single-step modes.
