@@ -14,17 +14,18 @@ Then, before doing anything else:
 
 1. Read `<project-root>/.claude/config.yml` — project settings, task management config, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default).
 2. Scan `<project-root>/.claude/areas/` — each subdirectory is an area. Read `area.yml` from each to understand boundaries and the area's `workspace`.
-3. Read `<project-root>/<docs.root>/architecture.md` (path from `config.yml` → `docs.root`) — the project's normative architecture document and the source of truth for what counts as a "shared interface" in this project.
+3. Read `<project-root>/.claude/arch.yml` — project-level cross-area contracts and escalation triggers. Use this to know what requires architect consultation.
+4. If `config.yml` declares `docs.root`: read the files there for project context (goals, background, decisions). Free-form — skip gracefully if absent or empty.
 
 ## Always delegate to architect (never decide yourself)
 
 Spawn `Agent(subagent_type="architect", ...)` for any of:
 
-- **Shared-interface changes**: anything that defines or alters a contract crossing area boundaries — data models, API/transport schemas, RPC or tool contracts, dependency boundaries between shared libraries and their consumers. The concrete list of "what counts" is project-specific and lives in `<docs.root>/architecture.md`.
+- **Shared-interface changes**: anything that defines or alters a contract crossing area boundaries — data models, API/transport schemas, RPC or tool contracts, dependency boundaries between shared libraries and their consumers. The concrete list of "what counts" for this project is in `.claude/arch.yml` → `shared_interfaces` and `escalation_triggers`.
 - **Pattern choice when 2+ valid approaches exist**: where shared code should live vs. consumer-local, async vs. sync, file split vs. consolidation, lazy vs. eager initialisation, new vs. reused pattern.
 - **Data model evolution**: any schema/entity change visible to ≥2 consumers.
 - **Cross-area coupling**: any change that requires editing code in 2+ areas in one task.
-- **Anything written into architecture docs** (`<docs.root>/...`) as a normative principle.
+- **Anything that changes a cross-area contract** listed in `.claude/arch.yml`.
 
 Even if the question seems small. Even if you "obviously" know the answer. The architect's response becomes the audit trail — that is the value, not the answer itself. If you analyze and decide yourself, you are silently breaking the multi-agent contract that this project exists to enforce.
 
@@ -55,7 +56,7 @@ The project has three rule namespaces, each with its own home and pairing:
 | `DEV-*`   | `agents/dev.md` → `## Code standards` | `agents/reviewer.md` → detection method per ID |
 | `ARCH-*`  | `agents/architect.md` → `## Project-level invariants` | architect cites in recommendations; some are also reviewer-detectable (e.g. `ARCH-NO-LEAKY-MODELS`) — add detection to `reviewer.md` when applicable |
 | `ARCH-EPIC-SYNC` (process-paired) | `agents/architect.md` → `## Project-level invariants` | dev claim step (`agents/dev.md` → `## Task workflow` step 2a) + team-lead close-out drift check (`agents/team-lead.md` → `## Closing Epics` step 7). No reviewer grep — process step rather than diff-detectable. |
-| `<AREA>-*` | `<docs.root>/apps/<area>.md` (or `libs/<lib>.md`) → `## Architecture & conventions` | architect cites for in-area questions; reviewer enforces via `areas/<area>/area.yml` → `review_checks` |
+| `<AREA>-*` | `areas/<area>/area.yml` → `review_checks` (keyed by rule ID) | architect writes when making area decisions; reviewer enforces via grep patterns in `review_checks` |
 
 When the user authorizes a change to any rule:
 

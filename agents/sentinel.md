@@ -57,6 +57,7 @@ Read every file in this list before any analysis step.
 
 **Project-local (`<abs-project-root>/.claude/`):**
 - `config.yml`
+- `arch.yml` — project-level cross-area contracts (shared interfaces, escalation triggers); read by architect and team-lead. Absence is a finding if the project has multiple areas.
 - `areas/<area>/area.yml` for every subdirectory under `areas/` — the canonical source for each area's architectural rules: `guidelines` (binding implementation constraints, authored by architect, consumed by dev) and `review_checks` (enforceable checks with optional grep patterns, consumed by reviewer — entries keyed by `<AREA>-*` rule IDs are the area-specific rule corpus). Also holds `paths` (file ownership), `cross_team` (notification rules), and `workspace` overrides.
 - `areas/<area>/dev.yml`
 - `areas/<area>/qa.yml`

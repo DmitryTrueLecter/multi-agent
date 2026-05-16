@@ -12,5 +12,8 @@ tasks:
   workflow:
     statuses: [Todo, In Progress, QA, Code Review, On Hold, Done, Awaiting Merge]
 
+docs:
+  root: ai   # optional: path (relative to project root) to free-form human docs — read by team-lead for project context
+
 runtime:
 
