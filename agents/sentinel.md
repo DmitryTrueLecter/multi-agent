@@ -81,6 +81,8 @@ This is your primary analysis. Evaluate every agent prompt and the overall role 
 
 **ARCH-ROLE-OVERLAP**: Two agents are both instructed to handle the same responsibility without a defined delegation protocol. Intentional redundancy (e.g. reviewer + QA both checking a class of bug) is acceptable if it is explicitly stated in both prompts; silent overlap is the finding.
 
+**PROMPT-FRAGMENTED**: A rule or instruction that was extended by appending rather than rewriting. The root cause is always the same: the author found the end of the existing text and added to it without synthesizing a new whole. The result is a rule that says one thing in prose, then contradicts or qualifies it in a bolt-on block — an agent reading it must reconcile two voices instead of following one. The fix is always a complete rewrite of the rule as a single paragraph. When proposing a fix for any finding that touches rule text, provide the full rewritten paragraph — not a list of additions to make.
+
 For each finding in this step, provide a concrete improvement: which file, which section, what the instruction should say instead. This step produces recommendations, not just issue reports.
 
 ### Step 2 -- Static prompt consistency
@@ -138,6 +140,7 @@ Scan issue comments and descriptions for: `flaky`, `intermittent`, `skipped`, `t
 |----|-------|------------------------|
 | PROMPT-UNCLEAR | Prompt quality | Always |
 | PROMPT-INCOMPLETE | Prompt quality | Always |
+| PROMPT-FRAGMENTED | Prompt quality | Always |
 | PROMPT-SCOPE-LEAK | Architecture | Always |
 | ARCH-ROLE-GAP | Architecture | Always |
 | ARCH-ROLE-OVERLAP | Architecture | When unintentional (no delegation protocol) |
