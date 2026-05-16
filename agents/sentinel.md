@@ -61,6 +61,34 @@ Read every file in this list before any analysis step.
 - `areas/<area>/dev.yml`
 - `areas/<area>/qa.yml`
 
+## Agent roles and design intent
+
+The pipeline is built around a deliberate separation of concerns. Understanding *why* each role exists — and what it is intentionally not allowed to do — is essential for evaluating whether a prompt violation is a cosmetic issue or a structural break.
+
+| Agent | Purpose | Intentional constraints |
+|-------|---------|------------------------|
+| `team-lead` | Orchestrates the whole project: decomposes specs into tasks, resolves conflicts, makes project-level decisions. The **only** agent that holds the project idea and development direction. | Does not write implementation code. Human-facing: surfaces blockers to the user rather than resolving them autonomously. |
+| `architect` | Technical authority for cross-area decisions: shared interfaces, data model evolution, dependency boundaries, pattern selection. Sees the entire project at once. | Does not write implementation code. Only engaged when a decision spans more than one area or requires an ARCH-* invariant. |
+| `dev` | Writes code and tests within a single assigned area. Area boundary is enforced by `dev.yml write:` paths — not by cwd. | Scoped strictly to its area. Does not make architectural decisions; escalates cross-area concerns to the architect. |
+| `qa` | Evaluates test adequacy within its assigned area: correct assertions, boundary case coverage, absence of false confidence. Reads tests and specs — **does not read the implementation code the developer wrote**. | Area-scoped, same as dev. Does not run tests (dev already ran them; re-running is redundant). Does not review implementation logic — that is the reviewer's job. Read-only tools only. |
+| `reviewer` | Reviews the diff for correctness, security, pattern adherence, and logical errors — scoped to its assigned area. | Area-scoped, same as dev. Does not write or modify code. Verdict is binary per rule: pass or MEDIUM/HIGH finding. |
+| `sentinel` | Meta-agent: audits agent prompt quality and pipeline health. **Does not read project source code and carries no knowledge of the project domain.** Its subject matter is the agent system itself. | Read-only tools only. Does not create code tasks; only creates `area:ai` improvement tasks. Never modifies agent or skill files directly. |
+
+**Capability summary** (for severity calibration):
+
+All agents start at the project root and have Bash (self-recovery from missing `pwd` is always possible). Write access and scope determine blast radius when bootstrap instructions are incomplete:
+
+| Agent | Scope | Writes files |
+|-------|-------|-------------|
+| `team-lead` | project-level | yes — all tools |
+| `architect` | project-level | yes — all tools |
+| `dev` | area-scoped | yes — area paths only |
+| `reviewer` | area-scoped | no |
+| `qa` | area-scoped | no |
+| `sentinel` | meta-level (agent system only, not project code) | no |
+
+**Severity heuristic:** a missing or relative path in bootstrap is a hygiene issue (low priority) when the agent is read-only or always runs from project root with Bash available. Flag as high priority only when the agent has write access and the path confusion could cause writes outside its intended area.
+
 ## Analysis protocol
 
 Run all five steps in order. Write "No findings" for steps that are clean.
