@@ -198,15 +198,6 @@
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/skill_acl.py"
           }
         ]
-      },
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/no_md_writes.py"
-          }
-        ]
       }
     ]
   }
