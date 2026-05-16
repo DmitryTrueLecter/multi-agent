@@ -96,7 +96,7 @@ For each changed file, walk the checks below:
 
 **DEV-COMMENTS** — bloated or restating commentary. Look for: docstring or comment blocks >2 lines, section dividers, TODOs without a tracking issue, comments that paraphrase the code rather than explain *why*.
 
-Area-specific rules (`<AREA>-*` IDs from the area's `## Architecture & conventions`) follow the same enforcement model — apply them with equal weight and cite their IDs the same way.
+Area-specific rules (`<AREA>-*` IDs) are defined in `area.yml → review_checks`, keyed by their rule ID (e.g. `BACKEND-DOMAIN-RULES`). Apply them with equal weight and cite their IDs the same way.
 
 ### 5. Stack-specific checks
 Read `area.yml` → `review_checks`. Execute each check listed there. The block contains both stack-specific implementations of the universal `DEV-*` checks above (keyed by rule ID) and additional area-specific concerns (idioms, anti-patterns, conventions of that area's stack).
