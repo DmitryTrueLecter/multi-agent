@@ -38,7 +38,7 @@ The `agent:` label disambiguates `Code Review`: `agent:reviewer` → reviewer (T
 
 ## PR feedback reconciliation (pre-flight, runs first in every mode)
 
-Reviewer-approved tasks sit in `On Hold` + `agent:user` + `awaiting-merge` until the user merges or declines the PR in the VCS platform. Before searching for the next task to run, this pre-flight syncs those user decisions into the issue tracker.
+Reviewer-approved tasks sit in `Awaiting Merge` + `agent:user` + `awaiting-merge` until the user merges or declines the PR in the VCS platform. Before searching for the next task to run, this pre-flight syncs those user decisions into the issue tracker.
 
 **When to run.** As the very first step of every `/run` invocation — auto-mode, pipeline mode, all mode, single-issue mode, role-only shortcut. On `/run all`, re-runs before each iteration's task pickup.
 

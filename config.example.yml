@@ -10,7 +10,7 @@ tasks:
   team_key: # team key (issue prefix, e.g. DMI-123)
   project:  #  project name within the team
   workflow:
-    statuses: [Todo, In Progress, QA, Code Review, On Hold, Done]
+    statuses: [Todo, In Progress, QA, Code Review, On Hold, Done, Awaiting Merge]
 
 runtime:
 
