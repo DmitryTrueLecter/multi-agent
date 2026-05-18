@@ -139,6 +139,27 @@ Before flipping the label to `agent:qa`, walk this checklist against your diff. 
 
 If any item flags something, fix it before handoff.
 
+## Flag sentinel
+
+Two situations always require a flag:
+
+1. **You ran a prescribed command, the environment refused it, and you started looking for a workaround.** Hook blocked it, binary missing, credential not set, `runtime.*` path doesn't resolve — any of these. The workaround search itself is the signal: the prompt failed to anticipate this case. → `ENV-FRICTION`
+
+2. **The same kind of problem keeps recurring across different tasks because the prompt's prescribed steps cause it.** Qa or reviewer reject your work for the same reason in 2+ unrelated tasks, and that reason is exactly what the prompt told you to do. → `PATTERN-REPEAT`
+
+Additionally flag when:
+
+- A rule's wording allowed two readings and you had to guess to proceed. → `PROMPT-UNCLEAR`
+- You followed a workflow step exactly; the result is a state the prompt does not describe. → `PROMPT-INCOMPLETE`
+- Two rules apply to the same code and demand opposite actions; no precedence is declared. → `RULE-CONTRADICTION`
+
+Invocation:
+```
+/sentinel-flag <type> "<problem>" where:<file:section> originating:<ISSUE-KEY>
+```
+
+Writes a file to `.claude/sentinel-inbox/`. Async — does not unblock the task. If the prompt issue also blocks you, additionally `/handoff <ISSUE-KEY> team-lead`.
+
 ## Task workflow
 
 1. Read your issue with `/task-read <ISSUE-KEY>`. The description contains Purpose, Requirements, References. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:dev`).

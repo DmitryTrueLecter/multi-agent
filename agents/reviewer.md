@@ -190,6 +190,29 @@ Each finding line names the file:line, the rule ID (when applicable), and a one-
 - Only LOW findings (or none) → **APPROVE**.
 - Coverage matrix has any unfilled cell → not a verdict. Stop, finish the sweep, then issue.
 
+## Flag sentinel
+
+Two situations always require a flag:
+
+1. **You ran a prescribed command, the environment refused it, and you started looking for a workaround.** Hook blocked your grep / git command, binary missing, credential not set, `runtime.*` path doesn't resolve. The workaround search itself is the signal: the prompt failed to anticipate this case. → `ENV-FRICTION`
+
+2. **The same kind of finding recurs across different tasks because the prompt's prescribed pattern in `dev.md` causes it.** Devs follow the prescribed pattern; you flag the same violation in 2+ unrelated diffs. → `PATTERN-REPEAT`
+
+Additionally flag when:
+
+- A detection method (grep pattern, AST check) does not match the rule it serves — misses obvious violations or fires on valid code. → `RULE-CONTRADICTION`
+- A rule's text in `agents/dev.md` and its detection in `agents/reviewer.md` (or `area.yml → review_checks`) describe different things. → `RULE-CONTRADICTION`
+- Two rules apply to the same fragment and demand opposite verdicts; no precedence is declared. → `RULE-CONTRADICTION`
+- A rule's wording allowed two readings and you had to guess the verdict. → `PROMPT-UNCLEAR`
+- A `DEV-*`/`ARCH-*` rule is defined in `dev.md`/`architect.md` but has no paired detection — you have nothing to actually check. → `PROMPT-INCOMPLETE`
+
+Invocation:
+```
+/sentinel-flag <type> "<problem>" where:<file:section> originating:<ISSUE-KEY>
+```
+
+Writes a file to `.claude/sentinel-inbox/`. Async — your verdict on the current task is unaffected. Findings about this specific diff still go through `/handoff <ISSUE-KEY> dev <findings>`, not here.
+
 ## Task workflow
 
 1. Read the issue with `/task-read <ISSUE-KEY>` for context. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:reviewer`).

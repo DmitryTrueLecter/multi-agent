@@ -81,6 +81,28 @@ Read `qa.yml` → `checks` (and `migration_checks` if present). Execute each che
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
 - **Branch state:** after `cd <workspace.path>` and `git checkout <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
+## Flag sentinel
+
+Two situations always require a flag:
+
+1. **You ran a prescribed command, the environment refused it, and you started looking for a workaround.** Hook blocked it, binary missing, credential not set, `runtime.*` path doesn't resolve. The workaround search itself is the signal: the prompt failed to anticipate this case. → `ENV-FRICTION`
+
+2. **The same kind of coverage gap recurs across different tasks because the prompt's prescribed pattern produces it.** Your `qa.yml` checks or the test-contract evaluation procedure leave the same blind spot in 2+ unrelated tasks. → `PATTERN-REPEAT`
+
+Additionally flag when:
+
+- A `qa.yml` check's wording allowed two readings and you had to guess pass/fail. → `PROMPT-UNCLEAR`
+- The test contract requires verification at a level your scope (test bodies + `visible_signatures` only) cannot provide; the prompt does not describe how to handle this. → `PROMPT-SCOPE-LEAK`
+- A check landed you in a state the prompt does not describe (e.g., `visible_signatures` empty, `test_command` missing). → `PROMPT-INCOMPLETE`
+- Two checks/rules apply to the same test and demand opposite verdicts; no precedence is declared. → `RULE-CONTRADICTION`
+
+Invocation:
+```
+/sentinel-flag <type> "<problem>" where:<file:section> originating:<ISSUE-KEY>
+```
+
+Writes a file to `.claude/sentinel-inbox/`. Async — does not block the task handoff. If the prompt issue also blocks you, additionally `/handoff <ISSUE-KEY> team-lead`.
+
 ## Task workflow
 
 1. Read your issue with `/task-read <ISSUE-KEY>`. The description contains Purpose and Requirements — this is what you verify against. By the time you are spawned, `/run` has already claimed the task (status `In Progress`, label `agent:qa`).

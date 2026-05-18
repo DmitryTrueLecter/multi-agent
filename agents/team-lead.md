@@ -275,3 +275,37 @@ Agent(subagent_type="architect", prompt="Technical question: <describe the quest
 ```
 
 Present the architect's recommendation to the user for approval before proceeding.
+
+## Consulting sentinel
+
+### Async — `/sentinel-flag`
+
+Use when you notice a structural problem but the pipeline is not blocked on it right now.
+
+`/sentinel-flag <type> "<problem>" where:<file:section> originating:<ISSUE-KEY>`
+
+Trigger moments:
+
+1. **You ran a prescribed command, the environment refused it, and you started looking for a workaround.** → `ENV-FRICTION`
+2. **The same kind of breakdown recurs across different tasks because the prompt's prescribed steps cause it.** → `PATTERN-REPEAT`
+
+Other types per `skills/sentinel-flag/SKILL.md`.
+
+### Sync — consultation
+
+Spawn sentinel as a subagent, symmetric to architect:
+
+```
+Agent(subagent_type="sentinel", prompt="Project: <abs-project-root>. Mode: consultation. Question: <q>. Context: <c>.")
+```
+
+Use when a task is **actively stuck** on a meta-problem:
+
+- A task is on `On Hold` / `needs-decision` and dev's blocker is a contradictory or ambiguous prompt — not a spec issue.
+- No `/handoff` target fits the current situation; the prompts don't declare which queue applies.
+- A task has bounced ≥2 times on a meta-ambiguity (not a code issue); the next bounce will be the third.
+- A skill or process step failed in a way the prompt does not anticipate, and you need to know whether the prompt is incomplete or you're misusing it.
+
+Out of scope for sentinel: technical decisions (→ architect), routine routing where prompts are clear (just handoff), bug findings in code.
+
+Present sentinel's recommendation to the user before applying any prompt change.
