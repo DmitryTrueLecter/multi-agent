@@ -269,12 +269,20 @@ Writes a file to `.claude/sentinel-inbox/`. Async — your verdict on the curren
 
    **Step 7c — Hand off to user.**
 
+   Capture the source-tip SHA before handoff:
+   ```
+   cd <workspace.path>
+   git rev-parse HEAD
+   ```
+   That SHA — the exact tip you pushed in step 7a — is the only SHA that survives downstream verification by `/pr-feedback`. Do not derive it from any later command.
+
    `/handoff <ISSUE-KEY> user <comment>` — status → `On Hold`, labels: remove `agent:reviewer`, add `agent:user` and `awaiting-merge`, comment posted with `🤖 reviewer (<area>):` prefix.
 
    The `<comment>` body must include, in this order:
    1. The PR URL.
    2. The full review summary (the formatted Output-format block — verdict, coverage matrix, any LOW findings).
    3. The local-checkout instruction: `Local checkout: just task <ISSUE-KEY>`.
+   4. The approved-tip line, exact format `Approved tip: <sha>` — full 40-char SHA on its own line, no backticks, no extra punctuation. `/pr-feedback` matches this line by regex when reconciling the merge.
 
    Do **not** transition the task to `Done`. Do **not** promote the parent Epic here. Both happen automatically via `/pr-feedback` once the user merges or declines the PR in the VCS platform.
 
