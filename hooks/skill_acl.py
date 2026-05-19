@@ -23,10 +23,11 @@ import sys
 ALLOWED: dict[str, set[str] | str] = {
     # Project multi-agent roles
     "team-lead": "*",
-    "dev":       {"handoff", "task-read", "issue-comment"},
-    "qa":        {"handoff", "task-read"},
-    "reviewer":  {"handoff", "task-read", "pr-open", "issue-comment"},
+    "dev":       {"handoff", "task-read", "issue-comment", "sentinel-flag"},
+    "qa":        {"handoff", "task-read", "sentinel-flag"},
+    "reviewer":  {"handoff", "task-read", "pr-open", "issue-comment", "sentinel-flag"},
     "architect": set(),
+    "sentinel":  {"task-read", "issue-search"},
 
     # Built-in research / utility agents — no ACL needed
     "general-purpose":    "*",
