@@ -1,7 +1,7 @@
 ---
 name: pr-feedback
 description: Reconcile PR merge/decline decisions from the VCS platform into the issue tracker. Run as the first step of every /run invocation. Invocation: /pr-feedback.
-tools: mcp__atlassian__bitbucket_list_pull_requests, mcp__atlassian__bitbucket_get_pull_request, mcp__atlassian__bitbucket_get_commit, mcp__atlassian__bitbucket_list_pull_request_comments, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_update_issue, mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_add_comment, mcp__atlassian__jira_search, mcp__linear__list_issues, mcp__linear__get_issue, mcp__linear__save_issue, mcp__linear__save_comment
+tools: mcp__atlassian__bitbucket_list_pull_requests, mcp__atlassian__bitbucket_get_pull_request, mcp__atlassian__bitbucket_get_commit, mcp__atlassian__bitbucket_list_pull_request_comments, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_get_transitions, mcp__atlassian__jira_update_issue, mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_add_comment, mcp__atlassian__jira_search, mcp__linear__list_issues, mcp__linear__get_issue, mcp__linear__save_issue, mcp__linear__save_comment
 ---
 
 # pr-feedback
@@ -45,7 +45,8 @@ Tasks awaiting merge sit in `statuses.awaiting_merge` with no `agent:` label —
    - `mcp__atlassian__jira_get_issue(issue_key=<KEY>)`. If the issue's status name is not `statuses.awaiting_merge` → skip (already reconciled).
    - Gather rejection text: `bitbucket_get_pull_request` description + `bitbucket_list_pull_request_comments` (inline prefixed `[file:line]`, cap ~3000 chars). Ask user if empty.
    - `mcp__atlassian__jira_update_issue`: labels → existing plus `agent:dev`.
-   - `mcp__atlassian__jira_transition_issue` → status name `statuses.to_do`.
+   - Resolve transition id: `mcp__atlassian__jira_get_transitions(issue_key=<KEY>)`, match `to_status == statuses.to_do`, capture `id`. If no match — log and skip this PR; next pre-flight will retry.
+   - `mcp__atlassian__jira_transition_issue(issue_key=<KEY>, transition_id=<id>)`.
    - `mcp__atlassian__jira_add_comment`: `🤖 user (decline) via PR <PR_URL>:\n\n<rejection text>`.
 
 5. For each **MERGED** PR:
@@ -60,11 +61,12 @@ Tasks awaiting merge sit in `statuses.awaiting_merge` with no `agent:` label —
        - `mcp__atlassian__jira_update_issue`: add label `stale-merge`. Status stays `statuses.awaiting_merge`.
        - `mcp__atlassian__jira_add_comment`: `🤖 user (merge with stale tip) via PR <PR_URL>: merged <merged_tip>, but approved tip was <approved_tip>. Commits between the two were orphaned and need human review before this task is marked done.`.
        - Skip the remaining substeps for this PR.
-   - `mcp__atlassian__jira_transition_issue` → status name `statuses.done`.
+   - Resolve transition id: `mcp__atlassian__jira_get_transitions(issue_key=<KEY>)`, match `to_status == statuses.done`, capture `id`. If no match — log and skip; next pre-flight retries.
+   - `mcp__atlassian__jira_transition_issue(issue_key=<KEY>, transition_id=<id>)`.
    - `mcp__atlassian__jira_add_comment`: `🤖 user (merge) via PR <PR_URL>: merged into <destination_branch> at <merged_tip>.`.
    - **Group close-out:** if the task has a parent with `type="group"`:
      - `mcp__atlassian__jira_search(jql='parent = <parent.key> AND status != "<statuses.done>"')`.
-     - If empty (all siblings done): `mcp__atlassian__jira_update_issue` adds `agent:team-lead` to parent; `mcp__atlassian__jira_transition_issue` on parent → status name `statuses.code_review`; add comment on parent.
+     - If empty (all siblings done): `mcp__atlassian__jira_update_issue` adds `agent:team-lead` to parent. Resolve transition id via `mcp__atlassian__jira_get_transitions(issue_key=<parent.key>)`, match `to_status == statuses.code_review`, capture `id`. `mcp__atlassian__jira_transition_issue(issue_key=<parent.key>, transition_id=<id>)`. Add comment on parent.
 
 6. On any single PR failure: log it and continue — the task stays in `statuses.awaiting_merge`, next pre-flight will retry.
 

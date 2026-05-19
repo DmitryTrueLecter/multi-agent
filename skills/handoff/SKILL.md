@@ -57,8 +57,12 @@ Why these rules:
 
 Step 8 implementation:
 1. `mcp__atlassian__jira_update_issue(issue_key=<KEY>, fields={"labels": [<new label list>]})` — full label list replacement.
-2. `mcp__atlassian__jira_transition_issue(issue_key=<KEY>, transition_name=<status name from step 7>)`. If Jira rejects the transition, stop and report — do not retry.
-3. `mcp__atlassian__jira_add_comment(issue_key=<KEY>, body="🤖 <from-role> (<area>): handoff → <to-role>\n\n<comment body or 'Manual handoff via /handoff.'>")`.
+2. Resolve the transition id from the target status name:
+   - `mcp__atlassian__jira_get_transitions(issue_key=<KEY>)` returns transitions available from the current status, each as `{id, name, to_status}`. `id` is a numeric string (e.g. `"11"`); `to_status` is the name of the destination status; `name` is the transition's own label and is not used here.
+   - Match by `to_status == <status name from step 7>` (case-sensitive). Capture `id` → `<transition id>`.
+   - If no transition matches: stop and report. The Jira workflow does not expose a transition from the current status to the target — a project-level workflow change is required, the skill cannot proceed.
+3. `mcp__atlassian__jira_transition_issue(issue_key=<KEY>, transition_id=<transition id>)` — pass the id as the string returned in step 2. If Jira rejects the transition, stop and report — do not retry.
+4. `mcp__atlassian__jira_add_comment(issue_key=<KEY>, body="🤖 <from-role> (<area>): handoff → <to-role>\n\n<comment body or 'Manual handoff via /handoff.'>")`.
 
 ---
 
