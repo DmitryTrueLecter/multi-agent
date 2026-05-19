@@ -8,20 +8,22 @@ tools: mcp__atlassian__bitbucket_list_pull_requests, mcp__atlassian__bitbucket_g
 
 Sync PR merge/decline decisions from the VCS platform into the issue tracker. Pre-flight step that runs before every agent dispatch.
 
+Status references in this skill are semantic keys (e.g. `awaiting_merge`, `done`, `to_do`). The actual tracker display name comes from `config.yml.tasks.workflow.statuses[<key>]` at call time.
+
 ## Usage
 
 `/pr-feedback`
 
 ## Steps
 
-1. Read `.claude/config.yml` → `tasks.provider`.
+1. Read `.claude/config.yml` → `tasks.provider` and `tasks.workflow.statuses` (semantic-key → display-name map). Resolve every `statuses.<key>` reference below through this map.
 2. Follow the section for your provider.
 
 ---
 
 ## jira
 
-Tasks awaiting merge sit in `Awaiting Merge` status + `agent:user` + `awaiting-merge` label.
+Tasks awaiting merge sit in `statuses.awaiting_merge` with no `agent:` label — the status column is the signal.
 
 **Setup:**
 - Read `tasks.project_key` and `vcs.branch_prefix` from config.
@@ -40,38 +42,37 @@ Tasks awaiting merge sit in `Awaiting Merge` status + `agent:user` + `awaiting-m
 
 4. For each **DECLINED** PR:
    - `<KEY>` = branch name with `<branch_prefix>` stripped.
-   - `mcp__atlassian__jira_get_issue(issue_key=<KEY>)`. If labels don't include `awaiting-merge` → skip (already reconciled).
+   - `mcp__atlassian__jira_get_issue(issue_key=<KEY>)`. If the issue's status name is not `statuses.awaiting_merge` → skip (already reconciled).
    - Gather rejection text: `bitbucket_get_pull_request` description + `bitbucket_list_pull_request_comments` (inline prefixed `[file:line]`, cap ~3000 chars). Ask user if empty.
-   - `mcp__atlassian__jira_update_issue`: labels → existing minus `agent:user`, `awaiting-merge`, plus `agent:dev`.
-   - `mcp__atlassian__jira_transition_issue` → `To Do`.
+   - `mcp__atlassian__jira_update_issue`: labels → existing plus `agent:dev`.
+   - `mcp__atlassian__jira_transition_issue` → status name `statuses.to_do`.
    - `mcp__atlassian__jira_add_comment`: `🤖 user (decline) via PR <PR_URL>:\n\n<rejection text>`.
 
 5. For each **MERGED** PR:
    - `<KEY>` = branch name with `<branch_prefix>` stripped.
-   - `mcp__atlassian__jira_get_issue(issue_key=<KEY>, comment_limit=50)`. If labels don't include `awaiting-merge` → skip.
+   - `mcp__atlassian__jira_get_issue(issue_key=<KEY>, comment_limit=50)`. If the issue's status name is not `statuses.awaiting_merge` → skip.
    - **Verify merged tip against approved tip.**
      - From the PR object (already in hand from step 2, or refetch via `bitbucket_get_pull_request`), read `merge_commit.hash` → `<merge_sha>`.
      - `mcp__atlassian__bitbucket_get_commit(workspace=X, repo_slug=Y, commit=<merge_sha>)`. The source-side parent is `parents[1].hash` → `<merged_tip>`. Conventional merge-commit order: `parents[0]` is the destination tip, `parents[1]` is what landed from the source branch.
      - Scan the issue's comments newest-first for the most recent line matching the regex `^Approved tip: ([0-9a-f]{40})$`. Capture group → `<approved_tip>`.
      - If no `Approved tip` line is found (legacy handoff predating the check): continue with reconciliation, but append `; no approved-tip recorded on this task` to the merge comment in the next substep.
-     - If `<merged_tip> != <approved_tip>` (**stale merge**): do NOT transition to Done. Instead:
-       - `mcp__atlassian__jira_update_issue`: add label `stale-merge`. Keep `awaiting-merge` and `agent:user`.
-       - `mcp__atlassian__jira_add_comment`: `🤖 user (merge with stale tip) via PR <PR_URL>: merged <merged_tip>, but approved tip was <approved_tip>. Commits between the two were orphaned and need human review before this task is marked Done.`.
-       - Skip the remaining substeps for this PR (no Done transition, no group close-out).
-   - `mcp__atlassian__jira_update_issue`: labels → existing minus `agent:user`, `awaiting-merge`.
-   - `mcp__atlassian__jira_transition_issue` → `Done`.
+     - If `<merged_tip> != <approved_tip>` (**stale merge**): do NOT transition to `statuses.done`. Instead:
+       - `mcp__atlassian__jira_update_issue`: add label `stale-merge`. Status stays `statuses.awaiting_merge`.
+       - `mcp__atlassian__jira_add_comment`: `🤖 user (merge with stale tip) via PR <PR_URL>: merged <merged_tip>, but approved tip was <approved_tip>. Commits between the two were orphaned and need human review before this task is marked done.`.
+       - Skip the remaining substeps for this PR.
+   - `mcp__atlassian__jira_transition_issue` → status name `statuses.done`.
    - `mcp__atlassian__jira_add_comment`: `🤖 user (merge) via PR <PR_URL>: merged into <destination_branch> at <merged_tip>.`.
    - **Group close-out:** if the task has a parent with `type="group"`:
-     - `mcp__atlassian__jira_search(jql="parent = <parent.key> AND status != Done")`.
-     - If empty (all siblings Done): `mcp__atlassian__jira_update_issue` adds `agent:team-lead` to parent; `mcp__atlassian__jira_transition_issue` on parent → `Code Review`; add comment on parent.
+     - `mcp__atlassian__jira_search(jql='parent = <parent.key> AND status != "<statuses.done>"')`.
+     - If empty (all siblings done): `mcp__atlassian__jira_update_issue` adds `agent:team-lead` to parent; `mcp__atlassian__jira_transition_issue` on parent → status name `statuses.code_review`; add comment on parent.
 
-6. On any single PR failure: log it and continue — the `awaiting-merge` label stays, next pre-flight will retry.
+6. On any single PR failure: log it and continue — the task stays in `statuses.awaiting_merge`, next pre-flight will retry.
 
 ---
 
 ## linear
 
-Tasks awaiting merge sit in `Awaiting Merge` state + `agent:user` label.
+Tasks awaiting merge sit in `statuses.awaiting_merge` with no `agent:` label.
 
 **Setup:**
 - Read `tasks.team_key`, `tasks.project`, and `vcs.branch_prefix` from config.
@@ -84,9 +85,9 @@ Tasks awaiting merge sit in `Awaiting Merge` state + `agent:user` label.
 
 **Steps:**
 
-1. Find all issues currently in `Awaiting Merge` state:
+1. Find all issues currently in `statuses.awaiting_merge`:
    ```
-   mcp__linear__list_issues(team=<team_key>, project=<project>, state="Awaiting Merge", label="agent:user")
+   mcp__linear__list_issues(team=<team_key>, project=<project>, state=<statuses.awaiting_merge>)
    ```
 
 2. For each issue, derive the expected branch: `<branch_prefix><issue.identifier>`. Check its PR status (subshell):
@@ -97,7 +98,7 @@ Tasks awaiting merge sit in `Awaiting Merge` state + `agent:user` label.
 3. For each issue where PR state is **`CLOSED`** (declined):
    - Gather rejection text from PR body + comments. Ask user if empty.
    - `mcp__linear__get_issue` to get current labels.
-   - `mcp__linear__save_issue(id=<KEY>, labels=[...existing minus agent:user, plus agent:dev], state="Todo")`.
+   - `mcp__linear__save_issue(id=<KEY>, labels=[...existing + agent:dev], state=<statuses.to_do>)`.
    - `mcp__linear__save_comment(issueId=<KEY>, body="🤖 user (decline) via PR <PR_URL>:\n\n<rejection text>")`.
 
 4. For each issue where PR state is **`MERGED`**:
@@ -107,14 +108,14 @@ Tasks awaiting merge sit in `Awaiting Merge` state + `agent:user` label.
      - `gh api repos/<owner>/<repo>/commits/<merge_sha>` → JSON with `.parents[]`. The source-side parent is `.parents[1].sha` → `<merged_tip>`. Conventional merge-commit order: `parents[0]` is the destination tip, `parents[1]` is what landed from the source branch.
      - Scan the issue's comments newest-first for the most recent line matching the regex `^Approved tip: ([0-9a-f]{40})$`. Capture group → `<approved_tip>`.
      - If no `Approved tip` line is found (legacy handoff predating the check): continue with reconciliation, but append `; no approved-tip recorded on this task` to the merge comment in the next substep.
-     - If `<merged_tip> != <approved_tip>` (**stale merge**): do NOT transition to Done. Instead:
-       - `mcp__linear__save_issue(id=<KEY>, labels=[...existing + stale-merge])`. Keep `agent:user` and state `Awaiting Merge`.
-       - `mcp__linear__save_comment(issueId=<KEY>, body="🤖 user (merge with stale tip) via PR <PR_URL>: merged <merged_tip>, but approved tip was <approved_tip>. Commits between the two were orphaned and need human review before this task is marked Done.")`.
-       - Skip the remaining substeps for this PR (no Done transition, no group close-out).
-   - `mcp__linear__save_issue(id=<KEY>, labels=[...existing minus agent:user], state="Done")`.
+     - If `<merged_tip> != <approved_tip>` (**stale merge**): do NOT transition to `statuses.done`. Instead:
+       - `mcp__linear__save_issue(id=<KEY>, labels=[...existing + stale-merge])`. State stays `statuses.awaiting_merge`.
+       - `mcp__linear__save_comment(issueId=<KEY>, body="🤖 user (merge with stale tip) via PR <PR_URL>: merged <merged_tip>, but approved tip was <approved_tip>. Commits between the two were orphaned and need human review before this task is marked done.")`.
+       - Skip the remaining substeps for this PR.
+   - `mcp__linear__save_issue(id=<KEY>, state=<statuses.done>)`.
    - `mcp__linear__save_comment(issueId=<KEY>, body="🤖 user (merge) via PR <PR_URL>: merged at <merged_tip>.")`.
    - **Group close-out:** if issue has a parent:
-     - `mcp__linear__list_issues(parentId=<parent.id>)`. Filter to non-Done.
-     - If empty (all siblings Done): `mcp__linear__save_issue(id=<parent.id>, labels=[...existing + agent:team-lead], state="Code Review")`; add comment on parent.
+     - `mcp__linear__list_issues(parentId=<parent.id>)`. Filter to entries whose state name is not `statuses.done`.
+     - If empty (all siblings done): `mcp__linear__save_issue(id=<parent.id>, labels=[...existing + agent:team-lead], state=<statuses.code_review>)`; add comment on parent.
 
 5. On any single issue failure: log it and continue.

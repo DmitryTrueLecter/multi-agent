@@ -10,10 +10,20 @@ tasks:
   team_key: # team key (issue prefix, e.g. DMI-123)
   project:  #  project name within the team
   workflow:
-    statuses: [Todo, In Progress, QA, Code Review, On Hold, Done, Awaiting Merge]
+    # Semantic status key → display name in this project's tracker workflow.
+    # Shared-plugin prompts reference statuses by the semantic key on the left;
+    # the actual tracker name (right column) is resolved at runtime.
+    # Tune each value to match what your Jira / Linear board exposes.
+    statuses:
+      to_do: "To Do"
+      in_progress: "In Progress"
+      qa: "QA"
+      code_review: "Code Review"
+      on_hold: "On Hold"
+      awaiting_merge: "Awaiting Merge"
+      done: "Done"
 
 docs:
   root: ai   # optional: path (relative to project root) to free-form human docs — read by team-lead for project context
 
 runtime:
-

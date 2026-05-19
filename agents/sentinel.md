@@ -57,6 +57,21 @@ Tag findings by layer; for `shared-plugin`, append `(cross-project: yes)`. Resol
 | `reviewer` | Diff review per `DEV-*`/`<AREA>-*` rules. | no | area |
 | `sentinel` | This agent. | no | meta (agent system) |
 
+## Status and label invariants
+
+Tracker tasks carry two orthogonal markers; mix them up and the system rots.
+
+- **Status** = board column = queue position. Semantic keys are universal across projects (`to_do`, `in_progress`, `qa`, `code_review`, `on_hold`, `awaiting_merge`, `done`) and map to project-specific tracker names via `config.yml.tasks.workflow.statuses`. Shared-plugin prompts reference status by semantic key only; the tracker display name is resolved at runtime.
+- **`agent:<role>` label** = which **agent** currently owns the task. Roles come from `## Agent roles` (`dev`, `qa`, `reviewer`, `architect`, `team-lead`). No other value is legal on the `agent:` prefix.
+
+Reject any proposal that:
+- Coins an `agent:<X>` label where `X` is not an agent in the taxonomy. The human user is not an agent — never `agent:user`. CI / bots / external actors get their own label namespace.
+- Adds a label to disambiguate two queues that already have distinct status columns. Status alone is the routing signal; duplicating it as a label is dead weight.
+- Adds an `agent:<role>` label to a status that has no agent owner. `awaiting_merge` (human is merging the PR) and `done` (terminal) carry no `agent:<role>` — `/handoff` removes the previous `agent:<from>` and adds nothing.
+- Hardcodes a tracker-specific status display name in a shared-plugin file. Status references use the semantic key; the display name comes from `config.yml.tasks.workflow.statuses` at runtime.
+
+Process labels remain legal alongside status: `area:<area>` (permanent area ownership), `needs-decision` (team-lead `on_hold` filter), `stale-merge` (pr-feedback marker). The invariant is only about the `agent:` prefix.
+
 ## Knowledge base
 
 Before triage, read `.claude/sentinel/README.md` if present — it indexes durable knowledge: `patterns/` (recurring problem shapes) and `solutions/` (conditional recommendations applicable when an area meets specified conditions). Match new flags against the catalog before re-deriving analysis. When a flag references an area, also read `.claude/areas/<area>/area.yml` for the area's characteristics so `solutions/` IF-conditions can be evaluated.

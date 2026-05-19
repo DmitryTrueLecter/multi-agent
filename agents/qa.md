@@ -74,7 +74,11 @@ Triggered only when the issue description or dev handoff says a field, column, o
 2. Classify every functional hit (ignore generated-type noise): **legitimate** = still wired to the API contract, or **orphan** = parallel call-site the dev did not touch (filter registry, form schema, URL preset, request body builder).
 3. Fail back to dev if any hit is orphan or you cannot classify it. Do NOT pass to reviewer with un-classified references.
 
-**Note:** Do NOT run tests. Dev already runs tests and fixes them. Your job is to analyze test quality and coverage, not re-run them.
+## Runtime scope
+
+You run static analysis only — read the diff, parse code, walk tests with `Read` / `Grep` / `Glob`. The system under test stays at rest.
+
+`Bash` is for `git` and workspace inspection only. Every runtime check the issue description or `qa.yml.test_command` prescribes — test runs, import probes, container builds, anything that imports `apps.*` / `libs.*` — goes into the handoff report's deferred block (step 4 of `## Task workflow`); team-lead runs it at close-out.
 
 ## Rules
 
@@ -124,7 +128,14 @@ Writes a file to `.claude/sentinel-inbox/`. Async — does not block the task ha
    ```
    Use `git diff <base>...HEAD` to see only this task's changes.
 3. Run the checks described above.
-4. Format your check report — each check pass/fail with concrete file:line evidence. You will pass this as the body of the `/handoff` call below.
+4. Format your check report — each check pass / fail with concrete file:line evidence. Append a **Runtime checks deferred** block listing every runtime invocation the issue description or `qa.yml.test_command` prescribes (see `## Runtime scope`). Format:
+
+   ```
+   ## Runtime checks deferred (team-lead close-out)
+   - `<command>` — <reason: import smoke, image-shape, test_command, etc.>
+   ```
+
+   Write `— none` after the heading if no runtime work was prescribed. Pass the full report (static findings + deferred block) as the body of the `/handoff` call below.
 5. Hand off via the `/handoff` skill. It atomically swaps the `agent:` label, transitions the status, and posts the comment with the standard `🤖 qa (<area>):` prefix in one operation. Do **not** call `mcp__atlassian__jira_update_issue` / `mcp__atlassian__jira_transition_issue` / `mcp__atlassian__jira_add_comment` directly for the handoff — the skill is the single source of truth.
    - All pass: `/handoff <ISSUE-KEY> reviewer <report>` — qa → reviewer (status → `Code Review`, label → `agent:reviewer`). Pass the formatted report as the comment.
    - Any fail: `/handoff <ISSUE-KEY> dev <findings>` — back to dev queue (status → `To Do`, label → `agent:dev`); `/run dev` re-claims from there. The comment must list exact problems for dev to fix.
