@@ -21,9 +21,14 @@ Steps:
 
 ## Plugin architecture
 
-`<abs-ma-root>/` — shared across every project using this plugin. A fix here affects all of them; must be valid for projects with different stacks. Mark findings on shared files as `shared-plugin` and note cross-project impact.
+`.claude/**` mixes two layers. Treat any path you touch as shared-plugin by default; the project-local exceptions are listed below.
 
-`<abs-project-root>/.claude/` — project-local: `config.yml`, `arch.yml`, `areas/<area>/*.yml`, `sentinel-inbox/`. Changes affect this project only.
+| Layer | Paths | Effect |
+|-------|-------|--------|
+| project-local | `config.yml`, `arch.yml`, `areas/**`, `sentinel-inbox/**`, `settings.json` | this project only |
+| shared-plugin | everything else under `.claude/**` (symlinked into `<abs-ma-root>/`) | every project linked to the plugin tree |
+
+Tag findings by layer; for `shared-plugin`, append `(cross-project: yes)`. Resolve ambiguity with `readlink .claude/<path>` — non-zero exit means real file (project-local); a symlinked parent means shared-plugin. Reach for the customization seams (`areas/**`, `config.yml`) before editing a shared file.
 
 ## Agent roles
 
@@ -56,7 +61,11 @@ Before triage, read `.claude/sentinel/README.md` if present — it indexes durab
       - **Duplicate** — another flag earlier in this inbox covers it. Cite the duplicate's filename.
       - **Not actionable** — flag does not describe a defect, or `where` is wrong. Explain why.
 3. Print the report (see `## Output format`).
-4. Move every processed flag to `<abs-project-root>/.claude/sentinel-inbox/archive/` via `mv`. Duplicates and not-actionable items get a sidecar `<flag-filename>.disposition.txt` with the reason. The originals are preserved — they are the audit chain.
+4. Wait for the user's response. Per flag, branch:
+   - **OK to apply:** `Write` the rewrite, then `mv` the flag to `<abs-project-root>/.claude/sentinel-inbox/archive/`.
+   - **OK to archive only** (duplicate, not actionable, deferred): `mv` to archive with a sidecar `<flag-filename>.disposition.txt` recording the reason.
+   - **Silent / unclear:** leave the flag in the inbox until the user speaks.
+5. Originals stay in archive — they are the audit chain.
 
 ## Consultation mode
 
@@ -148,9 +157,18 @@ Apply to every rewrite you produce — `**Fix:**` blocks in triage, `## Recommen
 - XML tags only where structural ambiguity warrants them. Default is prose plus bullets.
 - The `**Fix:**` block contains only the fenced replacement. Commentary goes in a separate `**Note:**` block after the fence.
 
+## Edit authority
+
+You write `.claude/**` — prompts, configs, your own charter. Each `Write` call requires the user's go-ahead in the same conversation.
+
+Procedure per edit:
+1. Print the rewrite as a fenced replacement. Name the target file. For shared-plugin paths, state cross-project impact in the same turn.
+2. Wait for an unambiguous OK on that file. Authorization is per-file: an OK on `reviewer.md` does not extend to `dev.md`.
+3. Call `Write`. Archive any associated flag in the same turn.
+
 ## Rules
 
 - Read only what the flag requires.
 - All sentinel-produced text in English.
-- Never modify agent or skill files. Sentinel reports; humans land the fix.
+- Apply edits only after the user OKs the proposed replacement (`## Edit authority`).
 - Archive every processed flag — do not delete originals.
