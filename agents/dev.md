@@ -27,7 +27,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 2. `config.yml` → `workspace.<field>`
 3. Built-in defaults: `path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`
 
-**All git, test, and edit operations for your task happen inside the resolved `workspace.path`.** Branches you create (`<vcs.branch_prefix><ISSUE-KEY>`) live in that workspace and are pushed to its `remote`. Paths in `dev.yml` (`write:`, `test_command`, etc.) are interpreted **relative to `workspace.path`** — do not prepend it.
+**All git, test, and edit operations for your task happen inside the resolved `workspace.path`.** Branches you create (`<vcs.branch_prefix><ISSUE-KEY>`) live in that workspace and are pushed to its `remote`. Paths in `dev.yml` (`write:`) and `area.yml` (`test_command`) are interpreted **relative to `workspace.path`** — do not prepend it.
 
 **Cwd:** first Bash = `cd <abs-workspace-path>` (from prompt). Then stay. No compound `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
 
@@ -65,7 +65,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 
 ## Code standards
 
-These rules apply to every change. Each has a stable ID; the reviewer cites the ID when blocking a PR. Detection methods live in `agents/reviewer.md` — do not duplicate them here. Area-specific rules use their own ID prefix (e.g. `AI-*`, `API-*`) and live in `.claude/areas/<area>/dev.yml`.
+These rules apply to every change. Each has a stable ID; the reviewer cites the ID when blocking a PR. Detection methods live in `agents/reviewer.md` — do not duplicate them here. Area-specific rules use their own ID prefix (e.g. `AI-*`, `API-*`) and live in `.claude/areas/<area>/area.yml → review_checks`.
 
 **DEV-SRP — Single responsibility per function and module.**
 A function or module does one thing. If you can describe it as "X and Y", split it. Counterweight: see `DEV-DRY` and `DEV-YAGNI` — do not split for the sake of splitting; the goal is one purpose, not minimum size.
@@ -227,7 +227,7 @@ Writes a file to `.claude/sentinel-inbox/`. Async — does not unblock the task.
 
    All branches use `<vcs.branch_prefix>` (default `ai/`) followed by the Jira KEY.
 3. Do the work described in the issue. All edits and tool calls operate on paths relative to `workspace.path`.
-4. Run tests using the `test_command` from `dev.yml` (executed from `workspace.path`).
+4. Run tests using the `test_command` from `area.yml` (executed from `workspace.path`).
 5. **Commit your changes** (do NOT push). Commit message format:
    ```
    ISSUE-KEY subject line

@@ -28,7 +28,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 2. `config.yml` → `workspace.<field>`
 3. Built-in defaults: `path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`
 
-**All git and test operations happen inside the resolved `workspace.path`.** Paths in `qa.yml` (`test_command`, `visible_signatures`, …) are interpreted relative to `workspace.path`.
+**All git and test operations happen inside the resolved `workspace.path`.** Paths in `qa.yml` (`visible_signatures`, …) and `area.yml` (`test_command`) are interpreted relative to `workspace.path`.
 
 **Cwd:** first Bash = `cd <abs-workspace-path>` (from prompt). Then stay. No compound `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
 
@@ -78,7 +78,7 @@ Triggered only when the issue description or dev handoff says a field, column, o
 
 You run static analysis only — read the diff, parse code, walk tests with `Read` / `Grep` / `Glob`. The system under test stays at rest.
 
-`Bash` is for `git` and workspace inspection only. Every runtime check the issue description or `qa.yml.test_command` prescribes — test runs, import probes, container builds, anything that imports `apps.*` / `libs.*` — goes into the handoff report's deferred block (step 4 of `## Task workflow`); team-lead runs it at close-out.
+`Bash` is for `git` and workspace inspection only. Every runtime check the issue description or `area.yml.test_command` prescribes — test runs, import probes, container builds, anything that imports `apps.*` / `libs.*` — goes into the handoff report's deferred block (step 4 of `## Task workflow`); team-lead runs it at close-out.
 
 ## Rules
 
@@ -104,7 +104,7 @@ Additionally flag when:
 
 - A `qa.yml` check's wording allowed two readings and you had to guess pass/fail. → `PROMPT-UNCLEAR`
 - The test contract requires verification at a level your scope (test bodies + `visible_signatures` only) cannot provide; the prompt does not describe how to handle this. → `PROMPT-SCOPE-LEAK`
-- A check landed you in a state the prompt does not describe (e.g., `visible_signatures` empty, `test_command` missing). → `PROMPT-INCOMPLETE`
+- A check landed you in a state the prompt does not describe (e.g., `qa.yml.visible_signatures` empty, `area.yml.test_command` missing). → `PROMPT-INCOMPLETE`
 - Two checks/rules apply to the same test and demand opposite verdicts; no precedence is declared. → `RULE-CONTRADICTION`
 
 Invocation:
@@ -128,7 +128,7 @@ Writes a file to `.claude/sentinel-inbox/`. Async — does not block the task ha
    ```
    Use `git diff <base>...HEAD` to see only this task's changes.
 3. Run the checks described above.
-4. Format your check report — each check pass / fail with concrete file:line evidence. Append a **Runtime checks deferred** block listing every runtime invocation the issue description or `qa.yml.test_command` prescribes (see `## Runtime scope`). Format:
+4. Format your check report — each check pass / fail with concrete file:line evidence. Append a **Runtime checks deferred** block listing every runtime invocation the issue description or `area.yml.test_command` prescribes (see `## Runtime scope`). Format:
 
    ```
    ## Runtime checks deferred (team-lead close-out)
