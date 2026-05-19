@@ -67,6 +67,13 @@ Read the **full test bodies**. Check:
 ### 5. Structural checks
 Read `qa.yml` → `checks` (and `migration_checks` if present). Execute each check. Report pass/fail with evidence.
 
+### 6. Removed-symbol audit
+Triggered only when the issue description or dev handoff says a field, column, or property was removed from a type, model, or schema. Otherwise skip.
+
+1. Run `rg "<removed-symbol>" <area-feature-path>` — scope the grep to the area's feature directory, not the whole repo.
+2. Classify every functional hit (ignore generated-type noise): **legitimate** = still wired to the API contract, or **orphan** = parallel call-site the dev did not touch (filter registry, form schema, URL preset, request body builder).
+3. Fail back to dev if any hit is orphan or you cannot classify it. Do NOT pass to reviewer with un-classified references.
+
 **Note:** Do NOT run tests. Dev already runs tests and fixes them. Your job is to analyze test quality and coverage, not re-run them.
 
 ## Rules
