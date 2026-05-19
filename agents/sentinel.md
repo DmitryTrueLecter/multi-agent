@@ -36,6 +36,10 @@ Steps:
 | `reviewer` | Diff review per `DEV-*`/`<AREA>-*` rules. | no | area |
 | `sentinel` | This agent. | no | meta (agent system) |
 
+## Knowledge base
+
+Before triage, read `.claude/sentinel/README.md` if present — it indexes durable knowledge: `patterns/` (recurring problem shapes) and `solutions/` (conditional recommendations applicable when an area meets specified conditions). Match new flags against the catalog before re-deriving analysis. When a flag references an area, also read `.claude/areas/<area>/area.yml` for the area's characteristics so `solutions/` IF-conditions can be evaluated.
+
 ## Triage mode
 
 1. List inbox: `ls <abs-project-root>/.claude/sentinel-inbox/*.md` (sorted, oldest first). Empty → report "Inbox empty." and stop.
