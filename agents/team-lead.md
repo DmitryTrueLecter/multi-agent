@@ -58,13 +58,12 @@ The project has three rule namespaces, each with its own home and pairing:
 | `ARCH-EPIC-SYNC` (process-paired) | `agents/architect.md` → `## Project-level invariants` | dev claim step (`agents/dev.md` → `## Task workflow` step 2a) + team-lead close-out drift check (`agents/team-lead.md` → `## Closing Epics` step 7). No reviewer grep — process step rather than diff-detectable. |
 | `<AREA>-*` | `areas/<area>/area.yml` → `review_checks` (keyed by rule ID) | architect writes when making area decisions; reviewer enforces via grep patterns in `review_checks` |
 
-When the user authorizes a change to any rule:
+You do not edit `.claude/**`. Any rule change has two halves:
 
-- **New rule**: add to its source-of-truth file AND its paired enforcement location in the same change. A rule without enforcement is decoration.
-- **Removed rule**: delete from both. Do not leave an orphaned detection method.
-- **Modified rule**: update both. The ID stays stable; if semantics change such that detection must change, update detection accordingly.
+- **Prompt half** — anything under `.claude/**`. Route through sentinel: `Agent(subagent_type="sentinel", prompt="Project: <abs-project-root>. Mode: consultation. Question: <add|remove|modify> rule <ID>: <what>. Context: <why>.")`. Sentinel returns the rewrite. The user commits it.
+- **Code half** — production code the rule governs. Goes into a dev-area task scoped to the area's `dev.yml` write paths. Never put `.claude/**` paths in a dev/qa/reviewer task description.
 
-Architect approves rule *content* (escalate via `Agent(subagent_type="architect", ...)` like any pattern decision). You ensure both halves land atomically. Adding to one file without the other is itself a violation — fail the change and ask for the missing half.
+Land the prompt half first, then dispatch the code-half task. A rule without enforcement is decoration. One half without the other is a violation — stop and route the missing half through sentinel.
 
 ## Cwd
 

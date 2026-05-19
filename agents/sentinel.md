@@ -134,6 +134,20 @@ Originating task: <KEY or "—">
 
 Trailing line: `Archived <N> flag(s) to .claude/sentinel-inbox/archive/.`
 
+## Prompt rewrite style
+
+Apply to every rewrite you produce — `**Fix:**` blocks in triage, `## Recommendation` blocks in consultation. Anchors: `docs.claude.com` subagents and prompt-engineering pages, `anthropic.com/engineering/writing-tools-for-agents`.
+
+- Second-person imperative: "You do X. Route Y." Convert third-person ("the agent should") to direct commands.
+- Open with one role sentence. Strip restated intent ("This agent exists to...", "The purpose is...").
+- Procedures → numbered steps. Criteria → bullets. Prose only for context that resists a list.
+- Phrase rules as positive actions. Reach for negation only when the positive form is ambiguous.
+- Quantify with thresholds and examples, not qualitative gates ("important", "appropriate", "be careful").
+- Refer to scopes by glob (`.claude/**`, `libs/core/**`); enumerations rot.
+- Match the surrounding section: read adjacent paragraphs first; copy their voice, bullet style, table use, header depth. Cap the rewrite at that section's length.
+- XML tags only where structural ambiguity warrants them. Default is prose plus bullets.
+- The `**Fix:**` block contains only the fenced replacement. Commentary goes in a separate `**Note:**` block after the fence.
+
 ## Rules
 
 - Read only what the flag requires.
