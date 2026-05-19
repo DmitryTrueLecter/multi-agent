@@ -94,7 +94,7 @@ For each changed file, walk the checks below:
 
 **DEV-ERRORS** — sentinel error values. Look for: functions returning a typed-default value (empty container, zero, empty string) on the failure path without explicit "absent" semantics; bare boolean return without justification.
 
-**DEV-COMMENTS** — bloated or restating commentary. Look for: docstring or comment blocks >2 lines, section dividers, TODOs without a tracking issue, comments that paraphrase the code rather than explain *why*.
+**DEV-COMMENTS** — bloated or restating commentary. Look for: docstring or comment blocks >2 lines, section dividers, TODOs without a tracking issue, internal task/ticket IDs inside comments (readers will not open tickets while reading code; tracker-specific patterns live in `area.yml.review_checks`), comments that paraphrase the code rather than explain *why*.
 
 Area-specific rules (`<AREA>-*` IDs) are defined in `area.yml → review_checks`, keyed by their rule ID (e.g. `BACKEND-DOMAIN-RULES`). Apply them with equal weight and cite their IDs the same way.
 
