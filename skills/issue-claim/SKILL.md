@@ -1,12 +1,12 @@
 ---
 name: issue-claim
 description: Atomically claim an issue by transitioning it to In Progress. Returns the full issue data on success (same shape as /task-read), or a failure signal if another runner already claimed it. Caller decides what to do on failure. Invocation: /issue-claim <ISSUE-KEY>.
-tools: mcp__atlassian__jira_get_transitions, mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_get_issue, mcp__linear__save_issue, mcp__linear__get_issue, mcp__linear__list_comments
+tools: mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_get_issue, mcp__linear__save_issue, mcp__linear__get_issue, mcp__linear__list_comments
 ---
 
 # issue-claim
 
-Claim an issue by transitioning it to `In Progress`, then return its full data.
+Claim an issue by transitioning it to the `in_progress` status, then return its full data.
 
 ## Usage
 
@@ -21,11 +21,9 @@ Claim an issue by transitioning it to `In Progress`, then return its full data.
 
 ## jira
 
-1. Resolve the transition id for `In Progress`:
-   - `mcp__atlassian__jira_get_transitions(issue_key=<ISSUE-KEY>)` returns transitions available from the current status, each as `{id, name, to_status}`.
-   - Match by `to_status == "In Progress"`, capture `id`. If no match: return failure to the caller — the issue is not in a status that exposes the `In Progress` transition (already claimed, or wrong queue).
+1. Read `tasks.jira.transitions.in_progress` from config — the numeric transition id. If missing or `0`: stop and report — run `/sentinel-bootstrap-jira` to populate the map.
 2. `mcp__atlassian__jira_transition_issue(issue_key=<ISSUE-KEY>, transition_id=<id>)`.
-3. **If rejected** (Jira returns an error — issue raced and left the expected status between steps 1 and 2): return failure to the caller. Do NOT retry.
+3. **If rejected** (Jira returns an error — the issue's current status does not expose this transition, meaning another runner claimed it first or the queue filter and actual status drifted): return failure to the caller. Do NOT retry.
 4. **If success**: call `mcp__atlassian__jira_get_issue(issue_key=<ISSUE-KEY>)` and return the normalized data (same shape as `/task-read` output).
 
 ---

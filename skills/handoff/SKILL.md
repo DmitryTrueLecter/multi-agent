@@ -37,7 +37,7 @@ Why these rules:
 
 ## Steps
 
-1. Read `.claude/config.yml` → `tasks.provider` and `tasks.workflow.statuses` (the semantic-key → display-name map).
+1. Read `.claude/config.yml` → `tasks.provider`, `tasks.workflow.statuses` (semantic-key → display-name map), and `tasks.jira.transitions` (semantic-key → numeric transition id map; jira provider only).
 2. Parse arguments into `<KEY>`, optional `<to-role>`, optional `<comment>`.
 3. Read the issue (see provider section below) to get current `agent:<role>` and `area:<area>` labels.
 4. If `<to-role>` is omitted, derive the default forward target:
@@ -57,11 +57,8 @@ Why these rules:
 
 Step 8 implementation:
 1. `mcp__atlassian__jira_update_issue(issue_key=<KEY>, fields={"labels": [<new label list>]})` — full label list replacement.
-2. Resolve the transition id from the target status name:
-   - `mcp__atlassian__jira_get_transitions(issue_key=<KEY>)` returns transitions available from the current status, each as `{id, name, to_status}`. `id` is a numeric string (e.g. `"11"`); `to_status` is the name of the destination status; `name` is the transition's own label and is not used here.
-   - Match by `to_status == <status name from step 7>` (case-sensitive). Capture `id` → `<transition id>`.
-   - If no transition matches: stop and report. The Jira workflow does not expose a transition from the current status to the target — a project-level workflow change is required, the skill cannot proceed.
-3. `mcp__atlassian__jira_transition_issue(issue_key=<KEY>, transition_id=<transition id>)` — pass the id as the string returned in step 2. If Jira rejects the transition, stop and report — do not retry.
+2. Read `tasks.jira.transitions.<status key from step 7's source table>` from config — the numeric transition id for the target status. If missing or `0`: stop and report — run `/sentinel-bootstrap-jira` to populate the map.
+3. `mcp__atlassian__jira_transition_issue(issue_key=<KEY>, transition_id=<id>)`. If Jira rejects the transition, stop and report — do not retry. The most common cause is that the Jira workflow does not expose a transition from the current status to the target; that requires a Jira workflow change, not a skill change.
 4. `mcp__atlassian__jira_add_comment(issue_key=<KEY>, body="🤖 <from-role> (<area>): handoff → <to-role>\n\n<comment body or 'Manual handoff via /handoff.'>")`.
 
 ---
