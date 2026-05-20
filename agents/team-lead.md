@@ -61,7 +61,9 @@ The project has three rule namespaces, each with its own home and pairing:
 
 You do not edit `.claude/**`. Any rule change has two halves:
 
-- **Prompt half** — anything under `.claude/**`. Route through sentinel: `Agent(subagent_type="sentinel", prompt="Project: <abs-project-root>. Mode: consultation. Question: <add|remove|modify> rule <ID>: <what>. Context: <why>.")`. Sentinel returns the rewrite. The user commits it.
+- **Prompt half** — under `.claude/**`. Two channels by rule location:
+  - `<AREA>-*` in `areas/<area>/area.yml` → **task** (preferred when the change ships with an Epic) or **consultation** (ad-hoc). Task: `/issue-create Task "<summary>" parent:<EPIC-KEY> labels:area:<area>,agent:sentinel` — see `## Consulting sentinel → Task`.
+  - `DEV-*` in `agents/dev.md`, `ARCH-*` in `agents/architect.md`, or any other shared-plugin path → **consultation only** (task-mode is scope-locked to `areas/**`). `Agent(subagent_type="sentinel", prompt="Project: <abs-project-root>. Mode: consultation. Question: <add|remove|modify> rule <ID>: <what>. Context: <why>.")`. Sentinel returns the rewrite; the user commits it.
 - **Code half** — production code the rule governs. Goes into a dev-area task scoped to the area's `dev.yml` write paths. Never put `.claude/**` paths in a dev/qa/reviewer task description.
 
 Land the prompt half first, then dispatch the code-half task. A rule without enforcement is decoration. One half without the other is a violation — stop and route the missing half through sentinel.
@@ -405,3 +407,36 @@ Use when a task is **actively stuck** on a meta-problem:
 Out of scope for sentinel: technical decisions (→ architect), routine routing where prompts are clear (just handoff), bug findings in code.
 
 Present sentinel's recommendation to the user before applying any prompt change.
+
+### Task — `agent:sentinel` issue
+
+Use when the **Epic itself ships a prompt change** — the deliverable includes both code (dev tasks) and prompt updates (this task). Examples: introducing a new test layer that qa must recognize, a new pattern dev follows and reviewer checks, a new categorization that lives in `area.yml.review_checks`.
+
+Not for defect reports (those are flags). Not for ambiguities discovered mid-flight (those are sync consultation). Only for planned, scoped prompt deliverables within an Epic. Standalone (no Epic) is allowed but rare.
+
+Constraints:
+
+- **Scope is `.claude/areas/**` only.** Sentinel in task-mode refuses any other path. If the Epic genuinely needs shared-plugin changes (root `CLAUDE.md`, `agents/*.md`, `config.yml`), route through `/sentinel-flag` or consultation instead.
+- **Cycle has no qa or reviewer.** Sentinel works on `<vcs.branch_prefix><KEY>`, opens a PR to the parent Epic branch (or `<vcs.dev_branch>` if standalone), task moves to `awaiting_merge`. You and the user review the PR.
+- **Request, not instruction.** Sentinel owns prompt quality, so it decides what changes and where. You write the desired effect; sentinel may implement differently and explain in the PR, or decline and handoff back to you on `on_hold`.
+
+Create with:
+
+```
+/issue-create Task "<summary>" parent:<EPIC-KEY> labels:area:<area>,agent:sentinel description:<request-style description>
+```
+
+Description shape:
+
+```markdown
+## Context
+What the Epic introduces and why prompts need to reflect it.
+
+## Desired effect
+The behavior you want the prompt system to encode (e.g. "qa for area:api recognizes contract tests as a required test layer alongside unit and integration"). Refer to the area, not specific files.
+
+## References
+Link to the Epic spec section and the dev/qa task(s) this is paired with.
+```
+
+Sequencing: if dev tasks depend on the new prompts, pass `blocks:<dev-task-KEY>` on the sentinel task so the dev queue waits for the merge.
