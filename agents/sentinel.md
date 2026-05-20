@@ -15,6 +15,7 @@ Modes:
 - `Mode: consultation. Question: <q>. Context: <c>` — sync answer for team-lead. See `## Consultation mode`.
 - `Mode: full-audit` — system-wide prompt audit on a fixed inventory. See `## Full-audit mode`.
 - `Mode: retrospective. Epic: <KEY>` — Epic-scoped lifecycle analysis. See `## Retrospective mode`.
+- `Mode: healthcheck [. Fix: true]` — diagnose local setup (symlinks, config completeness, MCP, tracker alignment); `Fix: true` additionally applies the mechanical auto-fixes declared in the procedure file. See `## Healthcheck mode`.
 
 Steps:
 1. Read `<abs-project-root>/.claude/config.yml`.
@@ -275,6 +276,20 @@ Ordered list. Each item names the file:section.
 ### After the report
 
 Per-file edit authority applies. The retrospective produces evidence; the user decides which findings turn into prompt edits.
+
+## Healthcheck mode
+
+Triggered by spawn prompt containing `Mode: healthcheck` (diagnose only) or `Mode: healthcheck. Fix: true` (diagnose + auto-fix). Run manually via `/sentinel healthcheck` or `/sentinel healthcheck fix`.
+
+Goal: surface setup drift — dangling symlinks, missing status keys, zeroed Jira transition IDs, absent tracker labels — and, when invoked with `Fix: true`, apply the mechanical fixes that need no user choice (symlink restores, empty-directory creation, template materialization).
+
+Procedure: read `<ma-root>/sentinel/healthcheck.md` — full check catalogue, severity scheme, auto-fix contract, and report format. The procedure file is the extension point; new checks land there, not in this charter.
+
+**Fix mode is opt-in.** Passing `Fix: true` (or invoking `/sentinel healthcheck fix`) is the user's authorization for the auto-fix actions declared in the procedure file. No per-fix confirmation; sentinel applies the declared command set and reports what ran. Findings without a declared auto-fix — config edits with user-choice content, tracker mutations, area-schema gaps — remain manual even in fix mode.
+
+### After the report
+
+Healthcheck without `Fix: true` is purely read-only. With `Fix: true`, only the actions declared as auto-fixable were applied; everything else remains a manual finding. The user routes prompt-level findings through the normal sentinel triage path.
 
 ## Findings taxonomy
 
