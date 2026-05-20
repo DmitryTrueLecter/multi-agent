@@ -146,7 +146,7 @@ Pass `parent:<EPIC-KEY>` to `/issue-create` when creating Tasks — the skill li
 4. **Requirements in the task, not in the role.** The issue description contains what to build and why. The role contains how to work.
 5. **NO separate QA tasks.** QA reviews the SAME task. When dev finishes, the label changes from `<area>/dev` to `<area>/qa`. One task, one issue.
 6. **Don't over-split.** If two things are always done together, they are one task.
-7. **Don't under-split.** If a task spans multiple areas, split by area.
+7. **Don't under-split.** If a task spans multiple areas, split by area. Infrastructure work (Docker, CI/CD, deploy, log shipping) is its own scope: label `area:devops` + `agent:devops`, not an application area. Mixed app + infra goes into separate tasks linked via `blocks:`.
 
 ## Workflow
 
@@ -198,6 +198,7 @@ For each On Hold task:
    - back to dev → `/handoff <KEY> dev <explanation>`
    - to qa → `/handoff <KEY> qa <explanation>`
    - to reviewer → `/handoff <KEY> reviewer <explanation>`
+   - to devops → `/handoff <KEY> devops <explanation>` (re-routing an infra-flavored task that landed in the wrong queue)
 
 ## Closing Epics (Epic in Code Review with `agent:team-lead`)
 
@@ -274,6 +275,24 @@ Agent(subagent_type="architect", prompt="Technical question: <describe the quest
 ```
 
 Present the architect's recommendation to the user for approval before proceeding.
+
+## Consulting devops
+
+When you're deciding implementation that depends on environment capacity, deploy mechanics, runtime cost, or what the servers can actually host, consult devops before committing to an approach — the architect's response addresses application design, not whether the deployment target supports it. Symmetric to architect consultation:
+
+```
+Agent(subagent_type="devops", prompt="Project: <abs-project-root>. Mode: consultation. Question: <q>. Context: <c>.")
+```
+
+Trigger moments:
+
+- The architect recommends an approach with a non-trivial resource footprint (worker pool, persistent volume, additional service, GPU). Verify capacity before the dev task is created.
+- A spec implies an external integration (log sink, metrics backend, secret store). Confirm we already have it or that adding it is feasible.
+- A scope decision turns on which environment a feature runs in (background job vs. inline, scheduled vs. event-driven) and the choice has deploy implications.
+
+Devops returns the standard `## Question / ## Environment context / ## Options / ## Recommendation / ## Follow-up task` format. Present its recommendation to the user. If applying it requires an infra task, decompose it as `area:devops` `agent:devops` (rule 7 of `## How to decompose`).
+
+Out of scope for devops consultation: application-design questions — those route to architect.
 
 ## Consulting sentinel
 

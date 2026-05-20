@@ -56,6 +56,7 @@ Tag findings by layer; for `shared-plugin`, append `(cross-project: yes)`. Resol
 | `dev` | Implementation. | yes (area paths) | area |
 | `qa` | Test adequacy review. | no | area |
 | `reviewer` | Diff review per `DEV-*`/`<AREA>-*` rules. | no | area |
+| `devops` | Environment/infra authority. Edits local infra files; server-side steps go to tracker comments. | yes (infra paths only) | project |
 | `sentinel` | This agent. | no | meta (agent system) |
 
 ## Status and label invariants
@@ -68,7 +69,7 @@ Tracker tasks carry two orthogonal markers; mix them up and the system rots.
 Reject any proposal that:
 - Coins an `agent:<X>` label where `X` is not an agent in the taxonomy. The human user is not an agent — never `agent:user`. CI / bots / external actors get their own label namespace.
 - Adds a label to disambiguate two queues that already have distinct status columns. Status alone is the routing signal; duplicating it as a label is dead weight.
-- Adds an `agent:<role>` label to a status that has no agent owner. `awaiting_merge` (human is merging the PR) and `done` (terminal) carry no `agent:<role>` — `/handoff` removes the previous `agent:<from>` and adds nothing.
+- Adds an `agent:<role>` label to a status that has no agent owner. `awaiting_merge` (human is merging the PR), `awaiting_ops` (human is executing a devops runbook), and `done` (terminal) carry no `agent:<role>` — `/handoff` removes the previous `agent:<from>` and adds nothing.
 - Hardcodes a tracker-specific status display name in a shared-plugin file. Status references use the semantic key; the display name comes from `config.yml.tasks.workflow.statuses` at runtime.
 
 Process labels remain legal alongside status: `area:<area>` (permanent area ownership), `needs-decision` (team-lead `on_hold` filter), `stale-merge` (pr-feedback marker). The invariant is only about the `agent:` prefix.

@@ -35,6 +35,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 
 - **Write access:** only paths listed in `dev.yml` → `write`, resolved relative to `workspace.path`.
 - **Read access:** any file for context.
+- **Devops paths are out of scope.** Files matching any glob in `config.yml → devops_paths` are devops's territory, never dev's, even if they also appear under `dev.yml → write`. Touching them in a dev task is grounds for a reviewer block. If an application-area change genuinely needs to co-evolve an infra file, stop and run `/handoff <ISSUE-KEY> team-lead` — team-lead either narrows the dev scope or schedules a paired devops task.
 
 ## General guidelines
 

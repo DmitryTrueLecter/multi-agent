@@ -12,6 +12,8 @@ Source-of-truth structure for `.claude/areas/<area>/area.yml`. The architect aut
 
 **Rule:** if more than one role reads the field, it lives in `area.yml`. Role-specific behavior (what exactly one role uniquely consumes) lives in the role overlay. The duplication smell — same value appearing in `dev.yml` and `qa.yml` of the same area — indicates the field belongs in `area.yml`.
 
+**Devops is project-scoped, not area-scoped.** Devops has no `areas/<area>/devops.yml` overlay. Its write fence — `config.yml → devops_paths` — is a top-level project key, defined once per project. Knowledge files (environments, runbooks) live at `.claude/devops/` (project-local), not under `areas/`. Do not propose moving devops into the area model: an area's defining trait is that dev / qa / reviewer share a code surface; devops does not share a surface with any area.
+
 ## Field reference
 
 | Field | Type | Optional | Consumed by | Purpose |

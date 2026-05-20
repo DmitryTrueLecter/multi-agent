@@ -21,6 +21,7 @@ tasks:
       code_review: "Code Review"
       on_hold: "On Hold"
       awaiting_merge: "Awaiting Merge"
+      awaiting_ops: "Awaiting Ops"     # devops handoff target — human executes runbook here
       done: "Done"
   # Jira-only. Transition IDs for moving between statuses.
   # mcp__atlassian__jira_transition_issue takes a numeric id, not a status
@@ -36,9 +37,28 @@ tasks:
       code_review: 0
       on_hold: 0
       awaiting_merge: 0
+      awaiting_ops: 0
       done: 0
 
 docs:
   root: ai   # optional: path (relative to project root) to free-form human docs — read by team-lead for project context
+
+# Project-level path fence for the devops agent.
+# Globs are resolved relative to project root. Files matching any glob below
+# are devops's write scope; dev/qa/reviewer treat them as out-of-scope.
+# Devops is project-scoped (no per-area entry); this list is the single
+# source of truth for what counts as infra in this repo.
+devops_paths:
+  - "apps/*/Dockerfile"
+  - "apps/*/Dockerfile.*"
+  - "Dockerfile"
+  - "docker-compose*.yml"
+  - ".dockerignore"
+  - ".github/workflows/**"
+  - ".gitlab-ci.yml"
+  - "bitbucket-pipelines.yml"
+  - "Justfile"
+  - ".env.example"
+  - "infra/**"
 
 runtime:

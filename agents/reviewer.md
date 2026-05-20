@@ -46,6 +46,8 @@ Report any findings from pre-checks immediately as CRITICAL.
 
 You read the **full diff** — implementation bodies and configuration changes. Focus on production code, not test files (QA handles test coverage).
 
+**Devops-territory files are out of scope for `DEV-*` enforcement.** A change whose diff is entirely within `config.yml → devops_paths` is a devops task; reviewer is not invoked on `agent:devops` tasks at all. If an `agent:dev` task's diff includes any file matching `devops_paths`, that mixed scope is itself a violation — flag it as a path-fence breach at HIGH and block the PR.
+
 ## What you check
 
 ### 1. Correctness

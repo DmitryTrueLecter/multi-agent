@@ -15,8 +15,8 @@ Status names in this skill are referenced by semantic key (e.g. `code_review`, `
 
 | Form | What it does |
 |------|--------------|
-| `/handoff <KEY>` | Default forward: `dev → qa`, `qa → reviewer`, `reviewer → awaiting_merge` |
-| `/handoff <KEY> <to-role>` | Explicit target: `dev`, `qa`, `reviewer`, `team-lead`, `awaiting_merge`, `done` |
+| `/handoff <KEY>` | Default forward: `dev → qa`, `qa → reviewer`, `reviewer → awaiting_merge`, `devops → awaiting_ops` |
+| `/handoff <KEY> <to-role>` | Explicit target: `dev`, `qa`, `reviewer`, `devops`, `team-lead`, `awaiting_merge`, `awaiting_ops`, `done` |
 | `/handoff <KEY> <to-role> <comment>` | Same, with a custom comment body |
 
 ## Target → status key / label changes
@@ -26,13 +26,15 @@ Status names in this skill are referenced by semantic key (e.g. `code_review`, `
 | `qa` | `qa` | remove `agent:<from>`, add `agent:qa` |
 | `reviewer` | `code_review` | remove `agent:<from>`, add `agent:reviewer` |
 | `dev` | `to_do` | remove `agent:<from>`, add `agent:dev` |
+| `devops` | `to_do` | remove `agent:<from>`, add `agent:devops` |
 | `team-lead` | `on_hold` | remove `agent:<from>`, add `agent:team-lead` and `needs-decision` |
 | `awaiting_merge` | `awaiting_merge` | remove `agent:<from>` |
+| `awaiting_ops` | `awaiting_ops` | remove `agent:<from>` |
 | `done` | `done` | remove `agent:<from>` |
 
 Why these rules:
 - **`area:<area>` is never touched.** It's the permanent area-ownership label, not a queue marker.
-- **`done` and `awaiting_merge` drop `agent:<from>` and add no new `agent:` label.** Neither status has an agent owner: `done` is terminal, `awaiting_merge` waits on a human merge. The status column is the routing signal; `/pr-feedback` reconciles `awaiting_merge` into `done` (merged) or `to_do` + `agent:dev` (declined).
+- **`done`, `awaiting_merge`, and `awaiting_ops` drop `agent:<from>` and add no new `agent:` label.** None of those statuses has an agent owner: `done` is terminal, `awaiting_merge` waits on a human merge, `awaiting_ops` waits on the human executing a devops runbook. The status column is the routing signal; `/pr-feedback` reconciles `awaiting_merge` into `done` (merged) or `to_do` + `agent:dev` (declined); `awaiting_ops` is closed by the user manually via `/handoff <KEY> done`.
 - **For `team-lead`, the extra `needs-decision` label is mandatory.** The team-lead's `on_hold` queue filters on it — without it the task gets lost.
 
 ## Steps
@@ -44,8 +46,9 @@ Why these rules:
    - `agent:dev` → `qa`
    - `agent:qa` → `reviewer`
    - `agent:reviewer` → `awaiting_merge`
+   - `agent:devops` → `awaiting_ops`
    - any other → stop, ask for explicit target.
-5. Validate target is one of `dev`, `qa`, `reviewer`, `team-lead`, `awaiting_merge`, `done`. Otherwise stop.
+5. Validate target is one of `dev`, `qa`, `reviewer`, `devops`, `team-lead`, `awaiting_merge`, `awaiting_ops`, `done`. Otherwise stop.
 6. Build new label list: existing labels minus `agent:<from>` (and `needs-decision` if present), plus new `agent:<to>` label (and `needs-decision` if target is `team-lead`). For `done` and `awaiting_merge`, only remove `agent:<from>` — neither target adds an `agent:` label.
 7. Resolve the actual status display name: `<status name> = config.yml.tasks.workflow.statuses[<status key from the table above>]`.
 8. Apply label + status transition + comment per provider section below.

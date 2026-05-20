@@ -18,6 +18,7 @@ Launch a subagent to work on a Jira task.
 | `/run dev` | First available `to_do` task for **any** area's dev |
 | `/run qa` | First available `qa` task for **any** area's qa |
 | `/run reviewer` | First available `code_review` task for **any** area's reviewer |
+| `/run devops` | First available `to_do` task labelled `agent:devops` |
 | `/run <area>/dev` | First available `to_do` task for that area's dev |
 | `/run <area>/<role> <ISSUE-KEY>` | Run a specific role on a specific issue (override role) |
 | `/run <KEY-1> <KEY-2>` | Two separate parallel agents (roles from labels) |
@@ -31,8 +32,9 @@ Launch a subagent to work on a Jira task.
 | `reviewer` | `code_review` | Task |
 | `qa` | `qa` | Task |
 | `dev` | `to_do` | Task |
+| `devops` | `to_do` | Task |
 
-The `agent:` label disambiguates `code_review`: `agent:reviewer` → reviewer (Task), `agent:team-lead` → team-lead (Epic close-out).
+The `agent:` label disambiguates queues that share a status: `code_review` splits into `agent:reviewer` (Task) vs `agent:team-lead` (Epic); `to_do` splits into `agent:dev` (application) vs `agent:devops` (infra).
 
 **Claim model.** Pickup = `mcp__atlassian__jira_transition_issue` → status name `statuses.in_progress`. This is the atomic claim — Jira rejects the second runner because the workflow disallows transition from `in_progress` to `in_progress`. Every queue JQL filters by pre-claim status (`to_do` / `qa` / `code_review` / `on_hold`), so a claimed task disappears from every queue automatically.
 
@@ -49,17 +51,20 @@ Run `/pr-feedback` — the skill handles all PR list queries, issue tracker labe
 Search for the first available issue in priority order. Stop at the first match:
 
 0. **Run PR feedback reconciliation** (see above) — run `/pr-feedback`.
-1. **On hold** — `/issue-search status:<statuses.on_hold> label:agent:team-lead`. Launch `team-lead` agent. (Tasks in `awaiting_merge` are skipped here — handled by `/pr-feedback`, not by an agent run.)
+1. **On hold** — `/issue-search status:<statuses.on_hold> label:agent:team-lead`. Launch `team-lead` agent. (Tasks in `awaiting_merge` and `awaiting_ops` are skipped here — `awaiting_merge` is handled by `/pr-feedback`, `awaiting_ops` is closed manually by the user.)
 2. **Code Review (group)** — `/issue-search type:group status:<statuses.code_review> label:agent:team-lead`. Launch `team-lead` agent for group close-out.
 3. **Code Review (Task)** — `/issue-search type:task status:<statuses.code_review> label:agent:reviewer`. Launch `reviewer` agent.
 4. **QA** — `/issue-search status:<statuses.qa> label:agent:qa`. Launch `qa` agent.
-5. **To Do** — `/issue-search status:<statuses.to_do> label:agent:dev` (filter out tasks whose blockers are not all `done`). Launch `dev` agent.
+5. **To Do (dev)** — `/issue-search status:<statuses.to_do> label:agent:dev` (filter out tasks whose blockers are not all `done`). Launch `dev` agent.
+6. **To Do (devops)** — `/issue-search status:<statuses.to_do> label:agent:devops` (filter out tasks whose blockers are not all `done`). Launch `devops` agent.
 
 If nothing found at any level, report that the board is clear.
 
 ## Pipeline mode (`/run pipeline [ISSUE-KEY]`)
 
 Run a single task through the **full lifecycle** until `done` (or until it gets stuck on `on_hold`).
+
+**Devops tasks are not eligible for pipeline mode** — they have no qa/reviewer cycle, and `awaiting_ops` requires human action that the agent loop cannot drive. Use `/run <DEVOPS-KEY>` (single step) instead. If a key labelled `agent:devops` is passed to pipeline mode, stop and report: "devops tasks run as a single step — use /run <KEY> instead."
 
 0. **Run PR feedback reconciliation** (see above) before the first stage.
 
@@ -160,6 +165,15 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
       ```
       Agent(subagent_type="team-lead", prompt="Group close-out: <ISSUE-KEY>.", run_in_background=true)
       ```
+    - `devops`:
+      ```
+      Agent(
+        subagent_type="devops",
+        prompt="Project: <abs-project-root>. Workspace: <abs-workspace-path>. Issue: <ISSUE-KEY>.",
+        run_in_background=true,
+      )
+      ```
+      Note: no `Area:` parameter — devops is project-scoped. Workspace resolves from `config.yml.workspace` (no area override).
 
 10. **End your turn after the spawn** — do **not** poll, do **not** sleep. The harness will notify you automatically when the background subagent completes. When the notification arrives:
     - Process the subagent's final result.
