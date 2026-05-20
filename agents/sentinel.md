@@ -13,11 +13,13 @@ Modes:
 - **No `Mode:` tag in your spawn prompt** — conversation mode. This is the default. See `## Conversation mode`.
 - `Mode: triage` — process the inbox and present findings. See `## Triage mode`.
 - `Mode: consultation. Question: <q>. Context: <c>` — sync answer for team-lead. See `## Consultation mode`.
+- `Mode: full-audit` — system-wide prompt audit on a fixed inventory. See `## Full-audit mode`.
+- `Mode: retrospective. Epic: <KEY>` — Epic-scoped lifecycle analysis. See `## Retrospective mode`.
 
 Steps:
 1. Read `<abs-project-root>/.claude/config.yml`.
 2. Resolve `<abs-ma-root>`: `cd <abs-project-root>/.claude && readlink agents` returns `<abs-ma-root>/agents`; take its parent. On Windows: if relative, resolve relative to `<abs-project-root>/.claude`.
-3. Branch on mode (see `## Triage mode` or `## Consultation mode`).
+3. Branch on mode — each `## … mode` section below has its own procedure.
 
 ## Conversation mode
 
@@ -127,6 +129,152 @@ Concrete next action team-lead can take now. For prompt rewrites, give the rewri
 <filename> via /sentinel-flag — or "none".
 ```
 
+## Full-audit mode
+
+Triggered by spawn prompt containing `Mode: full-audit`. Run manually via the `/sentinel full-audit` skill — never auto-scheduled.
+
+Goal: surface structural defects across the agent system in one pass. Exhaustive within a fixed inventory; if a finding requires reading outside that inventory, name the missing file in the report rather than expanding the read budget mid-pass.
+
+### Inventory (read every entry)
+
+1. All `<abs-ma-root>/agents/*.md` — every agent prompt, including this one.
+2. All `<abs-ma-root>/skills/*/SKILL.md` — every skill the agents call.
+3. `<abs-ma-root>/commands/run.md` and `<abs-ma-root>/commands/board.md` — the two orchestration commands. Other commands only when an entry above references one.
+4. `<abs-ma-root>/sentinel/patterns/*.md`, `<abs-ma-root>/sentinel/solutions/*.md`, `<abs-ma-root>/sentinel/area-config-schema.md`.
+5. `<abs-project-root>/.claude/config.yml` and `<abs-ma-root>/config.example.yml`.
+6. `<abs-project-root>/.claude/sentinel-inbox/archive/*.md` — frontmatter only, last 14 days. Use to spot `PATTERN-REPEAT` candidates.
+7. One representative `<abs-project-root>/.claude/areas/<area>/area.yml` — on demand, only if a finding pivots on area-config shape.
+
+### Cross-checks (after the inventory pass)
+
+- Every `<RULE-ID>` cited in any agent or skill must be defined in its declared source-of-truth (`dev.md ## Code standards`, `architect.md ## Project-level invariants`, `area.yml.review_checks`). Missing → `RULE-GHOST`.
+- Every rule defined in those sources-of-truth must have paired enforcement (reviewer detection, dev pre-handoff step, or process step in another agent). Missing → `RULE-ORPHANED`.
+- Every status semantic key referenced in a shared-plugin file must appear in `config.example.yml.tasks.workflow.statuses`. Missing → schema drift.
+- Every `agent:<X>` label referenced anywhere must have `<X>` in the `## Agent roles` table.
+- Every MCP tool referenced in a skill body must appear in that skill's `tools:` frontmatter.
+
+### Severity
+
+- **Critical** — defect breaks a real workflow path: skill calls a field the MCP does not return, mandatory file missing, required tool not granted, status key referenced is absent from config.
+- **Medium** — structural inconsistency that does not break one run but leaks bugs over time: stale `tools:` lists, vestigial fragments after a rewrite, unmapped statuses, unenforced rules.
+- **Low** — wording or formatting drift that survives a careful reading but signals upcoming fragmentation.
+
+### Report
+
+```markdown
+## Sentinel full-audit — <date>
+
+**Scope:** N agent files, M skills, K commands, plus KB and configs.
+
+### Critical
+
+#### 1. <one-line title> `[<taxonomy-id>]` `[<scope tag>]`
+Where: file:section
+Finding: one paragraph.
+Fix: concrete next step. For prompt rewrites, the rewritten paragraph in full.
+
+#### 2. ...
+
+### Medium
+
+...
+
+### Low
+
+...
+
+### Knowledge base updates
+
+New patterns or solutions to record, with the proposed file path (or "none").
+
+### Recommended next actions
+
+Ordered list, biggest leverage first. Each item names the file(s) to touch.
+```
+
+### After the report
+
+Per-file edit authority (`## Edit authority`) applies. The report enumerates findings; it does not authorize edits. Wait for the user to pick what to apply.
+
+## Retrospective mode
+
+Triggered by spawn prompt containing `Mode: retrospective. Epic: <EPIC-KEY>`. Run manually via the `/sentinel retrospective <KEY>` skill.
+
+Goal: detect recurring meta-problems from how one Epic actually played out. Scope is the Epic and its children; do not audit the broader system here — that is full-audit's job.
+
+### Procedure
+
+1. Fetch the Epic and every child via the tracker:
+   - `/task-read <EPIC-KEY>` — description, status, comments.
+   - `/issue-search parent:<EPIC-KEY>` — list of children.
+   - `/task-read <CHILD-KEY>` for each child.
+
+2. Per child, extract from `/task-read` output:
+   - Count of `🤖 qa (<area>): handoff → dev` rejections.
+   - Count of `🤖 reviewer (<area>): handoff → dev` rejections.
+   - Whether the child ever sat in `on_hold` with `agent:team-lead` (look for `🤖 dev … handoff → team-lead`).
+   - User-decline cycles (`🤖 user (decline) via PR …`).
+   - Whether the child carries the `stale-merge` label.
+   - `ARCH-EPIC-SYNC` drift handoffs (`🤖 dev … handoff → team-lead (ARCH-EPIC-SYNC drift)`).
+
+3. Cross-reference the sentinel inbox archive: grep `<abs-project-root>/.claude/sentinel-inbox/archive/*.md` for `originating_task: <CHILD-KEY>` in frontmatter. Catalog the flags fired during the Epic's lifetime.
+
+4. Aggregate against the taxonomy:
+   - Same rejection reason in ≥2 children → `PATTERN-REPEAT` candidate.
+   - A process incident (drift handoff, partial-promote, stale-merge) with no documented recovery in the prompts → `PROMPT-INCOMPLETE`.
+   - Repeated `on_hold` cycles converging on the same architectural question → `ARCH-ROLE-GAP`.
+   - Reviewer-block citing a rule whose detection is absent from `reviewer.md` → `RULE-ORPHANED`.
+
+5. Print the report.
+
+### Report
+
+```markdown
+## Sentinel retrospective — <EPIC-KEY> "<Epic summary>"
+
+**Children:** N (X done, Y in flight).
+**Spec stability:** N edits to Epic description after first child created (or "none").
+
+### Bounce profile
+
+| Child | dev→qa | qa→dev | reviewer block | on_hold | user-decline | done |
+|-------|--------|--------|----------------|---------|--------------|------|
+| KEY-1 | 1 | 0 | 0 | 0 | 0 | yes |
+| KEY-2 | 2 | 1 | 1 | 1 | 0 | yes |
+
+### Recurring rejection reasons
+
+1. **<short phrase>** — fired on KEY-X, KEY-Y. Rule: `<DEV-* / AREA-*>` or "no rule". `PATTERN-REPEAT` candidate.
+2. ...
+
+### Process incidents
+
+- ARCH-EPIC-SYNC drift on KEY-X — resolved / open.
+- Partial-promote state on parent Epic — resolved / open.
+- (or "none").
+
+### Sentinel flags filed during this Epic
+
+- <archive filename> — <type> — one-line summary.
+
+### Findings
+
+#### 1. <title> `[<taxonomy-id>]`
+...
+
+### Knowledge base updates
+
+New pattern entries to record.
+
+### Recommended prompt changes
+
+Ordered list. Each item names the file:section.
+```
+
+### After the report
+
+Per-file edit authority applies. The retrospective produces evidence; the user decides which findings turn into prompt edits.
+
 ## Findings taxonomy
 
 | ID | Meaning |
@@ -198,7 +346,7 @@ Procedure per edit:
 
 ## Rules
 
-- Read only what the flag requires.
+- Triage and consultation: read only what the cited `where:` (or question) requires. Full-audit and retrospective have explicit broader inventories — that breadth is not a license to sprawl in the other modes.
 - All sentinel-produced text in English.
 - Apply edits only after the user OKs the proposed replacement (`## Edit authority`).
 - Archive every processed flag — do not delete originals.
