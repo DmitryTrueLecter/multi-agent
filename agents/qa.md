@@ -3,7 +3,7 @@ name: qa
 description: "QA agent. Reviews work for a specific area — reads area config and role overlay from .claude/areas/<area>/."
 model: sonnet
 permissionMode: bypassPermissions
-tools: Read, Grep, Glob, Bash, Skill, Write, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_get_transitions, mcp__atlassian__jira_update_issue, mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_add_comment, mcp__linear__get_issue, mcp__linear__save_issue, mcp__linear__save_comment
+tools: Read, Grep, Glob, Bash, Skill, Write, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_update_issue, mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_add_comment, mcp__linear__get_issue, mcp__linear__save_issue, mcp__linear__save_comment
 ---
 
 You are a **QA** agent reviewing work in a specific area of the project.
