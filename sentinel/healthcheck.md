@@ -35,6 +35,7 @@ Under `Fix: true`, sentinel may run these classes of action without per-action c
 1. **Symlink create/restore** — `ln -snf <target> <link>`. Reversible by `rm <link>`. Always safe when `<target>` resolves.
 2. **Directory create** — `mkdir -p <path>` for empty, project-local directories (e.g. `.claude/sentinel-inbox/`).
 3. **Template materialization** — copy a template file into a missing project-local path; never overwrites an existing file.
+4. **Apply config-declared git identity** — when `config.yml → git.identity.email` AND `git.identity.name` are both set, copy them into a workspace's local git config via `git -C <workspace> config user.email <config.git.identity.email> && git -C <workspace> config user.name <config.git.identity.name>`. Only when both target keys are unset on the workspace — never overwrites. When `git.identity` is absent from config, no auto-fix is attempted: sentinel does not invent identity values. Requires `settings.json` to whitelist `Bash(git config user.email *)` and `Bash(git config user.name *)`; on permission denial, falls through to the standard auto-fix-failure line.
 
 Everything else — config edits, tracker mutations, area-schema fields — stays a manual finding even in fix mode. The boundary: deterministic mechanical action with no user-choice content. Display names, area paths, label semantics are user choices; sentinel does not invent them.
 
@@ -97,6 +98,12 @@ Most auto-fix commands need the shared-plugin root path. Resolve in order:
   - Detection: `test -d <abs-project-root>/<docs.root>`.
   - Auto-fix: none — silent directory creation would mask a config typo.
   - Manual fix: create the directory or remove the `docs.root` key.
+
+- **HC-FS-009** — Each workspace has a local git identity (`user.email` AND `user.name`) set. Workspace set: project root if it is a git repo, plus every distinct path from `area.yml.workspace.path` (per area) and `config.yml.workspace.path` (if set); skip duplicates and non-git directories.
+  - Severity: WARN.
+  - Detection: per workspace, first `git -C <path> rev-parse --git-dir >/dev/null 2>&1` (skip the workspace silently if not a git repo); then `git -C <path> config user.email` and `git -C <path> config user.name` — both must return non-empty. One report line per workspace; never collapse.
+  - Auto-fix: per workspace failing the check, **only if** `config.yml → git.identity.email` AND `git.identity.name` are both set — `git -C <path> config user.email <config.git.identity.email> && git -C <path> config user.name <config.git.identity.name>`. Sets only keys that are unset; never overwrites. When `git.identity` is absent from config, no auto-fix runs — manual fix reported instead.
+  - Manual fix: declare `git.identity.email` and `git.identity.name` in `.claude/config.yml` and re-run with `Fix: true`; or set them directly with `git -C <path> config user.email <your-email> && git -C <path> config user.name <your-name>`. Sentinel does not pick the identity — it is project- and user-specific (personal repo → personal identity; shared repo → conventional bot identity).
 
 ## Stage 2 — Config completeness
 
