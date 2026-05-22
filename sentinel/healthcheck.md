@@ -167,14 +167,17 @@ For each subdirectory `<area>` under `.claude/areas/`. No auto-fix — schema po
 Skip entirely if any of HC-FS-005, HC-CFG-003, HC-CFG-005 failed. No auto-fix in this stage — tracker mutations require admin-only API and user-choice naming.
 
 - **HC-MCP-001** — `.mcp.json` exists at project root.
-  - Severity: WARN. Detection: `test -f <abs-project-root>/.mcp.json`. Manual fix: configure MCP servers.
+  - Severity: CRITICAL. Without it every provider-bound skill (`/issue-create`, `/task-read`, `/handoff`, `/issue-search`, etc.) deadlocks — `ToolSearch` returns no matching deferred tool for the tracker MCP.
+  - Detection: `test -f <abs-project-root>/.mcp.json`.
+  - Manual fix: copy `.mcp.json` from a sibling project's root, edit `mcpServers.<key>` to match `tasks.provider`, then restart Claude Code. MCP servers register only at session start — without a restart the file is inert.
 
 - **HC-MCP-002** — Configured tracker MCP responds.
-  - Severity: WARN.
+  - Severity: CRITICAL. A non-responding tracker MCP blocks every automated tracker write — handoffs, status transitions, comment posting all fail mid-flow.
   - Detection: one trivial read call —
     - `linear` → `mcp__linear__list_teams`.
     - `jira` → `mcp__atlassian__jira_search` with a result limit of 1.
-  - Manual fix: authenticate or verify credentials.
+    A `tool not available` outcome (`ToolSearch` cannot load the deferred-tool schema) means the server is not registered for this session — usually `.mcp.json` was modified without a Claude Code restart.
+  - Manual fix: if `.mcp.json` was recently written or edited, restart Claude Code. Otherwise verify the MCP URL in `.mcp.json` and authenticate at the provider's auth flow.
 
 - **HC-BOARD-001** — For each value in `tasks.workflow.statuses`: the tracker exposes that status display name.
   - Severity: WARN per missing status.
