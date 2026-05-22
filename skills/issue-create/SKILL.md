@@ -27,7 +27,7 @@ Create an issue in the issue tracker with all required fields and optional links
 1. Read `.claude/config.yml` → `tasks.provider` and `tasks.workflow.statuses`.
 2. Resolve the initial state semantic key (precedence: explicit override → role-derived default → workflow default):
    - If the caller passed `state:<key>`, use `<key>`.
-   - Else if labels contain an `agent:<role>` label, use that role's queue status from `run.md`'s Role → queue mapping table: `agent:qa` → `qa`, `agent:reviewer` → `code_review`, `agent:team-lead` → `on_hold`, `agent:dev` / `agent:devops` → `to_do`.
+   - Else if labels contain an `agent:<role>` label, use that role's create-time queue status from `run.md`'s Role → queue mapping table: `agent:qa` → `qa`, `agent:reviewer` → `code_review`, `agent:team-lead` → `to_do` (coordination — new bucket from `run.md` auto-mode #2; the other two team-lead queues `on_hold` and `code_review` are transition targets, not create targets — request via explicit `state:`), `agent:dev` / `agent:devops` → `to_do`.
    - Else use `to_do`.
    - If the resolved key is missing from `tasks.workflow.statuses`, fail with `state key '<key>' not in tasks.workflow.statuses`. The corresponding display name is `tasks.workflow.statuses.<resolved-key>`.
 3. Follow the section for your provider.
