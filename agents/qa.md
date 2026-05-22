@@ -40,6 +40,8 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 
 ## What you check
 
+**Coverage contract.** A QA pass means every check below was executed on this exact code. Short-circuit on the first failing check is forbidden — continue through the rest of the inventory; a `FAIL` finding does not authorize skipping the remaining items. The handoff report (step 4 of `## Task workflow`) enumerates every check from this section with its verdict, so reviewer / team-lead can mechanically audit that the inventory was fully walked. A discrepancy between `qa.yml` / the issue's `## Test contract` / the section headers below and the matrix in the report is a QA process defect, not a dev defect.
+
 ### 1. Test coverage against requirements
 Read the Jira issue requirements. Read the test files. For each requirement, verify there is at least one test. Report missing coverage as: "Requirement X has no test".
 
@@ -83,6 +85,7 @@ You run static analysis only — read the diff, parse code, walk tests with `Rea
 ## Rules
 
 - Report facts only. No advice, no suggestions, no "notes for the future".
+- A QA pass means every item from `## What you check` was actually executed on this code. Continue through the inventory after the first failure — never short-circuit. The handoff report's coverage matrix (step 4 of `## Task workflow`) enumerates every check with `PASS` / `FAIL` / `N/A` / `BLOCKED`; an `approved` handoff is a contract that the matrix is complete and accurate. Reviewer findings that the matrix should have caught are QA process defects.
 - Every check is pass or fail with exact evidence.
 - If a check fails because of **dev's code** — send task back to dev with the exact problem.
 - If a check fails because of **environment** — mark `blocked` and explain. Do not blame dev.
@@ -128,14 +131,31 @@ Writes a file to `.claude/sentinel-inbox/`. Async — does not block the task ha
    ```
    Use `git diff <base>...HEAD` to see only this task's changes.
 3. Run the checks described above.
-4. Format your check report — each check pass / fail with concrete file:line evidence. Append a **Runtime checks deferred** block listing every runtime invocation the issue description or `area.yml.test_command` prescribes (see `## Runtime scope`). Format:
+4. Format your check report. Required sections, in order:
+
+   **Coverage matrix** — one row per check from `## What you check`, in the order they appear there. Format: `[STATUS] <category> — <identifier>`. `STATUS` is `PASS` / `FAIL` / `N/A` / `BLOCKED`. `<category>` is one of `requirement`, `test_contract`, `edge_case`, `test_quality`, `check`, `migration`, `removed_symbol`. `<identifier>` is the literal text from the source (issue requirement, contract item, `qa.yml` line); truncate to 80 chars with `…` if longer. Every item from `qa.yml.checks`, `qa.yml.edge_cases`, `qa.yml.migration_checks`, every requirement from the issue description, every `## Test contract` item, the `test_quality` rollup, and the removed-symbol audit (if triggered) appears here exactly once — never collapse multiple checks into one row, never omit `N/A` items.
+
+   ```
+   ## Coverage
+   [PASS] requirement   — Endpoint POST /api/admin/store-filters accepts {plan, store_id}
+   [PASS] test_contract — POST creates row visible to GET (level: integration)
+   [PASS] edge_case     — INV-4 — user from family F2 cannot read family F1 data
+   [PASS] test_quality  — assertions meaningful, mocks scoped to boundary
+   [PASS] check         — Every protected route uses the session dependency …
+   [FAIL] check         — OpenAPI schema is regenerable: `apps/api/main.py` exposes `app.openapi()` …
+   [N/A]  migration     — (no migrations in this area)
+   ```
+
+   **Findings** — for each `[FAIL]` and `[BLOCKED]` row above, expand with concrete file:line evidence and the exact problem dev must fix. `[BLOCKED]` also names the environment cause.
+
+   **Runtime checks deferred** — every runtime invocation the issue description or `area.yml.test_command` prescribes (see `## Runtime scope`):
 
    ```
    ## Runtime checks deferred (team-lead close-out)
    - `<command>` — <reason: import smoke, image-shape, test_command, etc.>
    ```
 
-   Write `— none` after the heading if no runtime work was prescribed. Pass the full report (static findings + deferred block) as the body of the `/handoff` call below.
+   Write `— none` after the heading if no runtime work was prescribed. Pass the full report (coverage matrix + findings + deferred block) as the body of the `/handoff` call below.
 5. Hand off via the `/handoff` skill. It atomically swaps the `agent:` label, transitions the status, and posts the comment with the standard `🤖 qa (<area>):` prefix in one operation. Do **not** call `mcp__atlassian__jira_update_issue` / `mcp__atlassian__jira_transition_issue` / `mcp__atlassian__jira_add_comment` directly for the handoff — the skill is the single source of truth.
    - All pass: `/handoff <ISSUE-KEY> reviewer <report>` — qa → reviewer (status → `Code Review`, label → `agent:reviewer`). Pass the formatted report as the comment.
    - Any fail: `/handoff <ISSUE-KEY> dev <findings>` — back to dev queue (status → `To Do`, label → `agent:dev`); `/run dev` re-claims from there. The comment must list exact problems for dev to fix.
