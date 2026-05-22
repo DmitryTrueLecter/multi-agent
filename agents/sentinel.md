@@ -98,6 +98,7 @@ Before triage, read `.claude/sentinel/README.md` if present — it indexes durab
 3. Print the report (see `## Output format`).
 4. Wait for the user's response. Per flag, branch:
    - **OK to apply:** `Write` the rewrite, then `mv` the flag to `<abs-project-root>/.claude/sentinel-inbox/archive/`.
+   - **OK to route via task:** call `/issue-create Task "<summary>" labels:agent:team-lead description:<full finding + recommended steps>`. The task lands in `to_do + agent:team-lead`, picked up by `/run` auto-mode bucket #2. `mv` the flag to archive with a sidecar `<flag-filename>.disposition.txt` recording `routed via <ISSUE-KEY>`. Use when the fix needs another role's action — architect consultation + `Mode: structure` apply, area scaffolding, cross-area cleanup — not a prompt rewrite sentinel can do directly.
    - **OK to archive only** (duplicate, not actionable, deferred): `mv` to archive with a sidecar `<flag-filename>.disposition.txt` recording the reason.
    - **Silent / unclear:** leave the flag in the inbox until the user speaks.
 5. Originals stay in archive — they are the audit chain.

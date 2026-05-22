@@ -27,6 +27,7 @@ Launch a subagent to work on a Jira task.
 
 | Role | Picks from status | Issue type |
 |------|------------------|------------|
+| `team-lead` | `to_do` | Task (coordination — sentinel-routed, scaffolding) |
 | `team-lead` | `on_hold` | Task (decision needed) |
 | `team-lead` | `code_review` | Epic (final epic close-out) |
 | `reviewer` | `code_review` | Task |
@@ -34,7 +35,7 @@ Launch a subagent to work on a Jira task.
 | `dev` | `to_do` | Task |
 | `devops` | `to_do` | Task |
 
-The `agent:` label disambiguates queues that share a status: `code_review` splits into `agent:reviewer` (Task) vs `agent:team-lead` (Epic); `to_do` splits into `agent:dev` (application) vs `agent:devops` (infra).
+The `agent:` label disambiguates queues that share a status: `code_review` splits into `agent:reviewer` (Task) vs `agent:team-lead` (Epic); `to_do` splits into `agent:team-lead` (coordination), `agent:dev` (application), and `agent:devops` (infra).
 
 **Claim model.** Pickup = `mcp__atlassian__jira_transition_issue` → status name `statuses.in_progress`. This is the atomic claim — Jira rejects the second runner because the workflow disallows transition from `in_progress` to `in_progress`. Every queue JQL filters by pre-claim status (`to_do` / `qa` / `code_review` / `on_hold`), so a claimed task disappears from every queue automatically.
 
@@ -52,11 +53,12 @@ Search for the first available issue in priority order. Stop at the first match:
 
 0. **Run PR feedback reconciliation** (see above) — run `/pr-feedback`.
 1. **On hold** — `/issue-search status:<statuses.on_hold> label:agent:team-lead`. Launch `team-lead` agent. (Tasks in `awaiting_merge` and `awaiting_ops` are skipped here — `awaiting_merge` is handled by `/pr-feedback`, `awaiting_ops` is closed manually by the user.)
-2. **Code Review (group)** — `/issue-search type:group status:<statuses.code_review> label:agent:team-lead`. Launch `team-lead` agent for group close-out.
-3. **Code Review (Task)** — `/issue-search type:task status:<statuses.code_review> label:agent:reviewer`. Launch `reviewer` agent.
-4. **QA** — `/issue-search status:<statuses.qa> label:agent:qa`. Launch `qa` agent.
-5. **To Do (dev)** — `/issue-search status:<statuses.to_do> label:agent:dev` (filter out tasks whose blockers are not all `done`). Launch `dev` agent.
-6. **To Do (devops)** — `/issue-search status:<statuses.to_do> label:agent:devops` (filter out tasks whose blockers are not all `done`). Launch `devops` agent.
+2. **To Do (team-lead coordination)** — `/issue-search status:<statuses.to_do> label:agent:team-lead` (filter out tasks whose blockers are not all `done`). Launch `team-lead` agent. Short lifecycle: `to_do` → team-lead acts → `done`, no dev/qa/reviewer cycle. Typical source: sentinel triage routing a finding that needs architect consultation followed by `Mode: structure` applies, or area scaffolding.
+3. **Code Review (group)** — `/issue-search type:group status:<statuses.code_review> label:agent:team-lead`. Launch `team-lead` agent for group close-out.
+4. **Code Review (Task)** — `/issue-search type:task status:<statuses.code_review> label:agent:reviewer`. Launch `reviewer` agent.
+5. **QA** — `/issue-search status:<statuses.qa> label:agent:qa`. Launch `qa` agent.
+6. **To Do (dev)** — `/issue-search status:<statuses.to_do> label:agent:dev` (filter out tasks whose blockers are not all `done`). Launch `dev` agent.
+7. **To Do (devops)** — `/issue-search status:<statuses.to_do> label:agent:devops` (filter out tasks whose blockers are not all `done`). Launch `devops` agent.
 
 If nothing found at any level, report that the board is clear.
 
@@ -73,7 +75,8 @@ Run a single task through the **full lifecycle** until `done` (or until it gets 
    - If no key: use auto-mode priority to find one task.
 
 2. **Execute stages sequentially:**
-   - If task is in `to_do`: run `dev` → then `qa` → then `reviewer`.
+   - If task is in `to_do` with `agent:team-lead`: run `team-lead` (single step) — coordination task, no pipeline beyond it.
+   - If task is in `to_do` with `agent:dev`: run `dev` → then `qa` → then `reviewer`.
    - If task is in `qa`: run `qa` → then `reviewer`.
    - If task is in `code_review`: run `reviewer`.
    - If task is in `on_hold`: run `team-lead`, then restart from whatever status it lands in.
@@ -156,6 +159,10 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
         prompt="Project: <abs-project-root>. Area: <area>. Workspace: <abs-workspace-path>. Issue: <ISSUE-KEY>.",
         run_in_background=true,
       )
+      ```
+    - `team-lead` on Task in `to_do` (coordination):
+      ```
+      Agent(subagent_type="team-lead", prompt="Coordination task: <ISSUE-KEY>.", run_in_background=true)
       ```
     - `team-lead` on Task in `on_hold`:
       ```

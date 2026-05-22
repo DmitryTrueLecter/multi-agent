@@ -218,6 +218,25 @@ For each On Hold task:
    - to reviewer → `/handoff <KEY> reviewer <explanation>`
    - to devops → `/handoff <KEY> devops <explanation>` (re-routing an infra-flavored task that landed in the wrong queue)
 
+## Handling coordination tasks (`to_do` + `agent:team-lead`)
+
+Coordination tasks land in `to_do` with `agent:team-lead` when sentinel routes a triage finding that needs another role's action, or when team-lead itself queues a scaffolding step (introducing or dismantling an area, project init). Short lifecycle: no dev/qa/reviewer cycle — claim, execute the coordination action, close.
+
+Pickup query:
+
+```
+/issue-search status:<statuses.to_do> label:agent:team-lead
+```
+
+For each coordination task:
+
+1. **Claim the task**: `/issue-claim <KEY>`. When launched as a subagent via `/run`, the claim is already done; use `/task-read <KEY>` for the data.
+2. Read the description. It carries the originating sentinel finding (or scaffolding spec), the proposed steps, and a reference to any archived flag.
+3. Execute the proposed steps. Two typical shapes:
+   - **Architect consultation → `Mode: structure` apply** — spawn architect with the framing from the description, present the recommendation to the user for approval, then route the resulting content to sentinel via `Mode: structure` (one `Op:` per affected file, batched).
+   - **Area scaffolding** — route the new `area.yml` / role-overlay content directly to sentinel `Mode: structure` (`Op: create`).
+4. **Close the task** with `/handoff <KEY> done <closing-comment>`. The comment starts with `🤖 team-lead:`, names what landed (architect ID, structure-mode applies, follow-up tasks if any), and references the originating flag filename.
+
 ## Closing Epics (Epic in Code Review with `agent:team-lead`)
 
 When the reviewer closes the **last** Task of an Epic, it promotes the Epic to `Code Review` with `agent:team-lead` — that is your signal to do the final epic-level review and close it.

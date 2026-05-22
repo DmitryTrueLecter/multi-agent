@@ -29,7 +29,7 @@ Make the following `/issue-search` calls and present a summary:
 
 6. **QA** and **Code Review** — list from the `qa` and `code_review` result sets (key, summary, area/agent labels).
 
-7. **Next up** — from the `to_do` results: list tasks ready to launch (blocking links all `done`), grouped by agent — `agent:dev` and `agent:devops`.
+7. **Next up** — from the `to_do` results: list tasks ready to launch (blocking links all `done`), grouped by agent — `agent:team-lead` (coordination — surface first), `agent:dev`, `agent:devops`.
 
 8. **Recently completed** — `/issue-search status:<statuses.done>` — show last 3-5 tasks (sort by last-updated descending).
 
