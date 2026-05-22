@@ -185,9 +185,19 @@ Pass `parent:<EPIC-KEY>` to `/issue-create` when creating Tasks — the skill li
    4. Return each on-hold child citing the missing epic branch to `To Do` + `agent:dev` via `/handoff <CHILD-KEY> dev "Epic branch <vcs.branch_prefix><EPIC-KEY> now present on <workspace.remote>. Re-run task workflow step 2."`.
 
    The retroactive comment is the audit trail — close-out (`## Closing Epics` step 7) is where the drift, if any, is actually mechanically caught and resolved.
-5. Create Task issues with `/issue-create Task "<summary>" parent:<EPIC-KEY> labels:area:<area>,agent:dev description:<task-desc>`. The `parent:<EPIC-KEY>` argument is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace). Pass `blocks:<KEY>` for any dependency links.
-6. Present the decomposition to user for approval.
-7. User launches agents via `/run`. You report progress.
+5. **Verify the base is green per affected workspace, before decomposing.** Test rot on the base masquerades as task failures once decomposition lands — every child task that touches a rotted file pays the cost (dev hits red tests, escalates via `dev.md` step 4, triage task is filed, original task re-queues). Catch the rot once, here. For each `workspace.path` from step 4, in a subshell:
+
+   ```
+   ( cd <workspace.path> && \
+     git checkout <workspace.dev_branch> && \
+     <test_command from areas/<area>/area.yml> )
+   ```
+
+   - **All green** → proceed to step 6.
+   - **Failures exist** → classify each failing test (or group sharing a failure mode) into **fix** / **delete** / **temporarily disable** per the criteria in `## Handling On Hold tasks` step 4 (the test-rot bullet). File triage tasks against this Epic before any application Task — label `area:<area> agent:dev`, link each as `Blocks` for any application Task whose Requirements touch the rotted file's symbols. Triage tasks land first; application Tasks land after. Do not decompose application work over rotted tests.
+6. Create Task issues with `/issue-create Task "<summary>" parent:<EPIC-KEY> labels:area:<area>,agent:dev description:<task-desc>`. The `parent:<EPIC-KEY>` argument is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace). Pass `blocks:<KEY>` for any dependency links.
+7. Present the decomposition to user for approval.
+8. User launches agents via `/run`. You report progress.
 
 ## Handling On Hold tasks
 
@@ -207,6 +217,12 @@ For each On Hold task:
    - Did the dev misunderstand the requirement?
    - Is this a real gap that needs new work?
    - **Is this an `ARCH-EPIC-SYNC` drift handoff?** Look for `🤖 dev (<area>): handoff → team-lead (ARCH-EPIC-SYNC drift)` as the most recent dev comment. If yes: create a new Task `<EPIC-KEY>: reconcile <dev_branch> drift into epic branch` in the affected area, label `area:<area> agent:dev`, link `Blocks` the on-hold task, description names the conflicting files copied from the dev's comment and the two SHAs being merged. Once the reconcile task reaches Done, return the original task to `To Do` + `agent:dev` so the dev re-runs step 2 (which will now find the epic branch current). Do not skip this routing — sending the dev back to the same conflict produces a bounce loop on the original task.
+   - **Is this a pre-existing test-rot handoff?** Look for a `🤖 dev (<area>): handoff → team-lead` comment listing failing test IDs and a base SHA, filed because the suite is red on tests the dev's diff did not introduce. If yes: read each listed test against the current code state and pick one outcome per test (or per group sharing a failure mode):
+     - **Fix** — the symbols and contracts the test references still exist; only the assertions or expected shapes drifted. File a task to update the test.
+     - **Delete** — the tested behavior is gone for good (module removed, v1 schema replaced by v2 with no v1 path). File a task to remove the test.
+     - **Temporarily disable** — the contract is in flux and the test will be revived after a known follow-up (v1 tests during a v1→v2 migration with a planned port). File a task to add the language-appropriate skip marker with the tracking-issue ID in the reason field.
+
+     Link each triage task `Blocks` the on-hold task. Return the on-hold task via `/handoff <KEY> dev` only after the triage lands — the dev's re-run baseline must include the triage outcomes.
 5. Read the spec and relevant architecture docs to verify.
 6. Present your analysis and proposed action to the user:
    - What the dev flagged

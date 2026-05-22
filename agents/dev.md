@@ -247,7 +247,12 @@ Writes a file to `.claude/sentinel-inbox/`. Async — does not unblock the task.
 
    All branches use `<vcs.branch_prefix>` (default `ai/`) followed by the Jira KEY.
 3. Do the work described in the issue. All edits and tool calls operate on paths relative to `workspace.path`.
-4. Run tests using the `test_command` from `area.yml` (executed from `workspace.path`).
+4. Run tests using the `test_command` from `area.yml` (executed from `workspace.path`). The pass bar is **diff-relative**, not absolute:
+
+   - Suite green → proceed to step 5.
+   - Suite red on HEAD → re-run `test_command` on the base resolved in step 1 (checkout the base, run, return to your task branch). Compare the failure sets:
+     - **Failure on HEAD but not on base** — your diff caused it. Fix and re-run, regardless of which file the test lives in.
+     - **Failure on both HEAD and base** — pre-existing rot. Stop, escalate via step 7 with the failing test IDs and the base SHA. Do not modify those tests yourself.
 5. **Commit your changes** (do NOT push). Commit message format:
    ```
    ISSUE-KEY subject line
