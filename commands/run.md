@@ -47,11 +47,43 @@ Reviewer-approved tasks sit in `statuses.awaiting_merge` until the user merges o
 
 Run `/pr-feedback` — the skill handles all PR list queries, issue tracker label/status updates, epic close-out promotion, and error recovery. It returns once all pending decisions are synced.
 
+## Stuck task pre-flight (runs after PR feedback reconciliation, before queue search)
+
+A task in `<statuses.in_progress>` with an `agent:<role>` label is either being worked on right now (this session or another) or was abandoned mid-flight by an externally-terminated subagent (usage limit, sandbox kill, OOM). The tracker alone cannot tell the two apart, and this session's `TaskList` only sees its own subagents. This pre-flight surfaces ambiguous tasks and asks the user — it never rolls back automatically.
+
+**When to run.** Once per `/run` invocation, immediately after `/pr-feedback`, before the first queue search. Runs in every mode (`/run`, `/run pipeline`, `/run all`, `/run <KEY>`, role-only shortcut). On `/run all`, does **not** re-run before each iteration — within a single invocation, the only new in-progress tasks are ones this session just spawned.
+
+1. **List in-progress tasks** across roles:
+   - `/issue-search status:<statuses.in_progress> label:agent:dev`
+   - `/issue-search status:<statuses.in_progress> label:agent:qa`
+   - `/issue-search status:<statuses.in_progress> label:agent:reviewer`
+   - `/issue-search status:<statuses.in_progress> label:agent:team-lead`
+   - `/issue-search status:<statuses.in_progress> label:agent:devops`
+
+2. **Cross-reference with this session's live subagents** via `TaskList`. Every spawn prompt from "Steps" contains the issue key (`Issue: <KEY>`, `Coordination task: <KEY>`, `On Hold task: <KEY>`, `Group close-out: <KEY>`). A task is **active in this session** when some live `TaskList` entry's prompt mentions its key.
+
+3. **Ambiguous tasks** are the in-progress tasks with no matching live subagent in this session. They are either running in another session or truly stuck after external termination.
+
+4. **If no ambiguous tasks**, continue silently to queue search.
+
+5. **If there are ambiguous tasks**, report them and wait for a per-task decision:
+   ```
+   ⚠ In-progress tasks with no live subagent in this session:
+     - <KEY-1> (agent:<role>, area:<area>, claimed <duration> ago) — branch <branch>: <clean | N uncommitted files, M unpushed commits>
+     - <KEY-2> ...
+   For each, choose: roll back to <statuses.to_do> / leave alone.
+   ```
+
+   - **Roll back** — transition the task to `<statuses.to_do>`, keep the `agent:<role>` label, post a comment `🤖 team-lead: stuck-task recovery — external termination suspected, returned to queue.` The task re-enters normal queue pickup on the next iteration. If the branch shows uncommitted files or unpushed commits, repeat the warning with the file list and re-confirm before transitioning — the work survives in the branch, and the next dev that picks the task up decides what to do with it.
+   - **Leave alone** — no tracker change; skip this task for the current `/run` invocation. Use when the task is likely running in another session.
+
+6. **Recency hint.** Tasks claimed within the last few minutes are almost certainly running in another session; tasks claimed hours or days ago are almost certainly stuck. Show the duration so the user has the signal — do not act on it automatically.
+
 ## Auto-mode (`/run` without arguments)
 
 Search for the first available issue in priority order. Stop at the first match:
 
-0. **Run PR feedback reconciliation** (see above) — run `/pr-feedback`.
+0. **Run pre-flights** — `/pr-feedback` (see "PR feedback reconciliation" above), then stuck-task scan (see "Stuck task pre-flight" above).
 1. **On hold** — `/issue-search status:<statuses.on_hold> label:agent:team-lead`. Launch `team-lead` agent. (Tasks in `awaiting_merge` and `awaiting_ops` are skipped here — `awaiting_merge` is handled by `/pr-feedback`, `awaiting_ops` is closed manually by the user.)
 2. **To Do (team-lead coordination)** — `/issue-search status:<statuses.to_do> label:agent:team-lead` (filter out tasks whose blockers are not all `done`). Launch `team-lead` agent. Short lifecycle: `to_do` → team-lead acts → `done`, no dev/qa/reviewer cycle. Typical source: sentinel triage routing a finding that needs architect consultation followed by `Mode: structure` applies, or area scaffolding.
 3. **Code Review (group)** — `/issue-search type:group status:<statuses.code_review> label:agent:team-lead`. Launch `team-lead` agent for group close-out.
@@ -68,7 +100,7 @@ Run a single task through the **full lifecycle** until `done` (or until it gets 
 
 **Devops tasks are not eligible for pipeline mode** — they have no qa/reviewer cycle, and `awaiting_ops` requires human action that the agent loop cannot drive. Use `/run <DEVOPS-KEY>` (single step) instead. If a key labelled `agent:devops` is passed to pipeline mode, stop and report: "devops tasks run as a single step — use /run <KEY> instead."
 
-0. **Run PR feedback reconciliation** (see above) before the first stage.
+0. **Run pre-flights** before the first stage — `/pr-feedback` (see "PR feedback reconciliation" above) and stuck-task scan (see "Stuck task pre-flight" above).
 
 1. **Find the task:**
    - If `ISSUE-KEY` given: use it.
@@ -92,7 +124,7 @@ Run a single task through the **full lifecycle** until `done` (or until it gets 
 
 Run tasks until the board is clear.
 
-1. **Run PR feedback reconciliation** (see above) — run `/pr-feedback`.
+1. **Run pre-flights** — `/pr-feedback` (see "PR feedback reconciliation" above) runs before each iteration; the stuck-task scan (see "Stuck task pre-flight" above) runs only on the first iteration.
 2. Use auto-mode priority to find a task.
 3. Run it through the **full pipeline** (same as pipeline mode).
 4. After the task reaches `done` (or `on_hold`), go back to step 1 (reconciliation runs again before the next iteration).
@@ -119,7 +151,7 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
 
 ## Steps (for single-step modes)
 
-0. **Run PR feedback reconciliation** (see above) before parsing arguments — applies even when the user invokes `/run <ISSUE-KEY>` directly, so a queued user-decline is processed before this manual run picks anything up.
+0. **Run pre-flights** before parsing arguments — `/pr-feedback` (see "PR feedback reconciliation" above) and stuck-task scan (see "Stuck task pre-flight" above). Both apply even on `/run <ISSUE-KEY>`, so a queued user-decline and any half-claimed in-progress task surface before this manual run picks anything up.
 
 1. Parse `$ARGUMENTS`:
    - If empty: auto-mode (see above).
@@ -182,7 +214,7 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
       ```
       Note: no `Area:` parameter — devops is project-scoped. Workspace resolves from `config.yml.workspace` (no area override).
 
-10. **End your turn after the spawn** — do **not** poll, do **not** sleep. The harness will notify you automatically when the background subagent completes. When the notification arrives:
-    - Process the subagent's final result.
-    - Report a one-line status to the user: `✓ <ISSUE-KEY> done — <one-sentence summary>` or `✗ <ISSUE-KEY> blocked — <reason>`.
-    - Continue per the active mode: next stage in pipeline mode, next task in all mode, or stop in single-step modes.
+10. **End your turn after the spawn** — do **not** poll, do **not** sleep. The harness will notify you automatically when the background subagent completes. When the notification arrives, classify the final result before reporting:
+
+    - **Clean completion** — final result describes a handoff, a stop reason, or a normal terminal state. Report `✓ <ISSUE-KEY> done — <one-sentence summary>` or `✗ <ISSUE-KEY> blocked — <reason>` and continue per the active mode (next stage in pipeline mode, next task in all mode, or stop in single-step modes).
+    - **External termination** — final result matches one of: `session limit`, `usage limit`, `rate limit`, `killed`, `aborted`, `OOM`, or other phrasing indicating the subagent did not exit on its own decision. Report `⏸ <ISSUE-KEY> interrupted (external — <quote the trigger phrase>)` and **stop the loop** — do not advance the pipeline, do not pick the next task in all-mode. Make no tracker changes: the task stays in `<statuses.in_progress>` with `agent:<role>` and will be surfaced by the stuck-task pre-flight on the next `/run` invocation.
