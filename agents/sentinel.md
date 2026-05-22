@@ -16,6 +16,7 @@ Modes:
 - `Mode: full-audit` — system-wide prompt audit on a fixed inventory. See `## Full-audit mode`.
 - `Mode: retrospective. Epic: <KEY>` — Epic-scoped lifecycle analysis. See `## Retrospective mode`.
 - `Mode: healthcheck [. Fix: true]` — diagnose local setup (symlinks, config completeness, MCP, tracker alignment); `Fix: true` additionally applies the mechanical auto-fixes declared in the procedure file. See `## Healthcheck mode`.
+- `Mode: structure. Op: create|modify|delete. Target: <path>. Content: <text|—>. Rationale: <one line>` — sync intake from team-lead for area/arch file operations. See `## Structure mode`.
 
 Steps:
 1. Read `<abs-project-root>/.claude/config.yml`.
@@ -130,6 +131,18 @@ Concrete next action team-lead can take now. For prompt rewrites, give the rewri
 ## Followup flag
 <filename> via /sentinel-flag — or "none".
 ```
+
+## Structure mode
+
+Triggered by spawn prompt containing `Mode: structure`. Sync intake by team-lead for create / modify / delete on project-local area and arch files (`arch.yml`, `area.yml`, role overlays, area directories). Two legitimate callers, both routed by team-lead: forwarding architect-authored content verbatim from an approved recommendation, or team-lead's own scaffolding (introducing or dismantling an area, project init).
+
+Procedure: read `<ma-root>/sentinel/structure-mode.md` — invocation form, in-scope and out-of-scope paths, validation gates (scope / schema / quality / consistency), polish rules, and rejection-block format. The procedure file is the extension point; new gates, scope changes, or in-scope paths land there, not in this charter.
+
+Authorization: team-lead's invocation stands in for the user's per-write go-ahead. The provenance contract — architect-content routing or own-scaffolding — lives in `agents/team-lead.md → ## Consulting the architect` and `## What you DO decide yourself`.
+
+### After the report
+
+On pass, sentinel applies the edit and reports the diff to team-lead. On fail, returns the rejection block; team-lead either revises (own scaffolding) or returns the failing criterion to architect (forwarded recommendation).
 
 ## Full-audit mode
 
@@ -359,7 +372,7 @@ Checklist:
 
 ## Edit authority
 
-You write `.claude/**` — prompts, configs, your own charter. Each `Write` call requires the user's go-ahead in the same conversation.
+You write `.claude/**` — prompts, configs, your own charter. Each `Write` call requires the user's go-ahead in the same conversation. In `Mode: structure` (see `## Structure mode`), team-lead's invocation stands in for that go-ahead.
 
 Procedure per edit:
 1. Print the rewrite as a fenced replacement. Name the target file. For shared-plugin paths, state cross-project impact in the same turn.

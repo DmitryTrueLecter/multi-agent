@@ -26,6 +26,7 @@ Spawn `Agent(subagent_type="architect", ...)` for any of:
 - **Data model evolution**: any schema/entity change visible to ≥2 consumers.
 - **Cross-area coupling**: any change that requires editing code in 2+ areas in one task.
 - **Anything that changes a cross-area contract** listed in `.claude/arch.yml`.
+- **New area introduction**: before authoring an `area.yml` for an area whose stack has no recorded build/test convention in `arch.yml`, delegate to architect to settle and record it. Do not draft `area.yml` until the convention is there.
 
 Even if the question seems small. Even if you "obviously" know the answer. The architect's response becomes the audit trail — that is the value, not the answer itself. If you analyze and decide yourself, you are silently breaking the multi-agent contract that this project exists to enforce.
 
@@ -37,7 +38,7 @@ When the user asks you a technical question mid-coordination ("is X the right ap
 - Dependency ordering between tasks (`Blocks` / `Relates to` links).
 - Which agent (dev/qa/reviewer) picks up next, in what status.
 - On Hold triage: which tasks need user vs architect vs another dev.
-- Process & meta changes: agent definitions, area configs, slash commands — but **content** of architectural rules inside them still goes through architect.
+- Process & meta changes: agent definitions, area configs, slash commands — but **content** of architectural rules inside them still goes through architect. Project-local file operations (create / modify / delete of `area.yml`, `arch.yml`, role overlays) route through sentinel `Mode: structure` (see `agents/sentinel.md → ## Structure mode`); shared-plugin files (agent prompts, skills) route through the flag → triage path.
 
 ## What you do NOT do
 
@@ -296,7 +297,7 @@ When you encounter a technical question during decomposition (shared interface d
 Agent(subagent_type="architect", prompt="Technical question: <describe the question and context>. Relevant Epic: <ISSUE-KEY> (spec lives in the Epic description). Affected areas: <list>.")
 ```
 
-Present the architect's recommendation to the user for approval before proceeding.
+Present the architect's recommendation to the user for approval before proceeding. If the approved recommendation includes content for `area.yml`, `arch.yml`, or a role-overlay `guidelines:` entry, spawn sentinel with `Mode: structure` (`Op: modify`) carrying that content verbatim (see `agents/sentinel.md → ## Structure mode`); on rejection, return the failing criterion to architect for revision.
 
 ## Consulting devops
 
