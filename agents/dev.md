@@ -176,7 +176,7 @@ Writes a file to `.claude/sentinel-inbox/`. Async — does not unblock the task.
    **Determine the base branch** from the issue's `parent` field:
    - If `parent` is present AND `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>` (the epic branch).
    - Otherwise (no `parent`, or `parent` is not an Epic) → base = `<workspace.dev_branch>` (this is a standalone task).
-2. **Resolve the task branch** in your area's workspace. The branch is `<vcs.branch_prefix><ISSUE-KEY>`. **Two cases**, decided by whether the branch already exists on the remote (it will exist whenever this is a re-run after a user/reviewer/qa rejection). On a **fresh** epic-parented task, an additional **epic-branch sync** step (2a below) runs before branch creation — this enforces `ARCH-EPIC-SYNC` and is the single mechanical step that prevents long-lived-epic drift incidents:
+2. **Resolve the task branch** in your area's workspace. The branch is `<vcs.branch_prefix><ISSUE-KEY>`. **Two cases**, decided by whether the branch already exists on the remote (it will exist whenever this is a re-run after a user/reviewer/qa rejection). On a **fresh** epic-parented task, an additional **epic-branch verification** step (2a) runs first; only on success does the sync (2b) proceed. The verification closes the silent fallback-to-dev drift that the pre-2026-05 prompt allowed when the team-lead-created epic branch was missing on remote:
 
    ```
    cd <workspace.path>
@@ -191,7 +191,26 @@ Writes a file to `.claude/sentinel-inbox/`. Async — does not unblock the task.
      Your starting tree is the previous attempt. Inspect what changed: `git log <base>..HEAD --oneline` and `git diff <base>...HEAD --stat`. The rejection feedback from step 1 tells you what to add/fix on top of this — not what to rewrite.
    - **Fresh task (branch does not exist on remote).** Cut a new branch from base:
 
-     **2a. `ARCH-EPIC-SYNC` — only when base is an epic branch** (i.e. issue's `parent.type == "group"`). Skip when `base == <workspace.dev_branch>` (standalone task — nothing to sync into).
+     **2a. Verify the epic branch exists on remote — only when base is an epic branch** (i.e. issue's `parent.type == "group"`). Skip when `base == <workspace.dev_branch>` (standalone task — base is always available).
+
+     ```
+     git ls-remote --exit-code <workspace.remote> <vcs.branch_prefix><EPIC-KEY>
+     ```
+
+     - **Exit 0 (epic branch present)** → continue to 2b.
+     - **Exit 2 (epic branch missing on remote)** → team-lead's `## Workflow` step 4 (epic-branch creation) did not run or did not complete for this workspace. Do NOT silently fall back to `<workspace.dev_branch>`: that drops the epic's integration contract and produces the `ARCH-EPIC-SYNC` drift that step 2b exists to prevent. Do this and stop:
+
+       1. Run `/handoff <ISSUE-KEY> team-lead` with the comment body:
+          ```
+          Epic branch missing on remote.
+          Expected: <vcs.branch_prefix><EPIC-KEY> on <workspace.remote>
+          Workspace: <workspace.path>
+          Team-lead to create the epic branch per `## Workflow` step 4, then return this task to To Do + agent:dev.
+          ```
+          The skill will prefix the comment with `🤖 dev (<area>): handoff → team-lead`, set label `agent:team-lead` + `needs-decision`, and transition to `On Hold`.
+       2. Stop. Do not cut the task branch. Do not invent a fallback base.
+
+     **2b. `ARCH-EPIC-SYNC` — only when base is an epic branch.** Skip when `base == <workspace.dev_branch>` (standalone task — nothing to sync into).
 
      ```
      git checkout <base>                                              # base = <vcs.branch_prefix><EPIC-KEY>
@@ -199,13 +218,13 @@ Writes a file to `.claude/sentinel-inbox/`. Async — does not unblock the task.
      git merge --no-edit <workspace.remote>/<workspace.dev_branch>
      ```
 
-     - **Clean merge** → push the updated epic branch and continue to 2c:
+     - **Clean merge** → push the updated epic branch and continue to 2d:
        ```
        git push <workspace.remote> <base>
        ```
-     - **Conflict** → fail out per 2b below. Do NOT resolve.
+     - **Conflict** → fail out per 2c below. Do NOT resolve.
 
-     **2b. On conflict during `ARCH-EPIC-SYNC` — fail out, do not resolve.**
+     **2c. On conflict during `ARCH-EPIC-SYNC` — fail out, do not resolve.**
      Reconciling architectural rewrites that landed independently on `<workspace.dev_branch>` is out of dev scope (`ARCH-EPIC-SYNC`). Do this and stop:
 
      1. `git merge --abort` in `<workspace.path>`. Confirm `git status` is clean. Do **not** push the epic branch.
@@ -221,7 +240,7 @@ Writes a file to `.claude/sentinel-inbox/`. Async — does not unblock the task.
         The skill will prefix the comment with `🤖 dev (<area>): handoff → team-lead`, set label `agent:team-lead` + `needs-decision`, and transition to `On Hold`.
      3. Stop. Do not cut the task branch.
 
-     **2c. Cut the task branch from the (now-current) base.**
+     **2d. Cut the task branch from the (now-current) base.**
      ```
      git checkout -b <vcs.branch_prefix><ISSUE-KEY>
      ```
