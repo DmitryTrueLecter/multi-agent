@@ -99,8 +99,8 @@ DON'T SPLIT — keep whole if any holds:
 **DEV-FCIS — Functional core, imperative shell.**
 Pure logic is separated from I/O. Computational functions accept primitives or dataclasses, not database sessions, HTTP clients, or ORM models. I/O lives at the edges: read inputs, call pure logic, write outputs.
 
-**DEV-FN-SHAPE — Small functions, ≤4 arguments, no boolean flags.**
-A function fits in your head. Maximum four parameters; group them into a dataclass if you need more. Boolean flag arguments are forbidden — `do_thing(x, dry_run=True)` is two functions hiding in one signature; expose them separately (`do_thing` / `simulate_thing`).
+**DEV-FN-SHAPE — Small functions, ≤4 domain parameters, no boolean flags.**
+A function fits in your head at the call site: maximum four **domain** parameters, group them into a dataclass when domain inputs exceed four. Always-required plumbing (session/transaction/connection, request/response, dependency-injected collaborator threaded uniformly through every call) is excluded from the count — `update_thing(session, id, name, status, updated_by)` is four domain parameters and clean. Boolean flag arguments are forbidden — `do_thing(x, dry_run=True)` is two functions hiding in one signature; expose them separately (`do_thing` / `simulate_thing`).
 
 **DEV-FAIL-FAST — Errors propagate, no silent fallbacks.**
 Unexpected errors stop the flow. Error handlers catch *specific* exception types and either handle them meaningfully or re-raise with context. Forbidden: catch-all handlers that swallow errors silently; substituting a default empty value to mask failure; logging-and-continuing without a stated reason.

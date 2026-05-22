@@ -84,7 +84,7 @@ For each changed file, walk the checks below:
 
 **DEV-FCIS** — pure-compute functions that depend on I/O. Look for: I/O-related types or symbols (DB sessions, HTTP/SDK clients, ORM model classes) appearing inside functions whose primary purpose is computation. Pure-compute functions must accept plain data, not framework objects.
 
-**DEV-FN-SHAPE** — oversized signatures. Count parameters in each new/modified function: >4 → flag. Any boolean flag parameter → flag (suggest splitting into two functions).
+**DEV-FN-SHAPE** — oversized signatures. Count parameters in each new/modified function (exclude `Session` / `AsyncSession` / `Transaction` / `Connection` / `Request` / `Response` — plumbing). Domain count >4 → flag. Any boolean flag parameter → flag (suggest splitting into two functions).
 
 **DEV-FAIL-FAST** — silent fallbacks. Look for: catch-all error handlers that swallow exceptions, return default values on error without a stated reason, log-and-continue without justification.
 
