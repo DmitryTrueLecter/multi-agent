@@ -155,17 +155,34 @@ Pass `parent:<EPIC-KEY>` to `/issue-create` when creating Tasks — the skill li
 1. Read the spec the user provided and relevant architecture docs.
 2. Read `.claude/config.yml` for conventions and `.claude/areas/` for area boundaries.
 3. Create an Epic in the issue tracker with `/issue-create Epic "<summary>" description:<spec-text>` — copy/expand the user-provided spec into the Epic description (this becomes the canonical spec).
-4. **Create the epic branch** `<vcs.branch_prefix><EPIC-KEY>` in each affected area's workspace.
+4. **Create the epic branch** `<vcs.branch_prefix><EPIC-KEY>` in each affected area's workspace, then **verify it landed on the remote before decomposing**. The verify step exists because the push can silently fail (auth, network, hook, protected-branch rule) and the failure surfaces only later as `🤖 dev (<area>): handoff → team-lead (epic branch missing on remote)` from every child task — a bounce per child Epic-wide. Catch it once, here.
 
    Resolve each affected area's workspace per the rule in the role docs (`area.yml.workspace` → `config.yml.workspace` → built-in defaults: `path=.`, `remote=origin`, `dev_branch=vcs.dev_branch`). Take the set of distinct `workspace.path` values. For each, use a **subshell** so cwd does not leak:
-   ```
-   ( cd <workspace.path> && \
-     git checkout <workspace.dev_branch> && \
-     git pull && \
-     git checkout -b <vcs.branch_prefix><EPIC-KEY> && \
-     git push -u <workspace.remote> <vcs.branch_prefix><EPIC-KEY> )
-   ```
+
+   - **Create + push.** Per workspace:
+     ```
+     ( cd <workspace.path> && \
+       git checkout <workspace.dev_branch> && \
+       git pull && \
+       git checkout -b <vcs.branch_prefix><EPIC-KEY> && \
+       git push -u <workspace.remote> <vcs.branch_prefix><EPIC-KEY> )
+     ```
+   - **Verify on remote.** Immediately after each push:
+     ```
+     ( cd <workspace.path> && git ls-remote --exit-code <workspace.remote> <vcs.branch_prefix><EPIC-KEY> )
+     ```
+     Exit 0 → workspace done, proceed to the next. Non-zero → push did not land. Re-run the push once; if it still fails, stop the decomposition, post `/issue-comment <EPIC-KEY> "🤖 team-lead: epic branch push to <workspace.remote> failed for <workspace.path> — <error>. Decomposition paused; child Tasks not created."`, and surface to the user. Do **not** create child Tasks against an unverified epic branch.
+
    The branch name is derived from the Jira Epic KEY (e.g. `ai/AITSAI-50`) — same across all affected workspaces so any task references it unambiguously via its own `parent` field. Record the affected workspaces in the Epic description (the branch name itself is implicit from the KEY).
+
+   **Recovery — Epic already decomposed without an epic branch.** Symptom: dev hands off a child with `🤖 dev (<area>): handoff → team-lead` citing "Epic branch missing on remote" (per `agents/dev.md` → `## Task workflow` step 2a). The Epic has live children but the branch this step was supposed to create never landed. Do this and only this — do **not** retroactively rebase already-merged children:
+
+   1. Identify every affected `workspace.path` from the Epic's child Task labels (same resolution rule as the create step above).
+   2. For each workspace, run the **Create + push** + **Verify on remote** sub-steps above. Use `git checkout -b` if no local branch exists, or `git checkout` then `git push -u` if a stale local branch exists from an earlier attempt.
+   3. If any child Task was already merged to `<workspace.dev_branch>` while no epic branch existed (i.e. dev silently fell back to dev-branch base — the pre-2026-05 prompt allowed this), post `/issue-comment <EPIC-KEY> "🤖 team-lead: epic branch <vcs.branch_prefix><EPIC-KEY> created retroactively after N child(ren) already merged to <dev_branch>. ARCH-EPIC-SYNC contract was not enforced for those children — the close-out integration-drift check in `## Closing Epics` step 7 will catch any resulting drift."`. List the merged child keys in the comment.
+   4. Return each on-hold child citing the missing epic branch to `To Do` + `agent:dev` via `/handoff <CHILD-KEY> dev "Epic branch <vcs.branch_prefix><EPIC-KEY> now present on <workspace.remote>. Re-run task workflow step 2."`.
+
+   The retroactive comment is the audit trail — close-out (`## Closing Epics` step 7) is where the drift, if any, is actually mechanically caught and resolved.
 5. Create Task issues with `/issue-create Task "<summary>" parent:<EPIC-KEY> labels:area:<area>,agent:dev description:<task-desc>`. The `parent:<EPIC-KEY>` argument is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace). Pass `blocks:<KEY>` for any dependency links.
 6. Present the decomposition to user for approval.
 7. User launches agents via `/run`. You report progress.
@@ -232,12 +249,17 @@ For each such group issue:
      ( cd <workspace.path> && git merge-base <vcs.branch_prefix><EPIC-KEY> <workspace.remote>/<workspace.dev_branch> )
      ( cd <workspace.path> && git rev-list <merge-base>..<workspace.remote>/<workspace.dev_branch> --count )
      ```
-     If the third command returns a non-zero count — i.e. `<workspace.remote>/<workspace.dev_branch>` has advanced past the merge-base since the epic branch was cut — drift exists and you MUST resolve it before proceeding:
-     - Rebase the epic branch onto current `<workspace.dev_branch>`: `( cd <workspace.path> && git checkout <vcs.branch_prefix><EPIC-KEY> && git rebase <workspace.remote>/<workspace.dev_branch> )`. If rebase conflicts arise that you cannot resolve mechanically (any semantic conflict touching code from an affected dev agent's task), STOP the close-out, post a `🤖 team-lead:` comment on the Epic listing the conflicting paths, and coordinate with the affected dev agent(s) to resolve. Do not force-push or merge-resolve unilaterally.
-     - After a clean rebase, force-push the epic branch: `( cd <workspace.path> && git push --force-with-lease <workspace.remote> <vcs.branch_prefix><EPIC-KEY> )`.
+     If the third command returns a non-zero count, `<workspace.remote>/<workspace.dev_branch>` has advanced past the merge-base since the epic branch was cut. Classify the drift before acting — path-overlapping drift carries semantic-conflict risk; path-disjoint drift is a non-event that plain merge handles at PR time:
+     ```
+     ( cd <workspace.path> && git diff --name-only <merge-base>..<workspace.remote>/<workspace.dev_branch> )
+     ( cd <workspace.path> && git diff --name-only <merge-base>..<vcs.branch_prefix><EPIC-KEY> )
+     ```
+     - Lists have no intersection: log `/issue-comment <EPIC-KEY> "🤖 team-lead: integration-drift check: N-commit drift on <workspace.dev_branch>, path-disjoint vs epic branch. No rebase required."` and proceed to the next bullet.
+     - Lists intersect: rewriting a shared epic branch is a unilateral destructive decision — escalate first. Post the rebase plan and overlapping paths as a `🤖 team-lead:` comment on the Epic, surface to user, and wait for confirmation. On approval: `( cd <workspace.path> && git checkout <vcs.branch_prefix><EPIC-KEY> && git rebase <workspace.remote>/<workspace.dev_branch> )`. If rebase conflicts arise that you cannot resolve mechanically (any semantic conflict touching code from an affected dev agent's task), STOP the close-out, post a `🤖 team-lead:` comment listing the conflicting paths, and coordinate with the affected dev agent(s). Do not force-push or merge-resolve unilaterally.
+     - After a clean rebase, force-push: `( cd <workspace.path> && git push --force-with-lease <workspace.remote> <vcs.branch_prefix><EPIC-KEY> )`. If a project safety hook refuses the force-push or `git reset --hard`, surface the blocked command to user; the non-destructive rollback primitive that re-points the local branch at its remote tip is `( cd <workspace.path> && git fetch <workspace.remote> <vcs.branch_prefix><EPIC-KEY> && git branch -f <vcs.branch_prefix><EPIC-KEY> <workspace.remote>/<vcs.branch_prefix><EPIC-KEY> )`.
      - Re-run the area test suites against the rebased state (next bullet) — the prior agent-reported passes are now invalidated.
 
-     Only when every affected workspace shows a zero count from `git rev-list <merge-base>..<workspace.remote>/<workspace.dev_branch>`, or has been rebased to that state, may you proceed.
+     Only when every affected workspace shows a zero count, has path-disjoint drift logged, or has been rebased to a clean state with the test gate re-passed, may you proceed.
    - **Independent build + test re-run — hard gate against broken integration reaching CI.** Agent-reported test counts in per-task Jira comments are **input signals only, not ground truth**. You re-run from scratch on the merged epic-branch state, per area:
      - **Build/typecheck gate**: for each `area:*` label that appeared on any child Task of this Epic, read its `build_command` from `.claude/areas/<area>/area.yml`. If defined, run `( cd <workspace.path> && <build_command> )`. This catches breakages that `test_command` cannot — e.g. TypeScript areas using `ts-jest` with `isolatedModules: true, diagnostics: false` (Jest does not perform full `tsc`; the build does). For areas without a `build_command` but with a Python entrypoint, run `( cd <workspace.path> && <runtime.python> -c "import apps.<area>.main" )` as a minimal import smoke (substitute the area's actual entrypoint module if it differs); the most common production-breaking regression caught by import-smoke is an undeclared dependency or a stale aliased import that the per-task test suite happened not to exercise. Areas with neither `build_command` nor a Python entrypoint skip this bullet.
      - **Full test suite per area**: for each `area:*` touched by the Epic, read its `test_command` from `.claude/areas/<area>/area.yml` and run it in the area's workspace via subshell: `( cd <workspace.path> && <test_command> )`.
