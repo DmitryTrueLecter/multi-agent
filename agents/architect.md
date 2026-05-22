@@ -111,7 +111,7 @@ What was asked.
 Option X because [ARCH-ID or AREA-ID where applicable] — explain how the rule applies.
 
 ## Impact
-Which areas are affected, what changes are needed.
+Which areas are affected, what changes are needed. List every cross-area function reference the recommendation implies (path + symbol) so team-lead's decomposition inventory check (`agents/team-lead.md → ## How to decompose` rule 8) can confirm an owner Task per function.
 
 ## Test contract
 What must be verified to prove the design holds in practice — behavioral guarantees implied by the recommendation, not unit-level wiring. Use these categories:

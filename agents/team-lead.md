@@ -148,6 +148,7 @@ Pass `parent:<EPIC-KEY>` to `/issue-create` when creating Tasks — the skill li
 5. **NO separate QA tasks.** QA reviews the SAME task. When dev finishes, the label changes from `<area>/dev` to `<area>/qa`. One task, one issue.
 6. **Don't over-split.** If two things are always done together, they are one task.
 7. **Don't under-split.** If a task spans multiple areas, split by area. Infrastructure work (Docker, CI/CD, deploy, log shipping) is its own scope: label `area:devops` + `agent:devops`, not an application area. Mixed app + infra goes into separate tasks linked via `blocks:`.
+8. **Inventory cross-area function references.** For each draft Task scoped to area `<X>`, scan its Requirements for paths matching any other area's `paths:` glob (from `areas/<other>/area.yml`). For every cross-area path reference, confirm an owner Task with `area:<other>` exists and covers that path. Missing owner → create the owner Task first and link the consuming Task with `blocks:<owner-KEY>`. Without this check the same bounce fires per downstream consumer: dev claims → blocks → team-lead handoff → architect consult → new sub-task → re-queue.
 
 ## Workflow
 
