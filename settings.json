@@ -1,6 +1,10 @@
 {
   "permissions": {
     "allow": [
+      "Read(.claude/**)",
+      "Glob(.claude/**)",
+      "Grep(.claude/**)",
+      "Bash(readlink:*)",
       "mcp__atlassian__jira_get_issue",
       "mcp__atlassian__jira_get_transitions",
       "mcp__atlassian__jira_search",
