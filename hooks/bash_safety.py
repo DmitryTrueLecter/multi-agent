@@ -4,7 +4,7 @@
 Blocks shell operations that are irreversible, contradict the multi-agent
 contract, or bypass project conventions:
 
-  - force pushes (any branch)
+  - force pushes (--force / -f, '+<refspec>' form); --force-with-lease is allowed
   - direct push to main / master / development
   - deleting remote main / master / development
   - git reset --hard, git clean -f, git checkout ., git restore .
@@ -36,8 +36,12 @@ import sys
 # false-positive on common dev operations.
 DENY = [
     (
-        re.compile(r"\bgit\s+push\b[^|;&]*\s(?:--force(?:-with-lease)?|-f)\b"),
-        "git push --force* is blocked. Resolve the divergence properly.",
+        re.compile(r"\bgit\s+push\b[^|;&]*\s(?:--force(?!-)|-f)\b"),
+        "git push --force / -f is blocked. To publish a rebased branch, use --force-with-lease — it fails safely if someone else pushed in the meantime.",
+    ),
+    (
+        re.compile(r"\bgit\s+push\b[^|;&]*\s\+\S"),
+        "git push <remote> +<refspec> is blocked — the leading '+' is a per-ref force update, equivalent to --force on that ref. To publish a rebased branch, use --force-with-lease.",
     ),
     (
         re.compile(
