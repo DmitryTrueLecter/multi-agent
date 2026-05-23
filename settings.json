@@ -4,6 +4,7 @@
       "Read(.claude/**)",
       "Glob(.claude/**)",
       "Grep(.claude/**)",
+      "Write(.claude/sentinel-inbox/**)",
       "Bash(readlink:*)",
       "mcp__atlassian__jira_get_issue",
       "mcp__atlassian__jira_get_transitions",
