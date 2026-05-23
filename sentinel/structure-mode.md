@@ -36,10 +36,12 @@ Target inside the in-scope list above. Operation allowed for that path.
 
 ### Gate 2: Schema
 
-- `area.yml` validates against `sentinel/area-config-schema.md`.
-- `arch.yml` matches its documented shape.
+Validate against `sentinel/area-config-schema.md`:
+
 - Required fields present.
 - Rule IDs unique within the file.
+- `arch.yml` matches its documented shape.
+- Field content follows the schema's per-field prescriptions (e.g., `## What belongs in qa.yml.checks`). A `qa.yml.checks` entry that those would assign to a pytest in the code rejects with `Class: PROMPT-SCOPE-LEAK`.
 
 Edits adding undocumented schema fields are out of scope — return that path explicitly. Schema extension is documented in `area-config-schema.md → ## Adding a new field`.
 

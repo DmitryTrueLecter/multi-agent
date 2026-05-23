@@ -32,6 +32,33 @@ Source-of-truth structure for `.claude/areas/<area>/area.yml`. The architect aut
 | `workspace` | map (`path`, `remote`, `dev_branch`) | yes | all | Per-area workspace override. |
 | `authorized_layer_exceptions` | map `<file>: <reason>` | yes | reviewer | Legitimate bypasses of `review_checks` ENFORCEMENT hits. Source-code comments are never overrides — only entries here count. |
 
+## What belongs in qa.yml.checks
+
+`qa.yml.checks` entries run by inspection or shell on every task in the area. Two rules:
+
+- **Express the rule as a pytest assertion if you can.** Field set on a class, exports from a module, schema shape — write `assert <expr>` in a unit test next to the code; the test runs on every change and does not depend on per-task QA procedure. Reserve `qa.yml.checks` for structural sweeps across many files (grep for forbidden imports, scan for files in wrong directories) and quality conventions a linter cannot catch (every DTO field has both a type annotation AND a description).
+- **Make each entry apply to every task in the area.** A check whose body asserts the content of one specific file fires on every task — including those that do not touch the file — and produces false positives. Move single-file shape contracts into that file's own pytest, not `qa.yml`.
+
+### Counter-example — do not write this
+
+```yaml
+- "<ClassName> fields in <path/to/file.py> exactly match the list in <spec.yml> (<field_a>, <field_b>, …)."
+```
+
+Fires on every task in the area even when the diff does not touch the file; duplicates a declaration that already lives in `<spec.yml>` into a procedural string so the two drift; correct home is a pytest in the file's own test module that imports the class and asserts the field set against the source-of-truth declaration.
+
+### Shapes that do belong
+
+```yaml
+# structural sweep — area-wide grep for forbidden imports
+- "<AREA>-LEAF: grep -rnE '^(from|import) <forbidden.modules>' <area-paths> — must return zero hits."
+
+# quality convention applied to every file matching a glob
+- "Every DTO field in <area-dto-glob> has a type annotation and a docstring or `Field(description=...)`."
+```
+
+Both rules apply unchanged to `qa.yml.edge_cases` (scenario names the agent confirms have test coverage) and `qa.yml.migration_checks` (procedural rules about migrations needing the agent's reading judgment).
+
 ## Adding a new field
 
 A new field in `area.yml` is a structural decision that propagates across every project on this plugin. Procedure:
