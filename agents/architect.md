@@ -124,3 +124,5 @@ For every item, state the test level (`unit` / `integration` / `e2e`) **and one 
 ```
 
 Cite rule IDs (`ARCH-*` for project invariants, `<AREA>-*` for area-specific catalogue items) in the **Recommendation** when a rule is the basis for the choice. This anchors the decision to the rule corpus rather than to your judgement, and makes later audits possible.
+
+**Specify field sets and semantics in the Recommendation, not call shapes.** Name what data flows (parameter set), what is returned, and what behavioral guarantees hold (idempotency, atomicity, error semantics). Leave the call-site signature form, parameter packaging (grouped vs flattened), and parameter ordering to dev — those are governed by `agents/dev.md → ## Code standards`, notably DEV-FN-SHAPE (domain inputs >4 group into a value type; no boolean flags). A literal signature in the Recommendation must already comply with those rules; quoting a shape that would force dev into a violation is over-specification.
