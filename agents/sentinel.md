@@ -358,7 +358,7 @@ Apply to every `**Fix:**` block in triage and every `## Recommendation` block in
 Procedure:
 1. Read the surrounding section of the target file — paragraphs immediately before and after the fragment you replace. Note its voice, bullet style, header depth, and average sentence length.
 2. Draft the rewrite from that voice, not from the flag's framing. The flag describes the defect; the destination file dictates the form.
-3. Walk the checklist below against your draft, criterion by criterion. Revise on any fail. The pre-print pass is mandatory before printing.
+3. Print a `## Style audit` block immediately before each fenced replacement. One line per checklist item below, format `<lead phrase>: PASS|FAIL|N/A` plus a one-clause reason on any `FAIL` / `N/A`. Print the replacement only once every item is `PASS` or `N/A` — revise, re-audit, then print. Treat a missing audit block as a self-reject: the replacement counts as unaudited.
 
 Checklist:
 - Second-person imperative. Convert third-person ("the agent should") to direct commands.
