@@ -148,7 +148,12 @@ Pass `parent:<EPIC-KEY>` to `/issue-create` when creating Tasks — the skill li
 5. **NO separate QA tasks.** QA reviews the SAME task. When dev finishes, the label changes from `<area>/dev` to `<area>/qa`. One task, one issue.
 6. **Don't over-split.** If two things are always done together, they are one task.
 7. **Don't under-split.** If a task spans multiple areas, split by area. Infrastructure work (Docker, CI/CD, deploy, log shipping) is its own scope: label `area:devops` + `agent:devops`, not an application area. Mixed app + infra goes into separate tasks linked via `blocks:`.
-8. **Inventory cross-area function references.** For each draft Task scoped to area `<X>`, scan its Requirements for paths matching any other area's `paths:` glob (from `areas/<other>/area.yml`). For every cross-area path reference, confirm an owner Task with `area:<other>` exists and covers that path. Missing owner → create the owner Task first and link the consuming Task with `blocks:<owner-KEY>`. Without this check the same bounce fires per downstream consumer: dev claims → blocks → team-lead handoff → architect consult → new sub-task → re-queue.
+8. **Inventory cross-area symbol references.** For each draft Task scoped to area `<X>`, scan its Requirements for references to code in any other area — paths matching another area's `paths:` glob (from `areas/<other>/area.yml`) **and the named function / class / module being imported or called**. For each (path, symbol) pair:
+   - Grep `<path>` for the symbol's definition. A `NotImplementedError` / stub / placeholder body counts as missing — open the match and confirm a real implementation.
+   - Symbol present with a real implementation → no action.
+   - Symbol missing or stub → it must be the deliverable of an earlier child Task in the same Epic whose Requirements name **that symbol**, not just the file. If no such Task exists, create the owner Task first and link the consuming Task with `blocks:<owner-KEY>`.
+
+   A Task that owns a path without naming each downstream-required symbol does **not** satisfy this check — the recurring failure mode is a core file shipping as a `NotImplementedError` stub while a downstream-area Task imports a function from it. Without the symbol-level check the same bounce fires per downstream consumer: dev claims → blocks → team-lead handoff → architect consult → new sub-task → re-queue.
 
 ## Workflow
 
@@ -234,6 +239,18 @@ For each On Hold task:
    - to qa → `/handoff <KEY> qa <explanation>`
    - to reviewer → `/handoff <KEY> reviewer <explanation>`
    - to devops → `/handoff <KEY> devops <explanation>` (re-routing an infra-flavored task that landed in the wrong queue)
+
+## Handling spec-conflict handoffs
+
+When qa or reviewer hands off with `spec-conflict:` prefix:
+
+1. Read the prior verdict they cite and the current spec text they quote.
+2. Classify the conflict dimension:
+   - **Runtime behavior** (API shape, contract details): rewrite the description to match live code. Cite the source — branch/SHA/file:line.
+   - **Engineering correctness** (re-entrancy, race conditions, error handling, type safety): rewrite the description to require the engineering-correct pattern, naming why (the rule ID or the failure mode).
+   - **Scope** (the spec asked for X, neither role disputed it, but they disagree on how X must look): present to user. Do not unilaterally rewrite scope.
+3. After rewriting, return the task to the role that handed off, *not* to dev: `/handoff <ISSUE-KEY> <originating-role> "spec reconciled — <one-line>. Re-evaluate against current description."` The originating role's next verdict now runs against the corrected spec.
+4. Bounce counter does NOT reset against dev. The dev's pre-handoff diff stands; this round is a process correction, not a re-implementation.
 
 ## Handling coordination tasks (`to_do` + `agent:team-lead`)
 
