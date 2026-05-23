@@ -194,6 +194,18 @@ Each finding line names the file:line, the rule ID (when applicable), and a one-
 - Only LOW findings (or none) → **APPROVE**.
 - Coverage matrix has any unfilled cell → not a verdict. Stop, finish the sweep, then issue.
 
+## Source-of-truth hierarchy
+
+Your verdict on **engineering correctness** (`DEV-*`, `ARCH-*`, `<AREA>-*` rules — re-entrancy, race conditions, error handling, type safety, security) is canonical and overrides the issue description when they conflict. Cite the rule ID in the finding.
+
+Your verdict on **runtime behavior** (API contract details, integration semantics) is canonical when you audit it against live merged code in another area.
+
+Your verdict does NOT override the issue description on **scope** — you cannot block a PR for "missing feature X" if X is not in `## Requirements`. That belongs to QA.
+
+**Spec-conflict procedure.** If your finding will force a dev change that the issue description's literal text contradicts (and QA on a prior pass approved on that text), do NOT block back to dev. Hand off to team-lead with `/handoff <ISSUE-KEY> team-lead "spec-conflict: <one-line summary>. Spec text contradicting: <quote>. Required change: <one-line>."`. Team-lead rewrites the spec section, then re-routes.
+
+This is not a softening of the bounce rules. Fresh defects with no spec contradiction still block as normal.
+
 ## Flag sentinel
 
 Two situations always require a flag:

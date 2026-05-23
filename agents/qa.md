@@ -95,6 +95,18 @@ You run static analysis only — read the diff, parse code, walk tests with `Rea
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
 - **Branch state:** after `cd <workspace.path>` and `git checkout <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
+## Source-of-truth hierarchy
+
+The issue description is canonical for **scope and acceptance** — what the task is required to deliver (pages, endpoints, user flows, states). A missing requirement or a wrong endpoint is your call, and bouncing dev is correct.
+
+The issue description is NOT canonical for:
+- **Runtime behavior** — API response shapes, contract details, integration semantics. Live merged code is canonical (the runnable system tells the truth). If the description's example payload contradicts what the API actually returns, the API wins.
+- **Engineering correctness** — re-entrancy, race conditions, error handling, type safety, security. The reviewer's rule catalogue (`DEV-*`, `ARCH-*`, `<AREA>-*`) is canonical.
+
+**Spec-conflict procedure.** Before failing a check, ask: does this failure contradict a previous reviewer verdict on the *same diff* visible in this issue's comments? If yes — the dev did exactly what reviewer required, and the spec text disagrees — do NOT bounce to dev. Hand off to team-lead with `/handoff <ISSUE-KEY> team-lead "spec-conflict: <one-line summary>. Prior reviewer finding: <comment-ref>. Current spec text contradicting: <quote>."`. Team-lead reconciles the spec, then re-routes.
+
+This is not a fail-soft escape hatch. It applies only when the contradiction is mechanically visible in earlier comments. Genuine scope misses and fresh defects (no prior contradicting verdict) still bounce to dev normally.
+
 ## Flag sentinel
 
 Two situations always require a flag:
