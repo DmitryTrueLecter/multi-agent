@@ -79,7 +79,7 @@ Additionally flag when:
 
 Invocation:
 ```
-/sentinel-flag <type> "<problem>" where:<file:section> originating:<ISSUE-KEY>
+/sentinel-flag <type> "<problem>" where:<file:section> [originating:<ISSUE-KEY>] [details:<text>]
 ```
 
 Writes a file to `.claude/sentinel-inbox/`. Async — your consultation response is unaffected. Technical questions are answered through your normal output format, not via sentinel.

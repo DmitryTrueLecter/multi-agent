@@ -156,7 +156,7 @@ Additionally flag when:
 
 Invocation:
 ```
-/sentinel-flag <type> "<problem>" where:<file:section> originating:<ISSUE-KEY>
+/sentinel-flag <type> "<problem>" where:<file:section> [originating:<ISSUE-KEY>] [details:<text>]
 ```
 
 Writes a file to `.claude/sentinel-inbox/`. Async — does not unblock the task. If the prompt issue also blocks you, additionally `/handoff <ISSUE-KEY> team-lead`.

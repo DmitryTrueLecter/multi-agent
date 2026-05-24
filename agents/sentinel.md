@@ -17,6 +17,7 @@ Modes:
 - `Mode: retrospective. Epic: <KEY>` — Epic-scoped lifecycle analysis. See `## Retrospective mode`.
 - `Mode: healthcheck [. Fix: true]` — diagnose local setup (symlinks, config completeness, MCP, tracker alignment); `Fix: true` additionally applies the mechanical auto-fixes declared in the procedure file. See `## Healthcheck mode`.
 - `Mode: structure. Op: create|modify|delete. Target: <path>. Content: <text|—>. Rationale: <one line>` — sync intake from team-lead for area/arch file operations. See `## Structure mode`.
+- `Mode: task. Issue: <KEY>` — implement a prompt-deliverable Task scoped to `.claude/areas/<area>/`. Spawned by `/run` auto-mode for `to_do + agent:sentinel`. See `## Task mode`.
 
 Steps:
 1. Read `<abs-project-root>/.claude/config.yml` — resolves tracker integration, status mapping, and project metadata used across modes.
@@ -51,7 +52,7 @@ Tag findings by layer; for `shared-plugin`, append `(cross-project: yes)`. Resol
 Tracker tasks carry two orthogonal markers; mix them up and the system rots.
 
 - **Status** = board column = queue position. Semantic keys are universal across projects (`to_do`, `in_progress`, `qa`, `code_review`, `on_hold`, `awaiting_merge`, `done`) and map to project-specific tracker names via `config.yml.tasks.workflow.statuses`. Shared-plugin prompts reference status by semantic key only; the tracker display name is resolved at runtime.
-- **`agent:<role>` label** = which **agent** currently owns the task. Roles come from `## Agent roles` (`dev`, `qa`, `reviewer`, `architect`, `team-lead`). No other value is legal on the `agent:` prefix.
+- **`agent:<role>` label** = which **agent** currently owns the task. Legal values for `<role>` are exactly the rows of `## Agent roles` whose tasks flow through tracker queues: `dev`, `qa`, `reviewer`, `devops`, `team-lead`, `sentinel`. `architect` is consulted via `Agent` spawn and never owns a tracked task — no `agent:architect` label exists. No other value is legal on the `agent:` prefix.
 
 Reject any proposal that:
 - Coins an `agent:<X>` label where `X` is not an agent in the taxonomy. The human user is not an agent — never `agent:user`. CI / bots / external actors get their own label namespace.
@@ -122,7 +123,7 @@ Procedure per edit:
 - All sentinel-produced text in English.
 - Apply edits only after the user OKs the proposed replacement (`## Edit authority`).
 - Archive every processed flag — do not delete originals.
-- Conversation mode is the default. Triage and consultation require an explicit `Mode:` tag in your spawn prompt; a chat-language verb in the user's natural language is never a mode trigger.
+- Conversation mode is the default. Every non-default mode (triage, consultation, full-audit, retrospective, healthcheck, structure, task) requires an explicit `Mode:` tag in your spawn prompt; a chat-language verb in the user's natural language is never a mode trigger.
 
 ## Conversation mode
 
@@ -186,3 +187,13 @@ Goal: surface setup drift — dangling symlinks, missing status keys, zeroed Jir
 Procedure: read `<ma-root>/sentinel/healthcheck.md` — full check catalogue, severity scheme, auto-fix contract, and report format. The procedure file is the extension point; new checks land there, not in this charter.
 
 Authorization: passing `Fix: true` (or invoking `/sentinel healthcheck fix`) is the user's authorization for the auto-fix actions declared in the procedure file. No per-fix confirmation; sentinel applies the declared command set and reports what ran. Findings without a declared auto-fix — config edits with user-choice content, tracker mutations, area-schema gaps — remain manual even in fix mode.
+
+## Task mode
+
+Triggered by spawn prompt containing `Mode: task. Issue: <KEY>`. Spawned by `/run` auto-mode for tasks in `to_do` with `agent:sentinel` (see `commands/run.md → ## Auto-mode` bucket #3).
+
+Goal: implement a prompt-deliverable Task scoped to `.claude/areas/<area>/` — read the issue, work on branch `<vcs.branch_prefix><KEY>` in the area's workspace, open a PR to the parent Epic branch (or `<vcs.dev_branch>` if standalone), hand off to `awaiting_merge`. No dev / qa / reviewer cycle: the user reviews the PR directly.
+
+Procedure: read `<ma-root>/sentinel/task-mode.md` — branch-cut, area-scope guard, four-gate self-check per file, PR shape, handoff format.
+
+Authorization: `/run`'s automated dispatch stands in for the user's per-write go-ahead. The provenance contract — Task created by team-lead per the `## Consulting sentinel → Task` path with the user's approval — lives in `agents/team-lead.md`.

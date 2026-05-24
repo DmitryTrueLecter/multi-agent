@@ -62,3 +62,5 @@ devops_paths:
   - "infra/**"
 
 runtime:
+  # python: /absolute/path/to/.venv/bin/python   # used by dev/qa for test_command resolution
+  # node:   /absolute/path/to/node_modules/.bin  # used by frontend areas with npm/pnpm test_command

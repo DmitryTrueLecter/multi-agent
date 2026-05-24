@@ -1,6 +1,7 @@
 ---
 name: handoff
 description: Hand off a task between roles in the multi-agent system — swap the `agent:<role>` label, transition status, and add a `🤖 <from-role> (<area>):` comment in one step. Use whenever an agent finishes its part of a task and is ready to pass it to the next role. Invocation: `/handoff <ISSUE-KEY> [to-role] [comment]`.
+tools: mcp__atlassian__jira_get_issue, mcp__atlassian__jira_update_issue, mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_add_comment, mcp__linear__get_issue, mcp__linear__save_issue, mcp__linear__save_comment
 ---
 
 # Handoff
