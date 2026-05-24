@@ -27,7 +27,7 @@ ALLOWED: dict[str, set[str] | str] = {
     "qa":        {"handoff", "task-read", "sentinel-flag"},
     "reviewer":  {"handoff", "task-read", "pr-open", "issue-comment", "sentinel-flag"},
     "architect": set(),
-    "sentinel":  {"task-read", "issue-search", "issue-create"},
+    "sentinel":  {"task-read", "issue-search", "issue-create", "sentinel"},
 
     # Built-in research / utility agents — no ACL needed
     "general-purpose":    "*",
