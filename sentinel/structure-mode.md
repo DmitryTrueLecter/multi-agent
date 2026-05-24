@@ -79,6 +79,11 @@ Failing: <one sentence — what specifically failed>
 To pass: <concrete revision the caller can make>
 ```
 
+## After the report
+
+- On pass: apply the edit and report the diff to team-lead.
+- On fail: return the rejection block. Team-lead either revises (own scaffolding) or routes the failing criterion to architect (forwarded recommendation).
+
 ## Not sentinel's domain
 
 Subjective architectural taste — whether a pattern is wise, whether a stack choice is right, whether a rule's substance is the best engineering call. Those route to architect. A rule whose semantics sentinel disagrees with but that passes the taxonomy is applied.
