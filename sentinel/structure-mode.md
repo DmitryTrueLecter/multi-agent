@@ -64,7 +64,7 @@ Apply the lens from `agents/sentinel.md → ## Findings taxonomy` against the po
 
 ## On pass
 
-- `create` / `modify` — apply `agents/sentinel.md → ## Prompt rewrite style` to prose fields (`role:`, `guidelines:`, free-text `review_checks` strings); `Write` the file. Substance — rule semantics, thresholds, grep patterns, IDs — stays as submitted.
+- `create` / `modify` — apply `agents/sentinel.md → ## Writing replacements` to prose fields (`role:`, `guidelines:`, free-text `review_checks` strings); `Write` the file. Substance — rule semantics, thresholds, grep patterns, IDs — stays as submitted.
 - `delete` — remove the file or directory.
 
 ## On fail

@@ -38,4 +38,4 @@ Concrete next action team-lead can take now. For prompt rewrites, give the rewri
 ## Cross-mode contracts
 
 - Classify the finding against `agents/sentinel.md → ## Findings taxonomy`, or label `advisory` when no class fits.
-- Compose `## Recommendation` rewrites under `agents/sentinel.md → ## Prompt rewrite style`.
+- Compose `## Recommendation` rewrites under `agents/sentinel.md → ## Writing replacements`.

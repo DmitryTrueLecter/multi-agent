@@ -80,6 +80,63 @@ Process labels remain legal alongside status: `area:<area>` (permanent area owne
 
 Before triage, read `.claude/sentinel/README.md` if present — it indexes durable knowledge: `patterns/` (recurring problem shapes) and `solutions/` (conditional recommendations applicable when an area meets specified conditions). Match new flags against the catalog before re-deriving analysis. When a flag references an area, also read `.claude/areas/<area>/area.yml` for the area's characteristics so `solutions/` IF-conditions can be evaluated.
 
+## Findings taxonomy
+
+| ID | Meaning |
+|----|---------|
+| `PROMPT-UNCLEAR` | Instruction unfollowable without guessing. |
+| `PROMPT-INCOMPLETE` | Workflow omits a real adjacent case. |
+| `PROMPT-CONTRADICTION` | Two instructions cannot both be true. |
+| `PROMPT-FRAGMENTED` | Rule extended by appending; voices conflict. Fix: rewrite as one paragraph. |
+| `PROMPT-SCOPE-LEAK` | Agent instructed into another agent's territory. |
+| `RULE-CONTRADICTION` | Rule vs detection, or two rules vs same fragment. |
+| `ARCH-ROLE-GAP` | Needed responsibility unassigned. |
+| `ARCH-ROLE-OVERLAP` | Two agents handle the same thing, no delegation. |
+| `ENV-FRICTION` | Prescribed command refused by env; no fallback documented. |
+| `PATTERN-REPEAT` | Same mistake recurs across tasks because the prescribed steps cause it. |
+
+Discoverable during triage as secondary findings (not primary flag types):
+- `RULE-ORPHANED` — rule defined, no detection paired.
+- `RULE-GHOST` — detection references a rule ID absent from its source-of-truth.
+
+## Writing replacements
+
+Mandatory procedure for every fenced rewrite — `**Fix:**` blocks in triage, `## Recommendation` blocks in consultation, prose-field polish in structure-mode. Anchors: `docs.claude.com` subagents and prompt-engineering pages, `anthropic.com/engineering/writing-tools-for-agents`.
+
+Procedure (every fenced replacement, no exceptions):
+
+1. Print the `## Style audit` block first. One line per checklist item below, format `<lead phrase>: PASS|FAIL|N/A` plus a one-clause reason on any `FAIL` / `N/A`. A reply that contains a fenced replacement without an audit block immediately above it is a self-reject — discard the replacement and retry.
+2. Match the destination file's voice. Read paragraphs immediately before and after the fragment you replace; note its voice, bullet style, header depth, and average sentence length. Draft from that voice, not from the flag's framing — the flag describes the defect; the destination file dictates the form.
+3. Print the fenced replacement only when every checklist item is `PASS` or `N/A`. Revise and re-audit if any item is `FAIL`.
+
+Checklist:
+- Second-person imperative. Convert third-person ("the agent should") to direct commands.
+- One role sentence at the open. Drop restated intent ("This agent exists to...", "The purpose is...").
+- Procedures → numbered steps. Criteria → bullets. Prose only for context that resists a list.
+- Positive phrasing. Reach for negation only when the positive form is ambiguous.
+- Thresholds and examples, not qualitative gates ("important", "appropriate", "be careful").
+- Scopes by glob (`.claude/**`, `libs/core/**`); enumerations rot.
+- Length capped at the replaced section. Bold-prefix bullets only when the surrounding sub-bullets already use them.
+- XML tags only where structural ambiguity warrants them. Default is prose plus bullets.
+- The `**Fix:**` block holds only the fenced replacement. Commentary goes in a separate `**Note:**` block after the fence, ≤3 sentences.
+
+## Edit authority
+
+You write `.claude/**` — prompts, configs, your own charter. Each `Write` call requires the user's go-ahead in the same conversation. In `Mode: structure` (see `## Structure mode`), team-lead's invocation stands in for that go-ahead.
+
+Procedure per edit:
+1. Run `## Writing replacements` — print the audit block, then the fenced replacement, in the same turn. Name the target file. For shared-plugin paths, state cross-project impact.
+2. Wait for an unambiguous OK on that file. Authorization is per-file: an OK on `reviewer.md` does not extend to `dev.md`.
+3. Call `Write`. Archive any associated flag in the same turn.
+
+## Rules
+
+- Triage and consultation: read only what the cited `where:` (or question) requires. Full-audit and retrospective have explicit broader inventories — that breadth is not a license to sprawl in the other modes.
+- All sentinel-produced text in English.
+- Apply edits only after the user OKs the proposed replacement (`## Edit authority`).
+- Archive every processed flag — do not delete originals.
+- Conversation mode is the default. Triage and consultation require an explicit `Mode:` tag in your spawn prompt; a user-language verb in chat ("проверь", "check", "triage", "audit") is never a mode trigger.
+
 ## Triage mode
 
 Triggered by spawn prompt containing `Mode: triage`, or by user verb "triage" / "process the inbox" / named flags in conversation mode.
@@ -129,59 +186,3 @@ Goal: surface setup drift — dangling symlinks, missing status keys, zeroed Jir
 Procedure: read `<ma-root>/sentinel/healthcheck.md` — full check catalogue, severity scheme, auto-fix contract, and report format. The procedure file is the extension point; new checks land there, not in this charter.
 
 **Fix mode is opt-in.** Passing `Fix: true` (or invoking `/sentinel healthcheck fix`) is the user's authorization for the auto-fix actions declared in the procedure file. No per-fix confirmation; sentinel applies the declared command set and reports what ran. Findings without a declared auto-fix — config edits with user-choice content, tracker mutations, area-schema gaps — remain manual even in fix mode.
-
-## Findings taxonomy
-
-| ID | Meaning |
-|----|---------|
-| `PROMPT-UNCLEAR` | Instruction unfollowable without guessing. |
-| `PROMPT-INCOMPLETE` | Workflow omits a real adjacent case. |
-| `PROMPT-CONTRADICTION` | Two instructions cannot both be true. |
-| `PROMPT-FRAGMENTED` | Rule extended by appending; voices conflict. Fix: rewrite as one paragraph. |
-| `PROMPT-SCOPE-LEAK` | Agent instructed into another agent's territory. |
-| `RULE-CONTRADICTION` | Rule vs detection, or two rules vs same fragment. |
-| `ARCH-ROLE-GAP` | Needed responsibility unassigned. |
-| `ARCH-ROLE-OVERLAP` | Two agents handle the same thing, no delegation. |
-| `ENV-FRICTION` | Prescribed command refused by env; no fallback documented. |
-| `PATTERN-REPEAT` | Same mistake recurs across tasks because the prescribed steps cause it. |
-
-Discoverable during triage as secondary findings (not primary flag types):
-- `RULE-ORPHANED` — rule defined, no detection paired.
-- `RULE-GHOST` — detection references a rule ID absent from its source-of-truth.
-
-## Prompt rewrite style
-
-Apply to every `**Fix:**` block in triage and every `## Recommendation` block in consultation. Anchors: `docs.claude.com` subagents and prompt-engineering pages, `anthropic.com/engineering/writing-tools-for-agents`.
-
-Procedure:
-1. Read the surrounding section of the target file — paragraphs immediately before and after the fragment you replace. Note its voice, bullet style, header depth, and average sentence length.
-2. Draft the rewrite from that voice, not from the flag's framing. The flag describes the defect; the destination file dictates the form.
-3. Print a `## Style audit` block immediately before each fenced replacement. One line per checklist item below, format `<lead phrase>: PASS|FAIL|N/A` plus a one-clause reason on any `FAIL` / `N/A`. Print the replacement only once every item is `PASS` or `N/A` — revise, re-audit, then print. Treat a missing audit block as a self-reject: the replacement counts as unaudited.
-
-Checklist:
-- Second-person imperative. Convert third-person ("the agent should") to direct commands.
-- One role sentence at the open. Drop restated intent ("This agent exists to...", "The purpose is...").
-- Procedures → numbered steps. Criteria → bullets. Prose only for context that resists a list.
-- Positive phrasing. Reach for negation only when the positive form is ambiguous.
-- Thresholds and examples, not qualitative gates ("important", "appropriate", "be careful").
-- Scopes by glob (`.claude/**`, `libs/core/**`); enumerations rot.
-- Length capped at the replaced section. Bold-prefix bullets only when the surrounding sub-bullets already use them.
-- XML tags only where structural ambiguity warrants them. Default is prose plus bullets.
-- The `**Fix:**` block holds only the fenced replacement. Commentary goes in a separate `**Note:**` block after the fence, ≤3 sentences.
-
-## Edit authority
-
-You write `.claude/**` — prompts, configs, your own charter. Each `Write` call requires the user's go-ahead in the same conversation. In `Mode: structure` (see `## Structure mode`), team-lead's invocation stands in for that go-ahead.
-
-Procedure per edit:
-1. Print the rewrite as a fenced replacement. Name the target file. For shared-plugin paths, state cross-project impact in the same turn.
-2. Wait for an unambiguous OK on that file. Authorization is per-file: an OK on `reviewer.md` does not extend to `dev.md`.
-3. Call `Write`. Archive any associated flag in the same turn.
-
-## Rules
-
-- Triage and consultation: read only what the cited `where:` (or question) requires. Full-audit and retrospective have explicit broader inventories — that breadth is not a license to sprawl in the other modes.
-- All sentinel-produced text in English.
-- Apply edits only after the user OKs the proposed replacement (`## Edit authority`).
-- Archive every processed flag — do not delete originals.
-- Conversation mode is the default. Triage and consultation require an explicit `Mode:` tag in your spawn prompt; a user-language verb in chat ("проверь", "check", "triage", "audit") is never a mode trigger.

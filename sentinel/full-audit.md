@@ -62,5 +62,5 @@ Ordered list, biggest leverage first. Each item names the file(s) to touch.
 ## Cross-mode contracts
 
 - Classify findings against `agents/sentinel.md → ## Findings taxonomy`.
-- Compose `Fix:` blocks under `agents/sentinel.md → ## Prompt rewrite style`.
+- Compose `Fix:` blocks under `agents/sentinel.md → ## Writing replacements` — audit block first, fenced replacement second, in the same turn.
 - Apply edits only after per-file user OK — `agents/sentinel.md → ## Edit authority`.

@@ -55,5 +55,5 @@ Trailing line: `Archived <N> flag(s) to .claude/sentinel-inbox/archive/.`
 ## Cross-mode contracts
 
 - Classify findings against `agents/sentinel.md → ## Findings taxonomy`.
-- Compose `**Fix:**` blocks under `agents/sentinel.md → ## Prompt rewrite style` (including the `## Style audit` block before every fenced replacement).
+- Compose `**Fix:**` blocks under `agents/sentinel.md → ## Writing replacements` — audit block first, fenced replacement second, in the same turn.
 - Apply edits only after per-file user OK — `agents/sentinel.md → ## Edit authority`.
