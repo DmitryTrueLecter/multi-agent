@@ -60,6 +60,7 @@
       "Bash(gh pr list:*)",
       "Bash(gh pr view:*)",
       "Bash(gh pr merge:*)",
+      "Bash(gh pr comment:*)",
       "Bash(*pytest*)",
       "Bash(*-m pytest*)",
       "Bash(*vitest*)",
