@@ -26,6 +26,7 @@ ALLOWED: dict[str, set[str] | str] = {
     "dev":       {"handoff", "task-read", "issue-comment", "sentinel-flag"},
     "qa":        {"handoff", "task-read", "sentinel-flag"},
     "reviewer":  {"handoff", "task-read", "pr-open", "issue-comment", "sentinel-flag"},
+    "devops":    {"handoff", "task-read", "pr-open", "issue-comment", "sentinel-flag"},
     "architect": {"sentinel-flag"},
     "sentinel":  {"task-read", "issue-search", "issue-create", "sentinel"},
 
