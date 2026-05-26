@@ -5,7 +5,7 @@ Spawn-time invocation by `/run` for tasks in `to_do` with `agent:sentinel`. Sent
 ## Invocation
 
 ```
-Agent(subagent_type="sentinel", prompt="Project: <abs-project-root>. Mode: task. Issue: <ISSUE-KEY>.")
+Agent(subagent_type="sentinel", prompt="Project: <abs-project-root>. Workspace: <abs-workspace-path>. Mode: task. Issue: <ISSUE-KEY>.")
 ```
 
 Spawn is automated by `/run` — see `commands/run.md → ## Auto-mode` bucket #3 and `## Steps` step 9.
@@ -24,10 +24,10 @@ Files matching `.claude/areas/<area>/**` for the area named on the Task's `area:
    - `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>` (the Epic branch).
    - Otherwise → base = `<workspace.dev_branch>` (standalone Task).
 
-3. **Resolve the task branch** in the area's workspace. The branch is `<vcs.branch_prefix><ISSUE-KEY>`. Two cases:
+3. **Resolve the task branch** in the area's worktree. The spawn prompt's `Workspace: <abs-workspace-path>` value is the pre-created git worktree (`<area-repo>/.worktrees/<ISSUE-KEY>/`); `cd` there first. `<workspace.remote>` and `<workspace.dev_branch>` are resolved from `area.yml` per the normal rule. The branch is `<vcs.branch_prefix><ISSUE-KEY>`. Two cases:
 
    ```
-   cd <workspace.path>
+   cd <abs-workspace-path>
    git fetch <workspace.remote>
    ```
 

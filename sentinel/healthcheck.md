@@ -213,6 +213,25 @@ Pure visibility; never a FAIL, never auto-fixed.
 - **HC-HYG-003** — Tasks in `awaiting_merge` for >7 days. Same shape.
 - **HC-HYG-004** — Tasks in `awaiting_ops` for >7 days. Same shape.
 
+## Stage 6 — Worktrees
+
+Persistent per-task worktrees created by `/run → ## Worktree bootstrap` need two invariants: (a) every worktree on disk belongs to an open task, (b) every worktree whose checkout includes `.claude/` has the gitignored plugin / inbox symlinks resolved so subagents can read their prompts.
+
+- **HC-WT-001** — No orphaned worktree directories.
+  - Severity: WARN.
+  - Detection: enumerate candidate repos (project root + each area-repo from `area.yml.workspace.path`). For each, list `git -C <repo> worktree list --porcelain` entries whose path matches `<repo>/.worktrees/<KEY>`. For each `<KEY>`, query the tracker. Orphaned = task is `done` or the issue does not exist.
+  - Auto-fix: `git -C <repo> worktree remove <repo>/.worktrees/<KEY>`. If removal fails on uncommitted changes, downgrade to WARN with the file list and do not force.
+  - Manual fix: same command, or `git worktree remove --force` after reviewing uncommitted files yourself.
+
+- **HC-WT-002** — Each worktree whose checkout includes `.claude/` has both bootstrap symlinks present and resolving.
+  - Severity: WARN per worktree per missing symlink.
+  - Detection: for every worktree path `<P>` enumerated by HC-WT-001 where `test -d <P>/.claude` succeeds, discover the plugin parent name (`dirname $(readlink <abs-project-root>/.claude/agents)`) and check:
+    - `readlink -f <P>/.claude/<plugin-parent-name>` resolves to a directory.
+    - `readlink -f <P>/.claude/sentinel-inbox` resolves to a directory.
+    If either fails, the worktree was created before the bootstrap landed or the symlink was removed manually.
+  - Auto-fix: re-run `commands/run.md → ## Worktree bootstrap` step 4 against this worktree.
+  - Manual fix: `ln -snf <abs-plugin-root> <P>/.claude/<plugin-parent-name>` and `ln -snf <abs-project-root>/.claude/sentinel-inbox <P>/.claude/sentinel-inbox`.
+
 ## Report format
 
 ```markdown

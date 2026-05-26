@@ -81,6 +81,42 @@ A task in `<statuses.in_progress>` with an `agent:<role>` label is either being 
 
 6. **Recency hint.** Tasks claimed within the last few minutes are almost certainly running in another session; tasks claimed hours or days ago are almost certainly stuck. Show the duration so the user has the signal — do not act on it automatically.
 
+## Worktree bootstrap (called by step 7)
+
+Every agent that operates on a specific branch's state — dev, qa, reviewer, devops, sentinel Mode: task, team-lead at epic close-out — runs inside a persistent git worktree under `.worktrees/<KEY>`. This isolates the working tree per task / epic so parallel agents on different keys do not collide.
+
+**When called.** Step 7 invokes this procedure once per agent the current `/run` invocation is about to spawn. For task-scoped agents the key is the task `ISSUE-KEY`; for team-lead epic close-out the key is the `EPIC-KEY` and the procedure runs once per area-repo touched by the epic (see "Multi-repo team-lead epic close-out" below).
+
+**Inputs.** `<abs-project-root>` (orchestrator's cwd), `<workspace.path>` resolved per the agent's role (per step 7), the issue/epic key.
+
+### Steps
+
+1. Resolve the repo that owns the workspace: `<abs-repo-root>` = `(cd <workspace.path> && git rev-parse --show-toplevel)`. In a monorepo this equals `<abs-project-root>`. In a multi-repo project this equals the area-repo (e.g. `<abs-project-root>/trackronos-backend`).
+2. Set `<abs-worktree-path>` = `<abs-repo-root>/.worktrees/<KEY>`.
+3. If `<abs-worktree-path>` does not exist, create it:
+   ```
+   git -C <abs-repo-root> worktree add --detach <abs-worktree-path> HEAD
+   ```
+   On git failure (typical cause: branch already checked out in another worktree), stop and report — the user closes the conflicting worktree first.
+4. If `<abs-worktree-path>/.claude/` exists after the add (parent-repo case — monorepo, or any worktree whose checkout includes `.claude/`), replicate the gitignored pieces:
+   - Discover the plugin parent name dynamically — projects pin to upstream repo names, the canonical `.multi-agent` is one valid value among many. Read the target of any working entry symlink: `<plugin-parent-name>` = `dirname $(readlink <abs-project-root>/.claude/agents)`. If `agents` is not a symlink (no plugin mount in this project), skip step 4 entirely.
+   - Resolve the absolute plugin path: `<abs-plugin-root>` = `readlink -f <abs-project-root>/.claude/<plugin-parent-name>`.
+   - `ln -snf <abs-plugin-root> <abs-worktree-path>/.claude/<plugin-parent-name>` — restores the gitignored parent symlink so the worktree's committed entry symlinks (`.claude/agents`, `.claude/skills`, etc.) resolve.
+   - `ln -snf <abs-project-root>/.claude/sentinel-inbox <abs-worktree-path>/.claude/sentinel-inbox` — shares the inbox across worktrees.
+5. Return `<abs-worktree-path>` to step 7 as the resolved workspace.
+
+### Multi-repo team-lead epic close-out
+
+When step 7 prepares a `team-lead` epic close-out spawn, the worktree is created in **every area-repo touched by the epic's children**, not just one.
+
+1. Collect the set of areas touched by the epic — call `/issue-search parent:<EPIC-KEY>` and union the `area:<area>` labels of the children.
+2. For each area in that set, resolve `<workspace.path>` from `<area>/area.yml` and run "Steps" above with `<EPIC-KEY>` as the key. Each iteration produces one worktree under that area-repo's `.worktrees/<EPIC-KEY>/`. Team-lead checks out branch `<vcs.branch_prefix><EPIC-KEY>` inside each per its agent prompt.
+3. Pass the full list to team-lead as `Workspaces: <area1>=<abs-worktree-path-1>;<area2>=<abs-worktree-path-2>;…` (see step 9 spawn shape).
+
+### Cleanup
+
+The bootstrap creates the worktree; `/handoff <KEY> done` removes it (see `skills/handoff/SKILL.md`). `/run` does not clean up on its own. Orphaned worktrees (task closed via UI, `/pr-feedback` skipped, etc.) surface in `/sentinel healthcheck` (HC-WT-001).
+
 ## Auto-mode (`/run` without arguments)
 
 Search for the first available issue in priority order. Stop at the first match:
@@ -183,7 +219,13 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
 
 6. **Claim the task**: `/issue-claim <KEY>` (for every role). On failure (another runner claimed it first), drop this task and pick the next one. If the queue is now empty, report "board contended, nothing else to take" and stop. On success, use the full task data returned by the skill — no separate `/task-read` needed.
 
-7. **Resolve absolute paths** (dev/qa/reviewer only). `<abs-project-root>` = `pwd` (your cwd). `<abs-workspace-path>` = `(cd <workspace.path> && pwd)` where `workspace.path` is `area.yml.workspace.path` → `config.yml.workspace.path` → `.`. Pass both in the prompt.
+7. **Resolve absolute paths and bootstrap the worktree** (dev / qa / reviewer / devops / sentinel Mode: task / team-lead epic close-out).
+   - `<abs-project-root>` = `pwd` (your cwd).
+   - `<workspace.path>` resolution per agent role:
+     - dev / qa / reviewer / sentinel Mode: task: `area.yml.workspace.path` → `config.yml.workspace.path` → `.`.
+     - devops: `config.yml.workspace.path` → `.` (no area override).
+     - team-lead epic close-out: per-area; see "Multi-repo team-lead epic close-out" under "## Worktree bootstrap".
+   - Run **Worktree bootstrap** (see section above) with `<workspace.path>` and the issue / epic key. The procedure returns `<abs-worktree-path>`. Pass that as `Workspace:` to the agent. For team-lead epic close-out, the procedure returns the multi-area list passed as `Workspaces:`.
 
 8. **Cwd contract.** Don't let cwd drift between `Agent(...)` spawns. For workspace ops, use a subshell: `(cd <workspace.path> && <cmd>)`. Never bare `cd <ws> && <cmd>`.
 
@@ -207,13 +249,18 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
       ```
     - `team-lead` on group issue in `code_review`:
       ```
-      Agent(subagent_type="team-lead", prompt="Group close-out: <ISSUE-KEY>.", run_in_background=true)
+      Agent(
+        subagent_type="team-lead",
+        prompt="Project: <abs-project-root>. Group close-out: <ISSUE-KEY>. Workspaces: <area1>=<abs-worktree-path-1>;<area2>=<abs-worktree-path-2>.",
+        run_in_background=true,
+      )
       ```
+      Workspaces resolved by "Worktree bootstrap" → "Multi-repo team-lead epic close-out". One worktree per area-repo touched by the epic.
     - `sentinel` on Task in `to_do` (prompt-deliverable):
       ```
       Agent(
         subagent_type="sentinel",
-        prompt="Project: <abs-project-root>. Mode: task. Issue: <ISSUE-KEY>.",
+        prompt="Project: <abs-project-root>. Workspace: <abs-workspace-path>. Mode: task. Issue: <ISSUE-KEY>.",
         run_in_background=true,
       )
       ```

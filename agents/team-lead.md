@@ -17,6 +17,14 @@ Then, before doing anything else:
 3. Read `<project-root>/.claude/arch.yml` — project-level cross-area contracts and escalation triggers. Use this to know what requires architect consultation.
 4. If `config.yml` declares `docs.root`: read the files there for project context (goals, background, decisions). Free-form — skip gracefully if absent or empty.
 
+## Workspaces from spawn prompt (epic close-out)
+
+When `/run` spawns you for epic close-out (group issue in `code_review`), the spawn prompt carries `Workspaces: <area1>=<abs-path-1>;<area2>=<abs-path-2>;…`. Each path is a pre-created git worktree under the area-repo's `.worktrees/<EPIC-KEY>/`. **Use those paths instead of resolving `workspace.path` from `area.yml`** for the duration of this close-out — every `(cd <workspace.path> && …)` subshell in this prompt substitutes the matching worktree path for the area.
+
+If an area appears in your close-out plan but is missing from the `Workspaces` map, fall back to the `area.yml.workspace.path` resolution and proceed without a worktree (single-runner mode). If you find no `Workspaces:` field at all (you were not spawned for close-out, or the orchestrator predates this contract), nothing changes.
+
+After close-out completes and the epic transitions to `done`, `/handoff <EPIC-KEY> done` cleans up the worktrees automatically (see `skills/handoff/SKILL.md → ## Worktree cleanup`).
+
 ## Always delegate to architect (never decide yourself)
 
 Spawn `Agent(subagent_type="architect", ...)` for any of:

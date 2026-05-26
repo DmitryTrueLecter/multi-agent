@@ -53,7 +53,8 @@ Why these rules:
 6. Build new label list: existing labels minus `agent:<from>` (and `needs-decision` if present), plus new `agent:<to>` label (and `needs-decision` if target is `team-lead`). For `done` and `awaiting_merge`, only remove `agent:<from>` — neither target adds an `agent:` label.
 7. Resolve the actual status display name: `<status name> = config.yml.tasks.workflow.statuses[<status key from the table above>]`.
 8. Apply label + status transition + comment per provider section below.
-9. Confirm to user: from-role → to-role, old → new status display name, extra label changes.
+9. **If target is `done`:** clean up worktrees for this issue — call "## Worktree cleanup" below.
+10. Confirm to user: from-role → to-role, old → new status display name, extra label changes.
 
 ---
 
@@ -74,3 +75,21 @@ Step 3: call `mcp__linear__get_issue(id=<KEY>)` to get labels and state.
 Step 8 implementation (labels + state in one call, then comment):
 1. `mcp__linear__save_issue(id=<KEY>, labels=[<new label list>], state=<status name from step 7>)`. If Linear rejects, stop and report.
 2. `mcp__linear__save_comment(issueId=<KEY>, body="🤖 <from-role> (<area>): handoff → <to-role>\n\n<comment body or 'Manual handoff via /handoff.'>")`.
+
+---
+
+## Worktree cleanup (called by step 9 when target is `done`)
+
+A handoff to `done` is the canonical signal that the task / epic is closed. Persistent worktrees created by `/run` (see `commands/run.md → ## Worktree bootstrap`) are removed here. This is the only automated cleanup path; orphaned worktrees from other close-out routes surface in `/sentinel healthcheck` (HC-WT-001).
+
+### Steps
+
+1. Read `.claude/config.yml` and `.claude/areas/*/area.yml` to enumerate candidate repos whose `.worktrees/<KEY>/` might exist:
+   - Project root (always): `<abs-project-root>`.
+   - Per area: `<abs-area-repo>` = `(cd <area.yml.workspace.path> && git rev-parse --show-toplevel)`. Collect distinct values; in a monorepo all areas resolve to project root and the set collapses to `{<abs-project-root>}`.
+2. For each candidate repo, build `<repo>/.worktrees/<KEY>`. If `test -d` succeeds, attempt removal:
+   ```
+   git -C <repo> worktree remove <repo>/.worktrees/<KEY>
+   ```
+3. **On failure** (typical cause: uncommitted changes in the worktree): report a warning per failing path but do NOT force-remove. The user investigates manually. The tracker mutations from step 8 already succeeded — the handoff is complete; only the disk-side cleanup is pending.
+4. Continue to step 10 regardless of cleanup outcome. Cleanup failure never rolls back the tracker transition.
