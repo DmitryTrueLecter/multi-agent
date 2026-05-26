@@ -58,11 +58,11 @@ Most auto-fix commands need the shared-plugin root path. Resolve in order:
   - Auto-fix: none. Project not bootstrapped at all.
   - Manual fix: bootstrap the project — beyond healthcheck scope.
 
-- **HC-FS-002** — `.claude/.multi-agent` symlink resolves to a live directory.
+- **HC-FS-002** — `<ma-root>` resolves via the bootstrap procedure in `## Resolving <ma-root>`.
   - Severity: CRITICAL.
-  - Detection: `readlink -f <abs-project-root>/.claude/.multi-agent` returns a path and `test -d` on that path succeeds.
-  - Auto-fix: none — re-pointing the plugin requires knowing where the plugin lives, which is a user choice.
-  - Manual fix: `ln -snf <correct-plugin-path> <abs-project-root>/.claude/.multi-agent`.
+  - Detection: run the resolution procedure. PASS if any of paths 1–2 yields a live directory; FAIL only if both fall through. The parent-symlink name under `.claude/` is irrelevant — projects pin to upstream repo names (e.g. `.claude-multi-agent-jira` when the Bitbucket repo is named that way), and path-2 (walk up from any working entry symlink) handles every variant.
+  - Auto-fix: none — selecting a plugin checkout is a user choice.
+  - Manual fix: ensure at least one symlink under `.claude/` points into a live plugin checkout. The canonical name `.multi-agent` is supported by path-1 for speed, but any name works via path-2 fallback.
 
 - **HC-FS-003** — Each `.claude/<entry>` symlink resolves. Iteration set: `ls <ma-root>` minus `config.example.yml`. Currently: `agents`, `commands`, `hooks`, `scripts`, `sentinel`, `skills`, `Justfile`, `settings.json`.
   - Severity: CRITICAL per missing entry.
@@ -226,8 +226,8 @@ Pure visibility; never a FAIL, never auto-fixed.
 ### Stage 1 — Filesystem & symlinks
 ✓ HC-FS-001 — .claude/ present
 ↻ HC-FS-003 — .claude/Justfile symlink dangling — FIXED via `ln -snf <ma-root>/Justfile .claude/Justfile`
-✗ HC-FS-002 — .claude/.multi-agent dangling
-  Manual fix: ln -snf <plugin-path> <abs-project-root>/.claude/.multi-agent
+✗ HC-FS-002 — <ma-root> unresolvable (both path-1 and path-2 failed)
+  Manual fix: ensure at least one symlink under .claude/ points into a live plugin checkout
 ...
 
 ### Stage 2 — Config completeness
