@@ -50,6 +50,7 @@ If both `Issue:` and `Mode: consultation` are present, treat as Mode A and put t
    Scan the **most recent** comments (newest first) for any of these prefixes and **stop at the first hit** — it is your current target:
 
    - `🤖 user (decline) via PR <URL>:` — user declined a previous PR. Body contains review comments. Re-implement only what the user objected to.
+   - `🤖 user (runbook failed):` — the user ran the runbook from a prior handoff and a step broke. Body cites the failing step number, the command or action attempted, and the observed error. Fix only the failed step (and downstream steps it invalidates): update the runbook, and if infra files must change, amend the open PR (or open a follow-up PR if the previous one already merged).
    - `🤖 team-lead:` redirecting back with changed requirements — re-derive against the updated spec.
 
    If none match, this is a fresh task — the issue description is the source of truth.

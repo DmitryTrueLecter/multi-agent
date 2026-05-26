@@ -6,9 +6,15 @@ vcs:
   branch_prefix: "ai/"   # all branches: <branch_prefix><ISSUE-KEY> for both Epic and Task
 
 tasks:
-  provider: # linear / jira
-  team_key: # team key (issue prefix, e.g. DMI-123)
-  project:  #  project name within the team
+  provider: # jira / linear — choose one
+
+  # When provider: jira — set project_key (and the `jira.transitions` block below).
+  project_key: # Jira project key (issue prefix, e.g. AITSAI)
+
+  # When provider: linear — set team_key + project instead of project_key.
+  # team_key: # Linear team key (issue prefix, e.g. DMI)
+  # project:  # Linear project name within the team
+
   workflow:
     # Semantic status key → display name in this project's tracker workflow.
     # Shared-plugin prompts reference statuses by the semantic key on the left;
@@ -23,12 +29,13 @@ tasks:
       awaiting_merge: "Awaiting Merge"
       awaiting_ops: "Awaiting Ops"     # devops handoff target — human executes runbook here
       done: "Done"
-  # Jira-only. Transition IDs for moving between statuses.
-  # mcp__atlassian__jira_transition_issue takes a numeric id, not a status
-  # name, and mcp__atlassian__jira_get_transitions returns only {id, name}
-  # (no to_status field) — so the id must be known up-front.
-  # Populate this map once by running /sentinel-bootstrap-jira; re-run when
-  # the Jira workflow changes (statuses added / IDs reassigned).
+
+  # Jira-only block. Skip when provider: linear.
+  # Transition IDs for moving between statuses. mcp__atlassian__jira_transition_issue
+  # takes a numeric id (not a status name), and mcp__atlassian__jira_get_transitions
+  # returns only {id, name} (no to_status field) — so the id must be known up-front.
+  # Populate this map once by running /sentinel-bootstrap-jira; re-run when the
+  # Jira workflow changes (statuses added / IDs reassigned).
   jira:
     transitions:
       to_do: 0           # replace 0 with the real numeric id
@@ -53,14 +60,19 @@ devops_paths:
   - "apps/*/Dockerfile.*"
   - "Dockerfile"
   - "docker-compose*.yml"
+  - "docker-compose*.yaml"
   - ".dockerignore"
   - ".github/workflows/**"
   - ".gitlab-ci.yml"
   - "bitbucket-pipelines.yml"
   - "Justfile"
   - ".env.example"
+  - "**/.env.example"
   - "infra/**"
+  - "deploy/**"
 
 runtime:
-  # python: /absolute/path/to/.venv/bin/python   # used by dev/qa for test_command resolution
-  # node:   /absolute/path/to/node_modules/.bin  # used by frontend areas with npm/pnpm test_command
+  # python: .venv/bin/python                          # used by dev/qa for test_command resolution
+  # node:   node_modules/.bin                         # used by frontend areas with npm/pnpm test_command
+  # pnpm: pnpm                                        # system-installed pnpm; agents call as `pnpm -C apps/<area> <script>`
+  # frontend_bin_dir: apps/<area>/node_modules/.bin   # for direct binary calls (e.g. vitest, eslint) without pnpm wrapper
