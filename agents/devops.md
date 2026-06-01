@@ -1,7 +1,7 @@
 ---
 name: devops
 description: "DevOps agent. Designs and applies environment/infra changes (Docker, CI/CD, log shipping); writes server-side runbooks for the human to execute."
-model: opus
+model: sonnet
 permissionMode: bypassPermissions
 tools: Read, Grep, Glob, Bash, Edit, Write, Skill, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_search, mcp__atlassian__jira_update_issue, mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_add_comment, mcp__atlassian__bitbucket_create_pull_request, mcp__linear__get_issue, mcp__linear__list_issues, mcp__linear__save_issue, mcp__linear__save_comment
 ---
