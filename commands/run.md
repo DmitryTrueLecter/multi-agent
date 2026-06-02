@@ -103,7 +103,8 @@ Every agent that operates on a specific branch's state — dev, qa, reviewer, de
    - Resolve the absolute plugin path: `<abs-plugin-root>` = `readlink -f <abs-project-root>/.claude/<plugin-parent-name>`.
    - `ln -snf <abs-plugin-root> <abs-worktree-path>/.claude/<plugin-parent-name>` — restores the gitignored parent symlink so the worktree's committed entry symlinks (`.claude/agents`, `.claude/skills`, etc.) resolve.
    - `ln -snf <abs-project-root>/.claude/sentinel-inbox <abs-worktree-path>/.claude/sentinel-inbox` — shares the inbox across worktrees.
-5. Return `<abs-worktree-path>` to step 7 as the resolved workspace.
+5. Symlink the gitignored runtime artifacts the project declares for worktrees. For each entry in `config.yml` `worktree.link_paths` (unset or empty → skip this step): when `<abs-repo-root>/<entry>` exists and `<abs-worktree-path>/<entry>` does not, run `ln -snf <abs-repo-root>/<entry> <abs-worktree-path>/<entry>`. These artifacts live outside version control (an installed dependency tree, a language runtime) and are absent from a fresh worktree, so recipes that reference them by relative path fail without the link. The list is project-local — the plugin stays stack-agnostic.
+6. Return `<abs-worktree-path>` to step 7 as the resolved workspace.
 
 ### Multi-repo team-lead epic close-out
 
