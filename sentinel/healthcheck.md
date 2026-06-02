@@ -37,8 +37,9 @@ Under `Fix: true`, sentinel may run these classes of action without per-action c
 3. **Template materialization** — copy a template file into a missing project-local path; never overwrites an existing file.
 4. **Apply config-declared git identity** — when `config.yml → git.identity.email` AND `git.identity.name` are both set, copy them into a workspace's local git config via `git -C <workspace> config user.email <config.git.identity.email> && git -C <workspace> config user.name <config.git.identity.name>`. Only when both target keys are unset on the workspace — never overwrites. When `git.identity` is absent from config, no auto-fix is attempted: sentinel does not invent identity values. Requires `settings.json` to whitelist `Bash(git -C * config user.email *)` and `Bash(git -C * config user.name *)`; on permission denial, falls through to the standard auto-fix-failure line.
 5. **Append to JSON permissions allowlist** — add deterministic permission entries to `<abs-project-root>/.claude/settings.local.json` → `permissions.allow`. Preserves all other top-level keys and existing allow entries; skips entries already present. When the file is absent, creates it with the minimal `{"permissions": {"allow": [...]}}` shape. The set of entries is derived mechanically from the resolved environment (e.g. absolute `<ma-root>` path), not chosen by the user. Used by HC-FS-010.
+6. **Append to `config.yml` `worktree.link_paths`** — add detected gitignored runtime-artifact directory names (a virtualenv dir, `node_modules`, and the like) to `config.yml` → `worktree.link_paths`, creating the `worktree:` block if absent. Values are derived mechanically from the workspace — present on disk, gitignored, and carrying a known runtime marker — not chosen by the user. Never removes an existing entry; idempotent (skips names already listed). Used by HC-WT-003.
 
-Everything else — config edits, tracker mutations, area-schema fields — stays a manual finding even in fix mode. The boundary: deterministic mechanical action with no user-choice content. Display names, area paths, label semantics are user choices; sentinel does not invent them.
+Everything else — config edits other than `worktree.link_paths`, tracker mutations, area-schema fields — stays a manual finding even in fix mode. The boundary: deterministic mechanical action with no user-choice content. Display names, area paths, label semantics are user choices; sentinel does not invent them. `worktree.link_paths` is the lone auto-fixable config edit precisely because its values are detected, not authored.
 
 When an auto-fix runs successfully, the check line uses `↻ FIXED — <command>`. On auto-fix failure (e.g. permission denied), the line is `✗ FAIL — auto-fix failed: <stderr>; manual fix: <command>`.
 
@@ -231,6 +232,12 @@ Persistent per-task worktrees created by `/run → ## Worktree bootstrap` need t
     If either fails, the worktree was created before the bootstrap landed or the symlink was removed manually.
   - Auto-fix: re-run `commands/run.md → ## Worktree bootstrap` step 4 against this worktree.
   - Manual fix: `ln -snf <abs-plugin-root> <P>/.claude/<plugin-parent-name>` and `ln -snf <abs-project-root>/.claude/sentinel-inbox <P>/.claude/sentinel-inbox`.
+
+- **HC-WT-003** — `worktree.link_paths` covers the project's gitignored runtime artifacts.
+  - Severity: WARN per uncovered artifact.
+  - Detection: infer the stack from gitignored runtime markers at each workspace repo root (project root + each `area.yml.workspace.path`). A candidate directory is expected in `link_paths` when it (a) exists on disk, (b) is gitignored (`git -C <repo> check-ignore -q <dir>` returns 0), and (c) carries a known runtime marker — a virtualenv (`test -f <dir>/pyvenv.cfg`, conventionally `.venv`) or a Node dependency tree (a `node_modules` directory beside a `package.json`). Corroborate against `runtime.*` when set (e.g. `runtime.python` resolving inside the detected venv dir). Each expected directory name absent from `config.yml` → `worktree.link_paths` is a finding. Skip the check when no runtime artifacts are detected.
+  - Auto-fix: append each missing detected directory name to `config.yml` → `worktree.link_paths` per the config-link-paths class in the auto-fix contract. Creates the `worktree:` block if absent; idempotent.
+  - Manual fix: add the detected directory name(s) to `worktree.link_paths` in `.claude/config.yml`.
 
 ## Report format
 
