@@ -21,7 +21,7 @@ Fetch a task's complete data from the issue tracker and surface it to the callin
 
 ## jira
 
-1. Call `mcp__atlassian__jira_get_issue(issue_key=<ISSUE-KEY>)`.
+1. Call `mcp__atlassian__jira_get_issue(issue_key=<ISSUE-KEY>, fields="*all")`. The `fields` argument is required: the default field set omits `parent`, so without it step 2 cannot tell an Epic-parented task from a parentless one and always reports `parent: null`.
 2. Return to the calling agent:
    - **key** — `fields.key`
    - **title** — `fields.summary`
