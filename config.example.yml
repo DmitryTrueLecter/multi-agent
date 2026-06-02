@@ -78,12 +78,22 @@ runtime:
   # frontend_bin_dir: apps/<area>/node_modules/.bin   # for direct binary calls (e.g. vitest, eslint) without pnpm wrapper
 
 worktree:
-  # Gitignored runtime artifacts to symlink from the repo root into every
-  # per-task worktree at bootstrap (commands/run.md reads this list). A fresh
-  # worktree is a clean checkout, so it lacks these dirs; recipes that call
-  # them by relative path (a venv interpreter, an installed CLI) fail there
-  # until linked. List the dependency / runtime directories your stack keeps
-  # out of version control. Leave empty for projects with no such artifacts.
+  # Per-task worktrees are fresh checkouts: they lack every gitignored runtime
+  # artifact, so recipes that call them by relative path fail until provided.
+  # commands/run.md bootstrap runs link_paths first, then setup_commands.
+
+  # link_paths: gitignored dirs to SYMLINK from the repo root into the worktree.
+  # Use only for self-contained artifacts that are safe to share by reference
+  # and costly to rebuild (a language runtime). Do NOT link install-managed
+  # dependency trees whose internal layout assumes a fixed location (e.g.
+  # node_modules under an isolated package manager) — those entangle across
+  # worktrees; install them via setup_commands instead.
   link_paths:
     # - .venv          # Python virtualenv (matches runtime.python: .venv/bin/python)
-    # - node_modules   # Node dependencies (matches runtime.node / frontend_bin_dir)
+
+  # setup_commands: shell commands run from the worktree root after linking,
+  # in order. Use for per-worktree state that must be built, not shared —
+  # installing an isolated dependency tree, generating code. A non-zero exit
+  # aborts bootstrap. Runs on every worktree, so keep it minimal.
+  setup_commands:
+    # - pnpm install --frozen-lockfile   # Node deps (node-linker=isolated → install, not symlink)
