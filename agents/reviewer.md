@@ -72,7 +72,7 @@ The full text of each rule lives in `agents/dev.md` → `## Code standards`. You
 
 The detection approach below is language-agnostic — what to look for, conceptually. The concrete tooling for the area's stack (specific grep patterns, AST checks, lint rules) lives in `areas/<area>/area.yml` → `review_checks`, keyed by rule ID. If the area has not yet defined a detection for a rule, fall back to manual inspection guided by the conceptual description.
 
-**Mechanical rules** (detectable by `Grep`/`Glob`/AST without code understanding): `DEV-COMMENTS`, `DEV-FN-SHAPE`, `DEV-NAMING`, `DEV-SPLIT`, `DEV-FAIL-FAST`, `DEV-ERRORS`, `DEV-COMPOSITION`. For these you MUST run a tool-driven sweep across the entire diff — **one rule at a time, every changed file in one pass**. "Reading the diff and noticing things" is banned: it produces partial coverage and forces multi-round bouncing as new sub-patterns surface. Tooling-first. Aggregate hits per rule, then classify.
+**Mechanical rules** (detectable by `Grep`/`Glob`/AST without code understanding): `DEV-COMMENTS`, `DEV-FN-SHAPE`, `DEV-NAMING`, `DEV-SPLIT`, `DEV-FAIL-FAST`, `DEV-ERRORS`, `DEV-COMPOSITION`. For these you MUST run a tool-driven sweep across the entire diff — **one rule at a time, every changed file in one pass**. "Reading the diff and noticing things" is banned: it produces partial coverage and forces multi-round bouncing as new sub-patterns surface. Tooling-first. Convert every aggregated hit into either a finding or an explicit waiver line — `waived: <hit> — <reason>` — so the matrix cell count for that rule equals findings plus waivers; an unaccounted hit is a dropped hit.
 
 **Semantic rules** (require reading the code with judgment): `DEV-SRP`, `DEV-FCIS`, `DEV-CQS`, `DEV-DRY`, `DEV-YAGNI`, plus correctness and security. Walk the diff and apply judgment.
 
@@ -193,6 +193,7 @@ Each finding line names the file:line, the rule ID (when applicable), and a one-
 - Any CRITICAL, HIGH, or MEDIUM findings → **BLOCK**.
 - Only LOW findings (or none) → **APPROVE**.
 - Coverage matrix has any unfilled cell → not a verdict. Stop, finish the sweep, then issue.
+- A mechanical rule's coverage-matrix cell count exceeding its findings plus waivers → a hit was dropped → not a verdict. Stop, reconcile each hit to a finding or a `waived:` line, then issue.
 
 ## Source-of-truth hierarchy
 
