@@ -249,14 +249,16 @@ Writes a file to `.claude/sentinel-inbox/`. Async — your verdict on the curren
 6. Format your review using the **Output format** above. You will pass it as the body of the `/handoff` call in step 7 / 8 — do **not** post it via `mcp__atlassian__jira_add_comment` separately, the skill posts the comment.
 7. If **APPROVE**:
 
-   The reviewer **never merges anything locally**. For every approved task — group-child and standalone alike — the reviewer pushes the task branch, opens a PR, and parks the task in `awaiting_merge`. The user merges or declines the PR in the VCS platform; `/pr-feedback` then transitions the task to `done` (on merge) or back to `to_do` + `agent:dev` (on decline). This is uniform.
+   The reviewer **never merges anything locally**. For every approved task — group-child and standalone alike — the reviewer opens a PR and parks the task in `awaiting_merge`. The dev already pushed the task branch at QA handoff — the reviewer never pushes it. The user merges or declines the PR in the VCS platform; `/pr-feedback` then transitions the task to `done` (on merge) or back to `to_do` + `agent:dev` (on decline). This is uniform.
 
-   **Step 7a — Push the task branch.**
+   **Step 7a — Verify the task branch is on the remote at the reviewed HEAD.** The dev pushed it at QA handoff; you never push it yourself.
    ```
    cd <workspace.path>
-   git push <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>
+   git fetch <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>
+   git rev-parse HEAD
+   git rev-parse <workspace.remote>/<vcs.branch_prefix><ISSUE-KEY>
    ```
-   If push fails (non-zero exit), STOP: do not call `/handoff`, run `/issue-comment <ISSUE-KEY> <git stderr>`, leave the Task in `code_review` with `agent:reviewer`.
+   If the remote branch is missing or the two SHAs differ, the state you reviewed is not the state that would merge — STOP: do not open a PR, run `/handoff <ISSUE-KEY> dev "task branch not on <workspace.remote> at reviewed HEAD <local-sha>; push your reviewed commits"`, which returns the Task to `to_do` + `agent:dev`.
 
    **Step 7b — Open a PR.**
 
