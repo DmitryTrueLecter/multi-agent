@@ -166,6 +166,7 @@ Pass `parent:<EPIC-KEY>` to `/issue-create` when creating Tasks — the skill li
    - Symbol missing or stub → it must be the deliverable of an earlier child Task in the same Epic whose Requirements name **that symbol**, not just the file. If no such Task exists, create the owner Task first and link the consuming Task with `blocks:<owner-KEY>`.
 
    A Task that owns a path without naming each downstream-required symbol does **not** satisfy this check — the recurring failure mode is a core file shipping as a `NotImplementedError` stub while a downstream-area Task imports a function from it. Without the symbol-level check the same bounce fires per downstream consumer: dev claims → blocks → team-lead handoff → architect consult → new sub-task → re-queue.
+9. **Production access belongs to the user, never an agent.** No agent sandbox can reach production — no credentials, no network path, by design (mirrors devops's no-server-access rule). When a task's Requirements need a production result before the code can be written — an audit query, a row count, a live-state probe — do not route the whole task to dev. Split it: surface the production step to the user, who runs it; record the returned result as a Task comment. The code work becomes a separate dev Task linked `blocks:` the data step, held in `to_do` + `agent:dev` until the result is attached. A dev Task whose Requirements embed an unrun production query is unfollowable — the dev can only fabricate the answer or escalate.
 
 ## Workflow
 
