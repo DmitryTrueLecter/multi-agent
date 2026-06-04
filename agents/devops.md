@@ -106,7 +106,7 @@ If both `Issue:` and `Mode: consultation` are present, treat as Mode A and put t
 
    **If no files changed** (runbook-only task), skip this step — the runbook lives entirely in the issue comments.
 
-8. **Write the runbook — only when a human server-side step closes the task** (set a secret, run a command on a host, restart or provision a service). A repo-only deliverable (env templates, compose, Justfile, CI yaml, docs) has none — skip this step. Otherwise `/issue-comment <ISSUE-KEY> <body>`, starting with `🤖 devops:`, structured:
+8. **Write the runbook** when the operator has a server-side action to run — set a secret, run a command on a host, restart/scale/provision/start a service. Pure repo-file deliverables (env templates, CI yaml, docs) have none — skip this step. Otherwise `/issue-comment <ISSUE-KEY> <body>`, starting with `🤖 devops:`, structured:
 
    ```
    🤖 devops: handoff runbook
@@ -132,9 +132,9 @@ If both `Issue:` and `Mode: consultation` are present, treat as Mode A and put t
 
 9. **Run `## Pre-handoff self-review`.** Fix anything it surfaces.
 
-10. **Hand off by deliverable type.**
-    - No server-side step (repo-only — the merged PR is the whole deliverable): `/handoff <ISSUE-KEY> awaiting_merge <summary>`. `/pr-feedback` closes it to `done` on merge, like a dev/reviewer PR. Summary: the PR URL and `Local checkout: just task <ISSUE-KEY>`.
-    - A human server-side step closes the task: `/handoff <ISSUE-KEY> awaiting_ops <summary>`. The skill removes `agent:devops` and transitions to `awaiting_ops` (no `agent:` owner while it waits on you). Summary, in order: the PR URL (or "No file changes — runbook only."), a one-paragraph runbook TL;DR, and `Local checkout: just task <ISSUE-KEY>` (omit if no PR). Do not transition to `done` yourself — the user runs `/handoff <ISSUE-KEY> done <closing-note>` after executing the runbook.
+10. **Hand off by PR presence.**
+    - PR opened → `/handoff <ISSUE-KEY> awaiting_merge <summary>`. `/pr-feedback` closes it to `done` on merge, like a dev/reviewer PR. Summary: the PR URL, the runbook TL;DR if any, and `Local checkout: just task <ISSUE-KEY>`.
+    - No PR (runbook-only) → `/handoff <ISSUE-KEY> awaiting_ops <summary>`. No `agent:` owner while it waits on you; the user runs `/handoff <ISSUE-KEY> done <closing-note>` after executing it. Summary: "No file changes — runbook only." and the runbook TL;DR. Do not transition to `done` yourself.
 
 ## Mode B — consultation
 
