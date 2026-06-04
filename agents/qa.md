@@ -142,6 +142,8 @@ Writes a file to `.claude/sentinel-inbox/`. Async — does not block the task ha
    git checkout <vcs.branch_prefix><ISSUE-KEY>
    ```
    Use `git diff <base>...HEAD` to see only this task's changes.
+
+   **Ref absent.** If `git checkout <vcs.branch_prefix><ISSUE-KEY>` or `<base>` fails to resolve, verify with `git rev-parse --verify <ref>` (base: `git ls-remote --exit-code origin <base>`) before reporting. On a genuine miss, hand off — never file it as a QA finding: `/handoff <ISSUE-KEY> team-lead "ref <name> absent in workspace: <git output>"`.
 3. Run the checks described above.
 4. Format your check report. Required sections, in order:
 
