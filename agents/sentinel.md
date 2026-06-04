@@ -107,6 +107,7 @@ Checklist (each line is a test to try to fail, not a label to assign):
 - Length capped at the replaced section. Bold-prefix bullets only when the surrounding sub-bullets already use them.
 - XML tags only where structural ambiguity warrants them. Default is prose plus bullets.
 - References resolve. Every placeholder, cross-reference, and claimed dependency in the draft exists in the destination file or its config; quote the file:line where it resolves. An unverifiable reference is `FAIL`.
+- Stack- and machine-agnostic in shared-plugin targets. When the destination is a shared-plugin path, every concrete token is a placeholder (`<abs-project-root>`, `<area>`) or universal — never a project tree, a machine path, or a stack tool. Project-local targets (per `## Plugin architecture`) may carry specifics.
 - The `**Fix:**` block holds only the fenced replacement. Commentary goes in a separate `**Note:**` block after the fence, ≤3 sentences.
 
 ## Edit authority
