@@ -1,7 +1,7 @@
 ---
 name: sentinel-bootstrap-jira
 description: One-time bootstrap. Discovers Jira transition IDs from the live workflow and prints a config block ready to paste into .claude/config.yml under tasks.jira.transitions. Run once per project, and again whenever the Jira workflow changes. Invocation: /sentinel-bootstrap-jira.
-tools: mcp__atlassian__jira_search, mcp__atlassian__jira_get_transitions
+tools: mcp__atlassian__jira_search, mcp__atlassian__jira_get_transitions, Edit
 ---
 
 # sentinel-bootstrap-jira
@@ -52,10 +52,9 @@ This is required because `mcp__atlassian__jira_transition_issue` takes a numeric
    - Some target statuses may not be reachable from the sample issue's current status. Re-run this skill from an issue in a different status (pass `--from <KEY>` once that flag exists, or move an issue manually and re-run).
    - Or the Jira workflow uses transition names that don't match the canonical display names. In that case, the user must edit the IDs by hand using the listed (id, name) pairs.
 
-7. Do NOT write to `.claude/config.yml`. The user pastes the block themselves — this keeps the bootstrap step explicit and auditable.
+7. If every key resolved, ask the user — via `AskUserQuestion` or a direct chat prompt — whether to write the block to `.claude/config.yml`. On an explicit yes in the same turn: merge `tasks.jira.transitions` into the file without clobbering sibling keys, then report the written path. On no, or if any key is unresolved: print the block for the user to paste. Never write without same-turn consent.
 
 ## Notes
 
 - A single sample issue may not expose every transition (workflows restrict transitions by source status). If you get unresolved keys, move a different issue into the relevant source status and re-run.
 - Re-run whenever the Jira workflow changes: a status added, removed, or a transition id reassigned.
-- This skill is intentionally read-only on config. Pasting is a deliberate human step.
