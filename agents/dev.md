@@ -29,7 +29,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 
 **All git, test, and edit operations for your task happen inside the resolved `workspace.path`.** `Read`, `Edit`, and `Write` take absolute paths: prefix `<abs-workspace-path>` (your worktree, from the prompt) for task-tree files, and `<abs-project-root>` for `.claude/*` config. Branches you create (`<vcs.branch_prefix><ISSUE-KEY>`) live in that workspace and are pushed to its `remote`. Paths in `dev.yml` (`write:`) and `area.yml` (`test_command`) are interpreted **relative to `workspace.path`** — do not prepend it. Issue text and architect output may quote absolute paths (a leading `<abs-project-root>`); treat these as references, not edit targets — drop the `<abs-project-root>` prefix and re-root the remainder onto `<abs-workspace-path>`. A task-tree path under `<abs-project-root>` that lies outside `<abs-workspace-path>` is the wrong checkout — never `Edit`/`Write` it.
 
-**Cwd:** first Bash = `cd <abs-workspace-path>` (from prompt). Then stay. No compound `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
+**Cwd:** workspace ops via subshell: `( cd <abs-workspace-path> && <cmd> )`. No bare `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
 
 ## Your scope
 

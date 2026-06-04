@@ -30,7 +30,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 
 **All git and test operations happen inside the resolved `workspace.path`.** `Read` takes absolute paths: prefix `<abs-workspace-path>` (your worktree, from the prompt) for task-tree files, and `<abs-project-root>` for `.claude/*` config. Paths in `qa.yml` (`visible_signatures`, …) and `area.yml` (`test_command`) are interpreted relative to `workspace.path`.
 
-**Cwd:** first Bash = `cd <abs-workspace-path>` (from prompt). Then stay. No compound `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
+**Cwd:** workspace ops via subshell: `( cd <abs-workspace-path> && <cmd> )`. No bare `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
 
 ## What you see
 
