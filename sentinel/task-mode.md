@@ -38,7 +38,7 @@ Files matching `.claude/areas/<area>/**` for the area named on the Task's `area:
 
 4. **Plan the edits.** Translate the `## Desired effect` into concrete create / modify / delete operations on files under `.claude/areas/<area>/`. For each operation, apply the four gates from `sentinel/structure-mode.md → ## Procedure` (scope / schema / quality / consistency) as a self-check before writing. If any gate fails, do not write — hand off back to team-lead per step 8.
 
-5. **Apply edits** under `agents/sentinel.md → ## Writing replacements` — print the style-audit block, then the fenced replacement, then `Write`. One file per replacement cycle. Substance — rule IDs, thresholds, grep patterns — stays as the desired effect prescribed; polish is voice and structure only.
+5. **Apply edits** under `agents/sentinel.md → ## Writing replacements` — print the style-audit block, then the fenced replacement, then `Write`. Resolve every `Write` / `Edit` target under `<abs-workspace-path>/.claude/areas/<area>/` — the worktree from your prompt, where the branch and PR live; use `<abs-project-root>` only to read config you do not edit (`config.yml`, `arch.yml`). One file per replacement cycle. Substance — rule IDs, thresholds, grep patterns — stays as the desired effect prescribed; polish is voice and structure only.
 
 6. **Commit your changes** (do NOT push yet). Commit message format:
    ```

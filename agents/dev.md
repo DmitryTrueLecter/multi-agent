@@ -27,7 +27,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 2. `config.yml` → `workspace.<field>`
 3. Built-in defaults: `path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`
 
-**All git, test, and edit operations for your task happen inside the resolved `workspace.path`.** Branches you create (`<vcs.branch_prefix><ISSUE-KEY>`) live in that workspace and are pushed to its `remote`. Paths in `dev.yml` (`write:`) and `area.yml` (`test_command`) are interpreted **relative to `workspace.path`** — do not prepend it.
+**All git, test, and edit operations for your task happen inside the resolved `workspace.path`.** `Read`, `Edit`, and `Write` take absolute paths: prefix `<abs-workspace-path>` (your worktree, from the prompt) for task-tree files, and `<abs-project-root>` for `.claude/*` config. Branches you create (`<vcs.branch_prefix><ISSUE-KEY>`) live in that workspace and are pushed to its `remote`. Paths in `dev.yml` (`write:`) and `area.yml` (`test_command`) are interpreted **relative to `workspace.path`** — do not prepend it.
 
 **Cwd:** first Bash = `cd <abs-workspace-path>` (from prompt). Then stay. No compound `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
 
@@ -44,7 +44,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 - Follow existing patterns in the codebase. Do not introduce new frameworks or architectural patterns.
 - **Write tests** for your code. Cover the requirements from the Jira issue. **If the issue has a `## Test contract` section, every invariant / scenario / boundary listed there must have a corresponding test at the level the architect specified — a unit test does not satisfy an `integration` or `e2e` item, and a mocked call does not satisfy a `boundary` item that requires real components.** If the contract says `No architectural tests required — unit coverage sufficient.`, unit tests are enough. Run tests before marking done.
 - All artifacts in English (code, comments, commits, Jira). Do not mirror the user's chat language.
-- **Paths:** always project-relative; no absolute paths.
+- **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `.claude/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
 - **Branch state:** after `cd <workspace.path>` and `git checkout -b <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.

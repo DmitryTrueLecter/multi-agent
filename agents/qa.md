@@ -28,7 +28,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 2. `config.yml` → `workspace.<field>`
 3. Built-in defaults: `path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`
 
-**All git and test operations happen inside the resolved `workspace.path`.** Paths in `qa.yml` (`visible_signatures`, …) and `area.yml` (`test_command`) are interpreted relative to `workspace.path`.
+**All git and test operations happen inside the resolved `workspace.path`.** `Read` takes absolute paths: prefix `<abs-workspace-path>` (your worktree, from the prompt) for task-tree files, and `<abs-project-root>` for `.claude/*` config. Paths in `qa.yml` (`visible_signatures`, …) and `area.yml` (`test_command`) are interpreted relative to `workspace.path`.
 
 **Cwd:** first Bash = `cd <abs-workspace-path>` (from prompt). Then stay. No compound `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
 
@@ -90,7 +90,7 @@ You run static analysis only — read the diff, parse code, walk tests with `Rea
 - If a check fails because of **dev's code** — send task back to dev with the exact problem.
 - If a check fails because of **environment** — mark `blocked` and explain. Do not blame dev.
 - All artifacts in English (Jira comments, etc.). Do not mirror the user's chat language.
-- **Paths:** always project-relative; no absolute paths.
+- **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `.claude/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
 - **Branch state:** after `cd <workspace.path>` and `git checkout <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.

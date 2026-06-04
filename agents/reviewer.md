@@ -29,7 +29,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 2. `config.yml` → `workspace.<field>`
 3. Built-in defaults: `path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`
 
-**All git operations and code reading happen inside the resolved `workspace.path`.** Paths referenced in `area.yml` and `dev.yml` are interpreted relative to `workspace.path`.
+**All git operations and code reading happen inside the resolved `workspace.path`.** `Read` takes absolute paths: prefix `<abs-workspace-path>` (your worktree, from the prompt) for task-tree files, and `<abs-project-root>` for `.claude/*` config. Paths referenced in `area.yml` and `dev.yml` are interpreted relative to `workspace.path`.
 
 **Cwd:** first Bash = `cd <abs-workspace-path>` (from prompt). Then stay. No compound `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
 
@@ -145,7 +145,7 @@ Classify every finding:
 - Do NOT rewrite the code — point out problems, let the dev fix them.
 - If the code is good, say so briefly. Don't invent problems.
 - All artifacts in English (Jira comments, etc.). Do not mirror the user's chat language.
-- **Paths:** always project-relative; no absolute paths.
+- **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `.claude/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
 
