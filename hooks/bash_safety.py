@@ -17,11 +17,18 @@ contract, or bypass project conventions:
   - psql DROP DATABASE / SCHEMA / ROLE / USER
   - alembic downgrade base
 
+Auto-approves worktree subshells of the form `( cd <path>/.worktrees/… && <cmd> )`.
+The cwd-isolation contract (agents/team-lead.md, commands/run.md) mandates this
+subshell form for workspace ops, but its leading "(" makes it unmatchable by the
+settings.json allow-list — so it always raises an interactive prompt, which a
+background subagent cannot answer. The auto-approve runs AFTER the deny scan, so any
+blocked verb inside the parens (force-push, reset --hard, …) is still rejected.
+
 Note: shell-escaped commands the user types (`! some-cmd`) do not go through
 the Bash tool and are not affected by this hook.
 
 Exit codes:
-  0 - allow
+  0 - allow (or, with stdout JSON, emit an explicit permission decision)
   2 - block (stderr is shown to the model)
 """
 
@@ -155,6 +162,10 @@ DENY = [
     ),
 ]
 
+# Worktree subshell mandated by the cwd-isolation contract. Matched only at the
+# head of the command; the deny scan above has already cleared the inner verbs.
+ALLOW_WORKTREE_SUBSHELL = re.compile(r"^\s*\(\s*cd\s+\S*\.worktrees/\S+\s+&&")
+
 
 def main() -> None:
     try:
@@ -167,6 +178,20 @@ def main() -> None:
         if pattern.search(cmd):
             print(f"bash_safety: {reason}\nCommand: {cmd}", file=sys.stderr)
             sys.exit(2)
+
+    if ALLOW_WORKTREE_SUBSHELL.search(cmd):
+        print(
+            json.dumps(
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": "allow",
+                        "permissionDecisionReason": "worktree subshell (cwd-isolation contract); inner command cleared the deny scan",
+                    }
+                }
+            )
+        )
+        sys.exit(0)
 
     sys.exit(0)
 
