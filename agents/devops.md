@@ -67,7 +67,7 @@ If both `Issue:` and `Mode: consultation` are present, treat as Mode A and put t
    ```
 
    - **Re-run** (`git ls-remote --exit-code <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>` returns 0): `git checkout <vcs.branch_prefix><ISSUE-KEY>` + `git pull`. Continue from prior state.
-   - **Fresh task**: `git checkout <base>` → `git pull` → `git checkout -b <vcs.branch_prefix><ISSUE-KEY>`.
+   - **Fresh task**: `git checkout -b <vcs.branch_prefix><ISSUE-KEY> --no-track <workspace.remote>/<base>`. Cut straight from the remote base ref: `<base>` (dev_branch, or the epic branch) is checked out in the main repo, so `git checkout <base>` inside this worktree would fail.
 
    `ARCH-EPIC-SYNC` does not apply to devops tasks — infra changes touch their own paths and the cross-area-drift mechanism is dev's concern.
 
@@ -75,7 +75,7 @@ If both `Issue:` and `Mode: consultation` are present, treat as Mode A and put t
 
 4. **Edit infra files.** Only paths matching `config.yml → devops_paths`. If a needed file is outside `devops_paths`, stop — that is a path-fence question for team-lead, not a unilateral write.
 
-5. **Commit your changes** (do NOT push yet). Commit message format:
+5. **Confirm the task branch, then commit** (do NOT push yet). Before the first commit, run `git rev-parse --abbrev-ref HEAD`: it must print `<vcs.branch_prefix><ISSUE-KEY>`. If it prints `HEAD` (detached) or another branch, stop — do not commit; run `/handoff <ISSUE-KEY> team-lead` reporting the worktree is off the task branch. On a match, commit your changes. Commit message format:
    ```
    <ISSUE-KEY> subject line
 

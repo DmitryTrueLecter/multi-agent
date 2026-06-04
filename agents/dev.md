@@ -241,9 +241,9 @@ Writes a file to `.claude/sentinel-inbox/`. Async — does not unblock the task.
         The skill will prefix the comment with `🤖 dev (<area>): handoff → team-lead`, set label `agent:team-lead` + `needs-decision`, and transition to `On Hold`.
      3. Stop. Do not cut the task branch.
 
-     **2d. Cut the task branch from the (now-current) base.**
+     **2d. Cut the task branch from the remote base ref.**
      ```
-     git checkout -b <vcs.branch_prefix><ISSUE-KEY>
+     git checkout -b <vcs.branch_prefix><ISSUE-KEY> --no-track <workspace.remote>/<base>
      ```
 
    All branches use `<vcs.branch_prefix>` (default `ai/`) followed by the Jira KEY.
@@ -254,7 +254,7 @@ Writes a file to `.claude/sentinel-inbox/`. Async — does not unblock the task.
    - Suite red on HEAD → re-run `test_command` on the base resolved in step 1 (checkout the base, run, return to your task branch). Compare the failure sets:
      - **Failure on HEAD but not on base** — your diff caused it. Fix and re-run, regardless of which file the test lives in.
      - **Failure on both HEAD and base** — pre-existing rot. Stop, escalate via step 7 with the failing test IDs and the base SHA. Do not modify those tests yourself.
-5. **Commit your changes, then push the task branch** to `<workspace.remote>`. Do not open a PR — the reviewer opens it (`reviewer.md` step 7b) after QA passes, so PR creation stays coupled to review approval. Commit message format:
+5. **Confirm the task branch is checked out, then commit and push.** Before the first commit, run `git rev-parse --abbrev-ref HEAD` in `<workspace.path>`: it must print `<vcs.branch_prefix><ISSUE-KEY>`. If it prints `HEAD` (detached) or another branch name, stop — do not commit. Run `/handoff <ISSUE-KEY> team-lead` reporting that the worktree is not on the task branch, and let team-lead reconcile. On a match, commit your changes, then push the task branch to `<workspace.remote>`. Do not open a PR — the reviewer opens it (`reviewer.md` step 7b) after QA passes, so PR creation stays coupled to review approval. Commit message format:
    ```
    ISSUE-KEY subject line
 
