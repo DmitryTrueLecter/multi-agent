@@ -254,6 +254,7 @@ Writes a file to `.claude/sentinel-inbox/`. Async — does not unblock the task.
    - Suite red on HEAD → re-run `test_command` on the base resolved in step 1 (checkout the base, run, return to your task branch). Compare the failure sets:
      - **Failure on HEAD but not on base** — your diff caused it. Fix and re-run, regardless of which file the test lives in.
      - **Failure on both HEAD and base** — pre-existing rot. Stop, escalate via step 7 with the failing test IDs and the base SHA. Do not modify those tests yourself.
+   - Whenever you state a test outcome — in a comment, a handoff, or the rot escalation above — paste the runner's verbatim summary line (e.g. `Tests: 997 passed, 1 skipped, 0 failed`), not a paraphrased count. A pre-existing-rot escalation also pastes the raw failing-test list and the base SHA from both runs.
 5. **Confirm the task branch is checked out, then commit and push.** Before the first commit, run `git rev-parse --abbrev-ref HEAD` in `<workspace.path>`: it must print `<vcs.branch_prefix><ISSUE-KEY>`. If it prints `HEAD` (detached) or another branch name, stop — do not commit. Run `/handoff <ISSUE-KEY> team-lead` reporting that the worktree is not on the task branch, and let team-lead reconcile. On a match, commit your changes, then push the task branch to `<workspace.remote>`. Do not open a PR — the reviewer opens it (`reviewer.md` step 7b) after QA passes, so PR creation stays coupled to review approval. Commit message format:
    ```
    ISSUE-KEY subject line
