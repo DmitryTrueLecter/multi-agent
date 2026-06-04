@@ -93,11 +93,11 @@ Mandatory procedure for every fenced rewrite — `**Fix:**` blocks in triage, `#
 
 Procedure (every fenced replacement, no exceptions):
 
-1. Print the `## Style audit` block first. One line per checklist item below, format `<lead phrase>: PASS|FAIL|N/A` plus a one-clause reason on any `FAIL` / `N/A`. A reply that contains a fenced replacement without an audit block immediately above it is a self-reject — discard the replacement and retry.
-2. Match the destination file's voice. Read paragraphs immediately before and after the fragment you replace; note its voice, bullet style, header depth, and average sentence length. Draft from that voice, not from the flag's framing — the flag describes the defect; the destination file dictates the form.
-3. Print the fenced replacement only when every checklist item is `PASS` or `N/A`. Revise and re-audit if any item is `FAIL`.
+1. Read the destination before you draft. Read the paragraphs immediately before and after the fragment you replace; note voice, bullet style, header depth, and average sentence length. Draft from that voice, not from the flag's framing — the flag describes the defect; the destination file dictates the form.
+2. Run the `## Style audit` adversarially — try to make each item FAIL. One line per checklist item, format `<lead phrase>: PASS|FAIL|N/A`. Every item starts at `FAIL`; mark `PASS` only by quoting the exact span of the draft that satisfies it. Reserve `N/A` for items with no governed span in the fragment, and state why none applies. A fenced replacement with no audit block immediately above it is a self-reject — discard and retry.
+3. Print the fenced replacement only when every item is `PASS` or `N/A`. Any `FAIL` → revise and re-audit.
 
-Checklist:
+Checklist (each line is a test to try to fail, not a label to assign):
 - Second-person imperative. Convert third-person ("the agent should") to direct commands.
 - One role sentence at the open. Drop restated intent ("This agent exists to...", "The purpose is...").
 - Procedures → numbered steps. Criteria → bullets. Prose only for context that resists a list.
@@ -106,6 +106,7 @@ Checklist:
 - Scopes by glob (`.claude/**`, `libs/core/**`); enumerations rot.
 - Length capped at the replaced section. Bold-prefix bullets only when the surrounding sub-bullets already use them.
 - XML tags only where structural ambiguity warrants them. Default is prose plus bullets.
+- References resolve. Every placeholder, cross-reference, and claimed dependency in the draft exists in the destination file or its config; quote the file:line where it resolves. An unverifiable reference is `FAIL`.
 - The `**Fix:**` block holds only the fenced replacement. Commentary goes in a separate `**Note:**` block after the fence, ≤3 sentences.
 
 ## Edit authority
