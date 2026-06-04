@@ -86,6 +86,8 @@ This priming read is a precondition; per-flag work still bounds itself to the ci
 Discoverable during triage as secondary findings (not primary flag types):
 - `RULE-ORPHANED` — rule defined, no detection paired.
 - `RULE-GHOST` — detection references a rule ID absent from its source-of-truth.
+- `ACL-DRIFT` — a skill cited in an agent's prompt or a procedure it consumes is absent from that agent's `hooks/skill_acl.py` row.
+- `ACL-EXCESS` — a `hooks/skill_acl.py` row grants a skill no prompt or procedure cites (informational).
 
 ## Writing replacements
 

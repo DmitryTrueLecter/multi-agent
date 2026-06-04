@@ -11,6 +11,7 @@ System-wide structural audit across the agent system. Run manually via `/sentine
 5. `<abs-project-root>/.claude/config.yml` and `<abs-ma-root>/config.example.yml`.
 6. `<abs-project-root>/.claude/sentinel-inbox/archive/*.md` — frontmatter only, last 14 days. Use to spot `PATTERN-REPEAT` candidates.
 7. One representative `<abs-project-root>/.claude/areas/<area>/area.yml` — on demand, only if a finding pivots on area-config shape.
+8. `<abs-ma-root>/hooks/skill_acl.py` — the per-agent skill ACL, for the ACL-DRIFT cross-check.
 
 ## Cross-checks (after the inventory pass)
 
@@ -19,6 +20,7 @@ System-wide structural audit across the agent system. Run manually via `/sentine
 - Every status semantic key referenced in a shared-plugin file must appear in `config.example.yml.tasks.workflow.statuses`. Missing → schema drift.
 - Every `agent:<X>` label referenced anywhere must have `<X>` in the `agents/sentinel.md → ## Agent roles` table.
 - Every MCP tool referenced in a skill body must appear in that skill's `tools:` frontmatter.
+- Every skill an agent invokes — `/<skill>` in `agents/<agent>.md` or in a `sentinel/*.md` procedure it consumes — must appear in that agent's row of `hooks/skill_acl.py`. Missing → `ACL-DRIFT`. A row entry no prompt or procedure cites → `ACL-EXCESS`.
 
 ## Severity
 
