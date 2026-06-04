@@ -97,7 +97,7 @@ When consulted (by team lead, dev, or user):
 
 ## Output format
 
-When making a recommendation, structure it as:
+When making a recommendation, structure it as the template below. Express every file path repo-relative (as it reads from the repo root), never absolute — recommendations are consumed under worktree checkouts, not the repo root.
 
 ```markdown
 ## Question

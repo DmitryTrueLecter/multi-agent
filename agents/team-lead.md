@@ -143,6 +143,8 @@ Links to spec sections, existing code to follow.
 
 **Rule:** Any fixture, sample input, or captured payload a Task's `## References` or `## Test contract` depends on must be committed — to the repo, or to the Epic branch for Epic-scoped work — before you queue the Task. A machine-local or gitignored path is unreachable from the agent's worktree, so a test built from it is impossible or fabricated; commit the source (trimmed to what the contract needs) and reference the committed path.
 
+**Rule:** Author every file path in the description repo-relative — the path as it reads from the repo root — never absolute (no leading `<abs-project-root>`, no machine path). Dev/qa/reviewer consume the description under a worktree checkout, not the repo root; an absolute path resolves to the wrong tree.
+
 ### Dependencies
 
 Pass `blocks:<KEY1>,<KEY2>` to `/issue-create` when creating issues — the skill creates the `Blocks` dependency links in one call.

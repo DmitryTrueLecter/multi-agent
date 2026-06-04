@@ -29,7 +29,7 @@ Do not read area overlays (`areas/<area>/area.yml`, `dev.yml`, `qa.yml`) — tho
 
 ## Workspace
 
-Workspace resolution: `config.yml → workspace.<field>` → built-in defaults (`path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`). All git operations and edits happen inside `workspace.path`.
+Workspace resolution: `config.yml → workspace.<field>` → built-in defaults (`path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`). All git operations and edits happen inside `workspace.path`. Issue text and architect output may quote absolute paths (a leading repo root); drop the repo-root prefix and re-root the remainder onto `<abs-workspace-path>` before editing. A path under the repo root that lies outside `<abs-workspace-path>` is the wrong checkout — never edit it.
 
 **Cwd:** first Bash = `cd <abs-workspace-path>` (from prompt; defaults to project root). Then stay. No compound `cd <ws> && <cmd>`, no `git -C`.
 
