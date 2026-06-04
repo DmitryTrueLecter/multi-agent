@@ -141,6 +141,8 @@ Links to spec sections, existing code to follow.
 
 **Rule:** Audit the Requirements text against `DEV-*` rules before publishing. The architect's Recommendation specifies field sets and semantics (per `agents/architect.md → ## Output format`); the issue Requirements describe the same. When the architect's output contains a literal call-site signature that violates DEV-FN-SHAPE (domain inputs >4 without value-type grouping, boolean flag arguments) or another `DEV-*` rule, rewrite it before publishing — name the field set and let dev pick the rule-compliant call shape.
 
+**Rule:** Any fixture, sample input, or captured payload a Task's `## References` or `## Test contract` depends on must be committed — to the repo, or to the Epic branch for Epic-scoped work — before you queue the Task. A machine-local or gitignored path is unreachable from the agent's worktree, so a test built from it is impossible or fabricated; commit the source (trimmed to what the contract needs) and reference the committed path.
+
 ### Dependencies
 
 Pass `blocks:<KEY1>,<KEY2>` to `/issue-create` when creating issues — the skill creates the `Blocks` dependency links in one call.
