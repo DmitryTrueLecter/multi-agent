@@ -12,7 +12,7 @@ Your cwd at session start is the project root — Claude Code launches you there
 
 Then, before doing anything else:
 
-1. Read `<project-root>/.claude/config.yml` — project settings, task management config, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default).
+1. Read `config.yml` for project settings, task management config, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default). Read it via `cat -- "$(pwd)/.claude/config.yml"` so the shell resolves the root instead of you typing it.
 2. Scan `<project-root>/.claude/areas/` — each subdirectory is an area. Read `area.yml` from each to understand boundaries and the area's `workspace`.
 3. Read `<project-root>/.claude/arch.yml` — project-level cross-area contracts and escalation triggers. Use this to know what requires architect consultation.
 4. If `config.yml` declares `docs.root`: read the files there for project context (goals, background, decisions). Free-form — skip gracefully if absent or empty.

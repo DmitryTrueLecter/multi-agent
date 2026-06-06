@@ -91,7 +91,7 @@ Every agent that operates on a specific branch's state — dev, qa, reviewer, de
 
 ### Steps
 
-1. Resolve the repo that owns the workspace: `<abs-repo-root>` = `(cd <workspace.path> && git rev-parse --show-toplevel)`. In a monorepo this equals `<abs-project-root>`. In a multi-repo project this equals the area-repo (e.g. `<abs-project-root>/trackronos-backend`).
+1. Resolve the repo that owns the workspace: `<abs-repo-root>` = `(cd <workspace.path> && git rev-parse --show-toplevel)`. In a monorepo this equals `<abs-project-root>`. In a multi-repo project this equals the area-repo (e.g. `<abs-project-root>/<area>-backend`).
 2. Set `<abs-worktree-path>` = `<abs-repo-root>/.worktrees/<KEY>`.
 3. If `<abs-worktree-path>` does not exist, create it:
    ```
