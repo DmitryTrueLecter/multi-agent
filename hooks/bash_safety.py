@@ -17,18 +17,28 @@ contract, or bypass project conventions:
   - psql DROP DATABASE / SCHEMA / ROLE / USER
   - alembic downgrade base
 
-Auto-approves worktree subshells of the form `( cd <path>/.worktrees/… && <cmd> )`.
-The cwd-isolation contract (agents/team-lead.md, commands/run.md) mandates this
-subshell form for workspace ops, but its leading "(" makes it unmatchable by the
-settings.json allow-list — so it always raises an interactive prompt, which a
-background subagent cannot answer. The auto-approve runs AFTER the deny scan, so any
-blocked verb inside the parens (force-push, reset --hard, …) is still rejected.
+Posture: default-allow after the deny scan. Any command that clears every DENY
+pattern above is auto-approved (permissionDecision "allow"), so the interactive
+prompt never fires. This deny-list is therefore the sole safety perimeter for Bash.
+
+Rationale: the settings.json allow-list cannot match compound commands as a whole —
+Claude Code decomposes on `&&`, `||`, `;`, `|`, newlines and requires each subcommand
+to match independently. Loops (`for … do … done`), subshells with variable cd
+(`(cd apps/$x && …)`), and command substitution never decompose cleanly, so they
+always prompt — and a background subagent cannot answer a prompt. This hook instead
+receives the full raw command string and scans it holistically, so its deny patterns
+catch dangerous verbs anywhere (inside loops, subshells, pipelines) while everything
+else is approved uniformly.
+
+Still enforced on top of an "allow" decision (per Claude Code docs): settings.json
+`deny` rules (e.g. Read(**/.env)) and any `ask` rules. A blocking deny here (exit 2)
+takes precedence over allow rules.
 
 Note: shell-escaped commands the user types (`! some-cmd`) do not go through
 the Bash tool and are not affected by this hook.
 
 Exit codes:
-  0 - allow (or, with stdout JSON, emit an explicit permission decision)
+  0 - emit stdout JSON with an explicit "allow" decision (skips the prompt)
   2 - block (stderr is shown to the model)
 """
 
@@ -52,7 +62,7 @@ DENY = [
     ),
     (
         re.compile(
-            r"\bgit\s+push\s+(?:-[\w-]+(?:=\S+)?\s+)*(?:\S+\s+)?(?:HEAD:)?(?:main|master|development)(?:\s|$|;|&|\|)"
+            r"\bgit\s+push\s+(?:-[\w-]+(?:=\S+)?\s+)*(?:\S+\s+)?(?:HEAD:)?(?:main|master|development)(?:\s|$|;|&|\||\))"
         ),
         "Direct push to main / master / development is blocked. Push to a feature/epic branch and merge through the workflow.",
     ),
@@ -81,11 +91,11 @@ DENY = [
         "git restore . / --source= is blocked — it discards uncommitted work.",
     ),
     (
-        re.compile(r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*f?[a-zA-Z]*\s+/(?:\s|$|;|&|\|)"),
+        re.compile(r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*f?[a-zA-Z]*\s+/(?:\s|$|;|&|\||\))"),
         "rm -rf / is blocked.",
     ),
     (
-        re.compile(r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*f?[a-zA-Z]*\s+~/?(?:\s|$|;|&|\|)"),
+        re.compile(r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*f?[a-zA-Z]*\s+~/?(?:\s|$|;|&|\||\))"),
         "rm -rf ~ is blocked.",
     ),
     (
@@ -149,7 +159,7 @@ DENY = [
         "Reading /etc/shadow / gshadow / sudoers is blocked.",
     ),
     (
-        re.compile(r"\bfind\s+/(?:\s|$|;|&|\||\*)"),
+        re.compile(r"\bfind\s+/(?:\s|$|;|&|\||\*|\))"),
         "find / starts a full filesystem scan that can saturate CPU/IO on large trees. To locate a binary use `command -v <name>` or `which <name>`. To search files, use `find .` or a specific path (e.g. `find /usr/local/bin`, `find /home/<user>/<project>`).",
     ),
     (
@@ -161,11 +171,6 @@ DENY = [
         "`bash -lc '...'` / `sh -lc '...'` wrappers are blocked. A Bash tool call is already a fresh shell — the login wrapper just adds nondeterministic `.bash_profile` / `.bashrc` sourcing without benefit. Run the command directly. If a tool needs a specific runtime, call its binary by absolute path (e.g. `<venv>/bin/python`, `<project>/node_modules/.bin/<tool>`) and pass env vars as a single-segment prefix.",
     ),
 ]
-
-# Worktree subshell mandated by the cwd-isolation contract. Matched only at the
-# head of the command; the deny scan above has already cleared the inner verbs.
-ALLOW_WORKTREE_SUBSHELL = re.compile(r"^\s*\(\s*cd\s+\S*\.worktrees/\S+\s+&&")
-
 
 def main() -> None:
     try:
@@ -179,20 +184,18 @@ def main() -> None:
             print(f"bash_safety: {reason}\nCommand: {cmd}", file=sys.stderr)
             sys.exit(2)
 
-    if ALLOW_WORKTREE_SUBSHELL.search(cmd):
-        print(
-            json.dumps(
-                {
-                    "hookSpecificOutput": {
-                        "hookEventName": "PreToolUse",
-                        "permissionDecision": "allow",
-                        "permissionDecisionReason": "worktree subshell (cwd-isolation contract); inner command cleared the deny scan",
-                    }
+    # Cleared the deny scan -> auto-approve, regardless of compound shape.
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "allow",
+                    "permissionDecisionReason": "cleared the bash_safety deny scan",
                 }
-            )
+            }
         )
-        sys.exit(0)
-
+    )
     sys.exit(0)
 
 
