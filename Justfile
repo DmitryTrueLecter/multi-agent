@@ -32,7 +32,7 @@ claude-resume-stop:
 
 # Start claude in a per-project tmux session + auto-resume watchdog, then attach
 claude-start:
-    @tmux has-session -t {{session}} 2>/dev/null || tmux new-session -d -s {{session}} -c "{{justfile_directory()}}" 'claude --agent dma:team-lead --rc "{{project}}"'
+    @tmux has-session -t {{session}} 2>/dev/null || tmux new-session -d -s {{session}} -c "{{justfile_directory()}}" 'claude --agent dma:team-lead --permission-mode bypassPermissions --rc "{{project}}"'
     @just claude-resume
     @tmux attach -t {{session}}
 
@@ -53,7 +53,7 @@ claude-start-detached:
     if tmux has-session -t {{session}} 2>/dev/null; then
         echo "session {{session}} already running"
     else
-        tmux new-session -d -s {{session}} -c "{{justfile_directory()}}" 'claude --agent dma:team-lead --rc "{{project}}"'
+        tmux new-session -d -s {{session}} -c "{{justfile_directory()}}" 'claude --agent dma:team-lead --permission-mode bypassPermissions --rc "{{project}}"'
     fi
     just claude-resume >/dev/null
     for i in $(seq 1 30); do
@@ -81,4 +81,4 @@ claude-url:
 
 # Launch the sentinel meta-agent in the foreground
 sentinel:
-    claude --agent dma:sentinel
+    claude --agent dma:sentinel --permission-mode bypassPermissions
