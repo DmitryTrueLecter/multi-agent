@@ -1,6 +1,6 @@
 ---
 name: sentinel-bootstrap-jira
-description: One-time bootstrap. Discovers Jira transition IDs from the live workflow and prints a config block ready to paste into .claude/config.yml under tasks.jira.transitions. Run once per project, and again whenever the Jira workflow changes. Invocation: /sentinel-bootstrap-jira.
+description: One-time bootstrap. Discovers Jira transition IDs from the live workflow and prints a config block ready to paste into ${CLAUDE_PROJECT_DIR}/.claude/config.yml under tasks.jira.transitions. Run once per project, and again whenever the Jira workflow changes. Invocation: /dma:sentinel-bootstrap-jira.
 tools: mcp__atlassian__jira_search, mcp__atlassian__jira_get_transitions, Edit
 ---
 
@@ -12,11 +12,11 @@ This is required because `mcp__atlassian__jira_transition_issue` takes a numeric
 
 ## Usage
 
-`/sentinel-bootstrap-jira`
+`/dma:sentinel-bootstrap-jira`
 
 ## Steps
 
-1. Read `.claude/config.yml` → `tasks.provider`, `tasks.project_key`, `tasks.workflow.statuses` (semantic-key → display-name map). If `tasks.provider != "jira"`: stop and report — this skill is jira-only.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`, `tasks.project_key`, `tasks.workflow.statuses` (semantic-key → display-name map). If `tasks.provider != "jira"`: stop and report — this skill is jira-only.
 
 2. Fetch a sample issue from the project: `mcp__atlassian__jira_search(jql="project = <project_key>", limit=1, fields="summary,status")`. If no issues: stop and report — bootstrap needs at least one issue to query transitions against. Ask the user to create any issue first.
 
@@ -30,7 +30,7 @@ This is required because `mcp__atlassian__jira_transition_issue` takes a numeric
 5. Print results in this exact shape:
 
    ```
-   ## tasks.jira.transitions (paste into .claude/config.yml)
+   ## tasks.jira.transitions (paste into ${CLAUDE_PROJECT_DIR}/.claude/config.yml)
 
    tasks:
      jira:
@@ -52,7 +52,7 @@ This is required because `mcp__atlassian__jira_transition_issue` takes a numeric
    - Some target statuses may not be reachable from the sample issue's current status. Re-run this skill from an issue in a different status (pass `--from <KEY>` once that flag exists, or move an issue manually and re-run).
    - Or the Jira workflow uses transition names that don't match the canonical display names. In that case, the user must edit the IDs by hand using the listed (id, name) pairs.
 
-7. If every key resolved, ask the user — via `AskUserQuestion` or a direct chat prompt — whether to write the block to `.claude/config.yml`. On an explicit yes in the same turn: merge `tasks.jira.transitions` into the file without clobbering sibling keys, then report the written path. On no, or if any key is unresolved: print the block for the user to paste. Never write without same-turn consent.
+7. If every key resolved, ask the user — via `AskUserQuestion` or a direct chat prompt — whether to write the block to `${CLAUDE_PROJECT_DIR}/.claude/config.yml`. On an explicit yes in the same turn: merge `tasks.jira.transitions` into the file without clobbering sibling keys, then report the written path. On no, or if any key is unresolved: print the block for the user to paste. Never write without same-turn consent.
 
 ## Notes
 

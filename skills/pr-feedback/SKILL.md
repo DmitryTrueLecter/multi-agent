@@ -1,6 +1,6 @@
 ---
 name: pr-feedback
-description: Reconcile PR merge/decline decisions from the VCS platform into the issue tracker. Run as the first step of every /run invocation. Invocation: /pr-feedback.
+description: Reconcile PR merge/decline decisions from the VCS platform into the issue tracker. Run as the first step of every /dma:run invocation. Invocation: /dma:pr-feedback.
 tools: mcp__atlassian__bitbucket_list_pull_requests, mcp__atlassian__bitbucket_get_pull_request, mcp__atlassian__bitbucket_get_commit, mcp__atlassian__bitbucket_list_pull_request_comments, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_update_issue, mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_add_comment, mcp__atlassian__jira_search, mcp__linear__list_issues, mcp__linear__get_issue, mcp__linear__save_issue, mcp__linear__save_comment
 ---
 
@@ -12,11 +12,11 @@ Status references in this skill are semantic keys (e.g. `awaiting_merge`, `done`
 
 ## Usage
 
-`/pr-feedback`
+`/dma:pr-feedback`
 
 ## Steps
 
-1. Read `.claude/config.yml` → `tasks.provider`, `tasks.workflow.statuses` (semantic-key → display-name map; resolve every `statuses.<key>` reference below through this map), and — for the jira provider only — `tasks.jira.transitions` (semantic-key → numeric transition id map).
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`, `tasks.workflow.statuses` (semantic-key → display-name map; resolve every `statuses.<key>` reference below through this map), and — for the jira provider only — `tasks.jira.transitions` (semantic-key → numeric transition id map).
 2. Follow the section for your provider.
 
 ---
@@ -45,7 +45,7 @@ Tasks awaiting merge sit in `statuses.awaiting_merge` with no `agent:` label —
    - `mcp__atlassian__jira_get_issue(issue_key=<KEY>)`. If the issue's status name is not `statuses.awaiting_merge` → skip (already reconciled).
    - Gather rejection text: `bitbucket_get_pull_request` description + `bitbucket_list_pull_request_comments` (inline prefixed `[file:line]`, cap ~3000 chars). Ask user if empty.
    - `mcp__atlassian__jira_update_issue`: labels → existing plus `agent:dev`.
-   - Read `tasks.jira.transitions.to_do` from config. If missing or `0`: log and skip this PR — run `/sentinel-bootstrap-jira` to populate the map; next pre-flight will retry.
+   - Read `tasks.jira.transitions.to_do` from config. If missing or `0`: log and skip this PR — run `/dma:sentinel-bootstrap-jira` to populate the map; next pre-flight will retry.
    - `mcp__atlassian__jira_transition_issue(issue_key=<KEY>, transition_id=<id>)`. If Jira rejects: log and skip this PR; next pre-flight will retry.
    - `mcp__atlassian__jira_add_comment`: `🤖 user (decline) via PR <PR_URL>:\n\n<rejection text>`.
 
@@ -61,13 +61,13 @@ Tasks awaiting merge sit in `statuses.awaiting_merge` with no `agent:` label —
        - `mcp__atlassian__jira_update_issue`: add label `stale-merge`. Status stays `statuses.awaiting_merge`.
        - `mcp__atlassian__jira_add_comment`: `🤖 user (merge with stale tip) via PR <PR_URL>: merged <merged_tip>, but approved tip was <approved_tip>. Commits between the two were orphaned and need human review before this task is marked done.`.
        - Skip the remaining substeps for this PR.
-   - Read `tasks.jira.transitions.done` from config. If missing or `0`: log and skip — run `/sentinel-bootstrap-jira` to populate the map; next pre-flight will retry.
+   - Read `tasks.jira.transitions.done` from config. If missing or `0`: log and skip — run `/dma:sentinel-bootstrap-jira` to populate the map; next pre-flight will retry.
    - `mcp__atlassian__jira_transition_issue(issue_key=<KEY>, transition_id=<id>)`. If Jira rejects: log and skip; next pre-flight retries.
    - `mcp__atlassian__jira_add_comment`: `🤖 user (merge) via PR <PR_URL>: merged into <destination_branch> at <merged_tip>.`.
    - **Group close-out:** if the task has a parent with `type="group"`:
      - `mcp__atlassian__jira_search(jql='parent = <parent.key> AND status != "<statuses.done>"')`.
      - If empty (all siblings done):
-       1. Read `tasks.jira.transitions.code_review` from config. If missing or `0`: log and skip the close-out — parent label and status are left untouched, run `/sentinel-bootstrap-jira` and the next pre-flight will retry.
+       1. Read `tasks.jira.transitions.code_review` from config. If missing or `0`: log and skip the close-out — parent label and status are left untouched, run `/dma:sentinel-bootstrap-jira` and the next pre-flight will retry.
        2. `mcp__atlassian__jira_update_issue` — add `agent:team-lead` to the parent's labels.
        3. `mcp__atlassian__jira_transition_issue(issue_key=<parent.key>, transition_id=<id>)`. If Jira rejects: log and surface to the user — the parent is now in its previous status with `agent:team-lead` already attached (a partial-promote state). The next pre-flight will not auto-retry this branch, because the merged-PR loop only visits children in `awaiting_merge` and the current child has already moved to `done`.
        4. `mcp__atlassian__jira_add_comment` on the parent.

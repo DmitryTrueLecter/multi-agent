@@ -1,6 +1,6 @@
 ---
 name: task-read
-description: Fetch a task's full data — description, status, labels, parent, and all comments — in one call. Returns normalized output for agent consumption. Use at the start of any agent workflow instead of calling tracker tools directly. Invocation: `/task-read <ISSUE-KEY>`.
+description: Fetch a task's full data — description, status, labels, parent, and all comments — in one call. Returns normalized output for agent consumption. Use at the start of any agent workflow instead of calling tracker tools directly. Invocation: `/dma:task-read <ISSUE-KEY>`.
 tools: mcp__atlassian__jira_get_issue, mcp__linear__get_issue, mcp__linear__list_comments
 ---
 
@@ -10,11 +10,11 @@ Fetch a task's complete data from the issue tracker and surface it to the callin
 
 ## Usage
 
-`/task-read <ISSUE-KEY>`
+`/dma:task-read <ISSUE-KEY>`
 
 ## Steps
 
-1. Read `.claude/config.yml` → `tasks.provider`.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`.
 2. Follow the section for your provider.
 
 ---

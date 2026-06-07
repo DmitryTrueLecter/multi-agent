@@ -1,6 +1,6 @@
 # area.yml — canonical schema
 
-Source-of-truth structure for `.claude/areas/<area>/area.yml`. The architect authors it (responsibility #5 in `agents/architect.md`); dev, qa, reviewer, team-lead, and sentinel read it.
+Source-of-truth structure for `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml`. The architect authors it (responsibility #5 in `agents/architect.md`); dev, qa, reviewer, team-lead, and sentinel read it.
 
 ## Placement rule: area.yml vs role overlays
 
@@ -12,7 +12,7 @@ Source-of-truth structure for `.claude/areas/<area>/area.yml`. The architect aut
 
 **Rule:** if more than one role reads the field, it lives in `area.yml`. Role-specific behavior (what exactly one role uniquely consumes) lives in the role overlay. The duplication smell — same value appearing in `dev.yml` and `qa.yml` of the same area — indicates the field belongs in `area.yml`.
 
-**Devops is project-scoped, not area-scoped.** Devops has no `areas/<area>/devops.yml` overlay. Its write fence — `config.yml → devops_paths` — is a top-level project key, defined once per project. Knowledge files (environments, runbooks) live at `.claude/devops/` (project-local), not under `areas/`. Do not propose moving devops into the area model: an area's defining trait is that dev / qa / reviewer share a code surface; devops does not share a surface with any area.
+**Devops is project-scoped, not area-scoped.** Devops has no `areas/<area>/devops.yml` overlay. Its write fence — `config.yml → devops_paths` — is a top-level project key, defined once per project. Knowledge files (environments, runbooks) live at `${CLAUDE_PROJECT_DIR}/.claude/devops/` (project-local), not under `areas/`. Do not propose moving devops into the area model: an area's defining trait is that dev / qa / reviewer share a code surface; devops does not share a surface with any area.
 
 ## Field reference
 
@@ -64,5 +64,5 @@ Both rules apply unchanged to `qa.yml.edge_cases` (scenario names the agent conf
 A new field in `area.yml` is a structural decision that propagates across every project on this plugin. Procedure:
 
 1. Architect proposes the field shape (key name, type, audience, purpose).
-2. Sentinel extends this schema (`area-config-schema.md`) before any project's `area.yml` carries the field. Direct edits to a project's `area.yml` adding undocumented fields are a `PROMPT-FRAGMENTED` smell — flag via `/sentinel-flag`.
+2. Sentinel extends this schema (`area-config-schema.md`) before any project's `area.yml` carries the field. Direct edits to a project's `area.yml` adding undocumented fields are a `PROMPT-FRAGMENTED` smell — flag via `/dma:sentinel-flag`.
 3. Once the schema lands, the architect rolls the field into the affected project's `area.yml` and updates any consuming agent prompt (`agents/*.md`) to read it.

@@ -1,16 +1,16 @@
 ---
 name: sentinel-flag
-description: Record a prompt/process problem for sentinel to review. Writes a file in .claude/sentinel-inbox/. Async; does not block the caller. Invocation: /sentinel-flag <type> "<problem>" where:<file:section> [originating:<KEY>] [details:<text>].
+description: Record a prompt/process problem for sentinel to review. Writes a file in ${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/. Async; does not block the caller. Invocation: /dma:sentinel-flag <type> "<problem>" where:<file:section> [originating:<KEY>] [details:<text>].
 tools: Write
 ---
 
 # sentinel-flag
 
-Write a file in `<abs-project-root>/.claude/sentinel-inbox/` describing a defect in an agent prompt, skill, or process step. Sentinel reads the inbox when invoked.
+Write a file in `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/` describing a defect in an agent prompt, skill, or process step. Sentinel reads the inbox when invoked.
 
 ## Usage
 
-`/sentinel-flag <type> "<problem>" where:<file:section> [originating:<KEY>] [details:<text>]`
+`/dma:sentinel-flag <type> "<problem>" where:<file:section> [originating:<KEY>] [details:<text>]`
 
 | Argument | Required | Description |
 |----------|----------|-------------|
@@ -40,5 +40,5 @@ Write a file in `<abs-project-root>/.claude/sentinel-inbox/` describing a defect
 1. Reject if `<type>` not in the table or `where:` missing.
 2. Filename: `<UTC-ISO>-<reporter>-<type>.md`, replacing `:` in the timestamp with `-`.
 3. Build body — frontmatter (`type`, `reporter`, `where`, `created_at`, `originating_task` if given) + `## Problem` + optional `## Details`.
-4. Write to `<abs-project-root>/.claude/sentinel-inbox/<filename>`. Create directory if missing.
+4. Write to `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/<filename>`. Create directory if missing.
 5. Return `flagged → <filename>`.

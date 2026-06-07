@@ -1,6 +1,6 @@
 ---
 name: issue-create
-description: Create a new issue in the issue tracker — type, summary, description, labels, parent/epic link, and dependency links. Reads project/team key from .claude/config.yml. Invocation: /issue-create <type> <summary> [parent:<KEY>] [labels:<l1>,<l2>] [blocks:<KEY1>,<KEY2>] [description:<text>].
+description: Create a new issue in the issue tracker — type, summary, description, labels, parent/epic link, and dependency links. Reads project/team key from ${CLAUDE_PROJECT_DIR}/.claude/config.yml. Invocation: /dma:issue-create <type> <summary> [parent:<KEY>] [labels:<l1>,<l2>] [blocks:<KEY1>,<KEY2>] [description:<text>].
 tools: mcp__atlassian__jira_create_issue, mcp__atlassian__jira_create_issue_link, mcp__atlassian__jira_link_to_epic, mcp__atlassian__jira_transition_issue, mcp__linear__save_issue
 ---
 
@@ -10,7 +10,7 @@ Create an issue in the issue tracker with all required fields and optional links
 
 ## Usage
 
-`/issue-create <type> <summary> [options]`
+`/dma:issue-create <type> <summary> [options]`
 
 | Argument | Required | Description |
 |----------|----------|-------------|
@@ -24,7 +24,7 @@ Create an issue in the issue tracker with all required fields and optional links
 
 ## Steps
 
-1. Read `.claude/config.yml` → `tasks.provider` and `tasks.workflow.statuses`.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider` and `tasks.workflow.statuses`.
 2. Resolve the initial state semantic key (precedence: explicit override → role-derived default → workflow default):
    - If the caller passed `state:<key>`, use `<key>`.
    - Else if labels contain an `agent:<role>` label, use that role's create-time queue status from `run.md`'s Role → queue mapping table: `agent:qa` → `qa`, `agent:reviewer` → `code_review`, `agent:team-lead` → `to_do` (coordination — new bucket from `run.md` auto-mode #2; the other two team-lead queues `on_hold` and `code_review` are transition targets, not create targets — request via explicit `state:`), `agent:dev` / `agent:devops` → `to_do`.
@@ -45,7 +45,7 @@ Create an issue in the issue tracker with all required fields and optional links
    - `description`: from `description:` if provided
    - `additional_fields`: `{"labels": [<labels>]}` if labels given; also `{"parent": "<parent-KEY>"}` if `parent:` given and type is `task`
 4. Capture the new issue key.
-5. If the resolved state key is not `to_do`, transition the new issue into it: read `tasks.jira.transitions.<resolved-key>` — the numeric transition id. If missing or `0`, fail with `jira transition id for '<resolved-key>' not configured; run /sentinel-bootstrap-jira` and return the new key for caller cleanup. Otherwise call `mcp__atlassian__jira_transition_issue(issue_key=<new-key>, transition_id=<id>)`. If Jira rejects the transition, fail with `jira refused transition '<resolved-key>' on <new-key>` and return the new key.
+5. If the resolved state key is not `to_do`, transition the new issue into it: read `tasks.jira.transitions.<resolved-key>` — the numeric transition id. If missing or `0`, fail with `jira transition id for '<resolved-key>' not configured; run /dma:sentinel-bootstrap-jira` and return the new key for caller cleanup. Otherwise call `mcp__atlassian__jira_transition_issue(issue_key=<new-key>, transition_id=<id>)`. If Jira rejects the transition, fail with `jira refused transition '<resolved-key>' on <new-key>` and return the new key.
 6. If `parent:<KEY>` given and type is `task`, also call `mcp__atlassian__jira_link_to_epic(issue_key=<new-key>, epic_key=<parent-KEY>)`.
 7. If `blocks:<KEY1>,<KEY2>` given, for each key call `mcp__atlassian__jira_create_issue_link(link_type="Blocks", inward_issue_key=<new-key>, outward_issue_key=<blocked-key>)`.
 8. Return the created issue key.

@@ -1,17 +1,17 @@
 # Full-audit mode — procedure
 
-System-wide structural audit across the agent system. Run manually via `/sentinel full-audit` — never auto-scheduled. Exhaustive within a fixed inventory; if a finding requires reading outside that inventory, name the missing file in the report rather than expanding the read budget mid-pass.
+System-wide structural audit across the agent system. Run manually via `/dma:sentinel full-audit` — never auto-scheduled. Exhaustive within a fixed inventory; if a finding requires reading outside that inventory, name the missing file in the report rather than expanding the read budget mid-pass.
 
 ## Inventory (read every entry)
 
-1. All `<abs-ma-root>/agents/*.md` — every agent prompt, including this one.
-2. All `<abs-ma-root>/skills/*/SKILL.md` — every skill the agents call.
-3. `<abs-ma-root>/commands/run.md` and `<abs-ma-root>/commands/board.md` — the two orchestration commands. Other commands only when an entry above references one.
-4. `<abs-ma-root>/sentinel/patterns/*.md`, `<abs-ma-root>/sentinel/solutions/*.md`, `<abs-ma-root>/sentinel/area-config-schema.md`.
-5. `<abs-project-root>/.claude/config.yml` and `<abs-ma-root>/config.example.yml`.
-6. `<abs-project-root>/.claude/sentinel-inbox/archive/*.md` — frontmatter only, last 14 days. Use to spot `PATTERN-REPEAT` candidates.
-7. One representative `<abs-project-root>/.claude/areas/<area>/area.yml` — on demand, only if a finding pivots on area-config shape.
-8. `<abs-ma-root>/hooks/skill_acl.py` — the per-agent skill ACL, for the ACL-DRIFT cross-check.
+1. All `${CLAUDE_PLUGIN_ROOT}/agents/*.md` — every agent prompt, including this one.
+2. All `${CLAUDE_PLUGIN_ROOT}/skills/*/SKILL.md` — every skill the agents call.
+3. `${CLAUDE_PLUGIN_ROOT}/commands/run.md` and `${CLAUDE_PLUGIN_ROOT}/commands/board.md` — the two orchestration commands. Other commands only when an entry above references one.
+4. `${CLAUDE_PLUGIN_ROOT}/sentinel/patterns/*.md`, `${CLAUDE_PLUGIN_ROOT}/sentinel/solutions/*.md`, `${CLAUDE_PLUGIN_ROOT}/sentinel/area-config-schema.md`.
+5. `${CLAUDE_PROJECT_DIR}/.claude/config.yml` and `${CLAUDE_PLUGIN_ROOT}/config.example.yml`.
+6. `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/archive/*.md` — frontmatter only, last 14 days. Use to spot `PATTERN-REPEAT` candidates.
+7. One representative `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml` — on demand, only if a finding pivots on area-config shape.
+8. `${CLAUDE_PLUGIN_ROOT}/hooks/skill_acl.py` — the per-agent skill ACL, for the ACL-DRIFT cross-check.
 
 ## Cross-checks (after the inventory pass)
 

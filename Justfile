@@ -1,12 +1,13 @@
-# Shared claude-multi-agent-jira recipes — imported by each project's Justfile.
+# Shared dma-plugin recipes — imported by each project's root Justfile.
 #
 # Usage in the project's root Justfile:
 #
 #     import '.claude/Justfile'
 #
-# The import resolves through the conventional symlink
-#     .claude/Justfile -> .claude-multi-agent-jira/Justfile
-# created alongside the existing .claude/agents, .claude/commands, etc.
+# This file lives at `.claude/Justfile` in the project (installed from the dma
+# plugin, not a symlink). The launch recipes start Claude with the namespaced
+# plugin agent, e.g. `claude --agent dma:team-lead`, so the dma plugin must be
+# enabled in that session (marketplace/skills-dir install, or `--plugin-dir`).
 #
 # Variables `project` and `session` are defined here so that imported
 # recipes work on every just version, including ones where `import`
@@ -31,7 +32,7 @@ claude-resume-stop:
 
 # Start claude in a per-project tmux session + auto-resume watchdog, then attach
 claude-start:
-    @tmux has-session -t {{session}} 2>/dev/null || tmux new-session -d -s {{session}} -c "{{justfile_directory()}}" 'claude --agent team-lead --rc "{{project}}"'
+    @tmux has-session -t {{session}} 2>/dev/null || tmux new-session -d -s {{session}} -c "{{justfile_directory()}}" 'claude --agent dma:team-lead --rc "{{project}}"'
     @just claude-resume
     @tmux attach -t {{session}}
 
@@ -52,7 +53,7 @@ claude-start-detached:
     if tmux has-session -t {{session}} 2>/dev/null; then
         echo "session {{session}} already running"
     else
-        tmux new-session -d -s {{session}} -c "{{justfile_directory()}}" 'claude --agent team-lead --rc "{{project}}"'
+        tmux new-session -d -s {{session}} -c "{{justfile_directory()}}" 'claude --agent dma:team-lead --rc "{{project}}"'
     fi
     just claude-resume >/dev/null
     for i in $(seq 1 30); do
@@ -77,3 +78,7 @@ claude-url:
         echo "session {{session}} not found or URL not in scrollback" >&2
         exit 1
     fi
+
+# Launch the sentinel meta-agent in the foreground
+sentinel:
+    claude --agent dma:sentinel

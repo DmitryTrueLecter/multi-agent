@@ -5,14 +5,14 @@ Sync invocation by team-lead only — return an inline answer; do not process th
 ## Invocation
 
 ```
-Agent(subagent_type="sentinel", prompt="Project: <abs-project-root>. Mode: consultation. Question: <q>. Context: <c>.")
+Agent(subagent_type="dma:sentinel", prompt="Project: ${CLAUDE_PROJECT_DIR}. Mode: consultation. Question: <q>. Context: <c>.")
 ```
 
 ## Behavior
 
 - Read only what the question requires — typically one or two agent/skill files, plus the cited issue if a `<KEY>` is in the context.
 - Do not process the inbox. Return the answer inline.
-- If the question reveals a defect another agent's run would also hit, call `/sentinel-flag` to put it in the inbox for next triage.
+- If the question reveals a defect another agent's run would also hit, call `/dma:sentinel-flag` to put it in the inbox for next triage.
 
 ## Scope guard
 
@@ -32,7 +32,7 @@ Cite file:section.
 Concrete next action team-lead can take now. For prompt rewrites, give the rewritten paragraph.
 
 ## Followup flag
-<filename> via /sentinel-flag — or "none".
+<filename> via /dma:sentinel-flag — or "none".
 ```
 
 ## Cross-mode contracts

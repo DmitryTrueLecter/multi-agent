@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__atlassian__jira_get_issue",
+      "mcp__atlassian__jira_get_transitions",
+      "mcp__atlassian__jira_search",
+      "mcp__atlassian__jira_get_user_profile",
+      "mcp__atlassian__jira_get_all_projects",
+      "mcp__atlassian__jira_get_link_types",
+      "mcp__atlassian__jira_get_project_components",
+      "mcp__atlassian__jira_get_project_versions",
+      "mcp__atlassian__jira_get_agile_boards",
+      "mcp__atlassian__jira_get_board_issues",
+      "mcp__atlassian__jira_get_sprints_from_board",
+      "mcp__atlassian__jira_get_sprint_issues",
+      "mcp__atlassian__jira_search_fields",
+      "mcp__atlassian__jira_get_field_options",
+      "mcp__atlassian__jira_batch_get_changelogs",
+      "mcp__atlassian__jira_get_issue_watchers",
+      "mcp__atlassian__jira_get_issue_dates",
+      "mcp__atlassian__jira_get_issue_development_info",
+      "mcp__atlassian__jira_get_issue_sla",
+      "mcp__atlassian__jira_get_worklog",
+      "mcp__atlassian__jira_add_comment",
+      "mcp__atlassian__jira_edit_comment",
+      "mcp__atlassian__jira_update_issue",
+      "mcp__atlassian__jira_transition_issue",
+      "mcp__atlassian__jira_create_issue",
+      "mcp__atlassian__jira_batch_create_issues",
+      "mcp__atlassian__jira_create_issue_link",
+      "mcp__atlassian__jira_remove_issue_link",
+      "mcp__atlassian__jira_create_remote_issue_link",
+      "mcp__atlassian__jira_link_to_epic",
+      "mcp__atlassian__jira_add_watcher",
+      "mcp__atlassian__jira_remove_watcher",
+      "mcp__atlassian__jira_add_worklog",
+      "mcp__atlassian__bitbucket_create_pull_request",
+      "mcp__atlassian__bitbucket_get_pull_request",
+      "mcp__atlassian__bitbucket_list_pull_requests",
+      "mcp__atlassian__bitbucket_list_pull_request_comments"
+    ]
+  }
+}

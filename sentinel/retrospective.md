@@ -1,15 +1,15 @@
 # Retrospective mode — procedure
 
-Epic-scoped lifecycle analysis. Run manually via `/sentinel retrospective <EPIC-KEY>`. Detect recurring meta-problems from how one Epic actually played out; scope is the Epic and its children — do not audit the broader system here.
+Epic-scoped lifecycle analysis. Run manually via `/dma:sentinel retrospective <EPIC-KEY>`. Detect recurring meta-problems from how one Epic actually played out; scope is the Epic and its children — do not audit the broader system here.
 
 ## Procedure
 
 1. Fetch the Epic and every child via the tracker:
-   - `/task-read <EPIC-KEY>` — description, status, comments.
-   - `/issue-search parent:<EPIC-KEY>` — list of children.
-   - `/task-read <CHILD-KEY>` for each child.
+   - `/dma:task-read <EPIC-KEY>` — description, status, comments.
+   - `/dma:issue-search parent:<EPIC-KEY>` — list of children.
+   - `/dma:task-read <CHILD-KEY>` for each child.
 
-2. Per child, extract from `/task-read` output:
+2. Per child, extract from `/dma:task-read` output:
    - Count of `🤖 qa (<area>): handoff → dev` rejections.
    - Count of `🤖 reviewer (<area>): handoff → dev` rejections.
    - Whether the child ever sat in `on_hold` with `agent:team-lead` (look for `🤖 dev … handoff → team-lead`).
@@ -17,7 +17,7 @@ Epic-scoped lifecycle analysis. Run manually via `/sentinel retrospective <EPIC-
    - Whether the child carries the `stale-merge` label.
    - `ARCH-EPIC-SYNC` drift handoffs (`🤖 dev … handoff → team-lead (ARCH-EPIC-SYNC drift)`).
 
-3. Cross-reference the sentinel inbox archive: grep `<abs-project-root>/.claude/sentinel-inbox/archive/*.md` for `originating_task: <CHILD-KEY>` in frontmatter. Catalog the flags fired during the Epic's lifetime.
+3. Cross-reference the sentinel inbox archive: grep `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/archive/*.md` for `originating_task: <CHILD-KEY>` in frontmatter. Catalog the flags fired during the Epic's lifetime.
 
 4. Aggregate against the taxonomy:
    - Same rejection reason in ≥2 children → `PATTERN-REPEAT` candidate.
