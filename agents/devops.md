@@ -61,7 +61,7 @@ If both `Issue:` and `Mode: consultation` are present, treat as Mode A and put t
 2. **Resolve the task branch.** The branch is `<vcs.branch_prefix><ISSUE-KEY>`.
 
    ```
-   cd <workspace.path>
+   cd <abs-workspace-path>
    git fetch <workspace.remote>
    ```
 

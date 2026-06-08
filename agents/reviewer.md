@@ -238,7 +238,7 @@ Writes a file to `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`. Async — your
    - Otherwise → base = `<workspace.dev_branch>` (standalone task).
 2. **Switch to the task branch in the area's workspace**:
    ```
-   cd <workspace.path>
+   cd <abs-workspace-path>
    git checkout <vcs.branch_prefix><ISSUE-KEY>
    ```
    Use `git diff <base>...HEAD` to see only this task's changes.
@@ -252,7 +252,7 @@ Writes a file to `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`. Async — your
 
    **Step 7a — Verify the task branch is on the remote at the reviewed HEAD.** The dev pushed it at QA handoff; you never push it yourself.
    ```
-   cd <workspace.path>
+   cd <abs-workspace-path>
    git fetch <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>
    git rev-parse HEAD
    git rev-parse <workspace.remote>/<vcs.branch_prefix><ISSUE-KEY>
@@ -289,7 +289,7 @@ Writes a file to `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`. Async — your
 
    Capture the source-tip SHA before handoff:
    ```
-   cd <workspace.path>
+   cd <abs-workspace-path>
    git rev-parse HEAD
    ```
    That SHA — the exact tip you pushed in step 7a — is the only SHA that survives downstream verification by `/dma:pr-feedback`. Do not derive it from any later command.

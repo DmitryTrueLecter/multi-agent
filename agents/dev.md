@@ -46,7 +46,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
-- **Branch state:** after `cd <workspace.path>` and `git checkout -b <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
+- **Branch state:** after `cd <abs-workspace-path>` and `git checkout -b <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
 ## Long-running commands                                                                                                                                                              
                                                                                                                                                                                         
@@ -179,7 +179,7 @@ Writes a file to `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`. Async — does
 2. **Resolve the task branch** in your area's workspace. The branch is `<vcs.branch_prefix><ISSUE-KEY>`. **Two cases**, decided by whether the branch already exists on the remote (it will exist whenever this is a re-run after a user/reviewer/qa rejection). On a **fresh** epic-parented task, an additional **epic-branch verification** step (2a) runs first; only on success does the sync (2b) proceed. The verification closes the silent fallback-to-dev drift that the pre-2026-05 prompt allowed when the team-lead-created epic branch was missing on remote:
 
    ```
-   cd <workspace.path>
+   cd <abs-workspace-path>
    git fetch <workspace.remote>
    ```
 

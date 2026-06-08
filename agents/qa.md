@@ -92,7 +92,7 @@ You run static analysis only — read the diff, parse code, walk tests with `Rea
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
-- **Branch state:** after `cd <workspace.path>` and `git checkout <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
+- **Branch state:** after `cd <abs-workspace-path>` and `git checkout <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
 ## Source-of-truth hierarchy
 
@@ -137,7 +137,7 @@ Writes a file to `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`. Async — does
    - Otherwise → base = `<workspace.dev_branch>` (standalone task).
 2. **Switch to the task branch in the area's workspace**:
    ```
-   cd <workspace.path>
+   cd <abs-workspace-path>
    git checkout <vcs.branch_prefix><ISSUE-KEY>
    ```
    Use `git diff <base>...HEAD` to see only this task's changes.
