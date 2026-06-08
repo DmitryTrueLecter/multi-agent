@@ -1,6 +1,6 @@
 ---
 name: issue-comment
-description: Add a standalone comment to an issue without changing its status or labels. Use for progress updates and error notifications that are not part of a handoff. Invocation: /issue-comment <ISSUE-KEY> <comment-body>.
+description: Add a standalone comment to an issue without changing its status or labels. Use for progress updates and error notifications that are not part of a handoff. Invocation: /dma:issue-comment <ISSUE-KEY> <comment-body>.
 tools: mcp__atlassian__jira_add_comment, mcp__linear__save_comment
 ---
 
@@ -10,11 +10,11 @@ Add a comment to an issue without changing its status or labels.
 
 ## Usage
 
-`/issue-comment <ISSUE-KEY> <comment-body>`
+`/dma:issue-comment <ISSUE-KEY> <comment-body>`
 
 ## Steps
 
-1. Read `.claude/config.yml` → `tasks.provider`.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`.
 2. Follow the section for your provider.
 
 ---

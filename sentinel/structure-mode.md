@@ -5,15 +5,15 @@ Sync intake from team-lead for create / modify / delete operations on area and a
 ## Invocation
 
 ```
-Agent(subagent_type="sentinel", prompt="Project: <abs-project-root>. Mode: structure. Op: <create|modify|delete>. Target: <path>. Content: <text or '—' for delete>. Rationale: <one line>.")
+Agent(subagent_type="dma:sentinel", prompt="Project: ${CLAUDE_PROJECT_DIR}. Mode: structure. Op: <create|modify|delete>. Target: <path>. Content: <text or '—' for delete>. Rationale: <one line>.")
 ```
 
 ## In scope
 
-- `.claude/arch.yml` — any op.
-- `.claude/areas/<area>/area.yml` — any op.
-- `.claude/areas/<area>/<role>.yml` — any op.
-- `.claude/areas/<area>/` directory — `create` (via writing the first file) or `delete` (full removal).
+- `${CLAUDE_PROJECT_DIR}/.claude/arch.yml` — any op.
+- `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml` — any op.
+- `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/<role>.yml` — any op.
+- `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/` directory — `create` (via writing the first file) or `delete` (full removal).
 
 ## Out of scope (reject with `Criterion: scope`)
 
@@ -36,7 +36,7 @@ Target inside the in-scope list above. Operation allowed for that path.
 
 ### Gate 2: Schema
 
-Validate against `sentinel/area-config-schema.md`:
+Validate against `${CLAUDE_PLUGIN_ROOT}/sentinel/area-config-schema.md`:
 
 - Required fields present.
 - Rule IDs unique within the file.

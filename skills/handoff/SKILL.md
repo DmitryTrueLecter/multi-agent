@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Hand off a task between roles in the multi-agent system — swap the `agent:<role>` label, transition status, and add a `🤖 <from-role> (<area>):` comment in one step. Use whenever an agent finishes its part of a task and is ready to pass it to the next role. Invocation: `/handoff <ISSUE-KEY> [to-role] [comment]`.
+description: Hand off a task between roles in the multi-agent system — swap the `agent:<role>` label, transition status, and add a `🤖 <from-role> (<area>):` comment in one step. Use whenever an agent finishes its part of a task and is ready to pass it to the next role. Invocation: `/dma:handoff <ISSUE-KEY> [to-role] [comment]`.
 tools: mcp__atlassian__jira_get_issue, mcp__atlassian__jira_update_issue, mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_add_comment, mcp__linear__get_issue, mcp__linear__save_issue, mcp__linear__save_comment
 ---
 
@@ -12,13 +12,13 @@ Status names in this skill are referenced by semantic key (e.g. `code_review`, `
 
 ## Usage
 
-`/handoff <ISSUE-KEY> [to-role] [comment]`
+`/dma:handoff <ISSUE-KEY> [to-role] [comment]`
 
 | Form | What it does |
 |------|--------------|
-| `/handoff <KEY>` | Default forward: `dev → qa`, `qa → reviewer`, `reviewer → awaiting_merge`, `devops → awaiting_ops` |
-| `/handoff <KEY> <to-role>` | Explicit target: `dev`, `qa`, `reviewer`, `devops`, `team-lead`, `awaiting_merge`, `awaiting_ops`, `done` |
-| `/handoff <KEY> <to-role> <comment>` | Same, with a custom comment body |
+| `/dma:handoff <KEY>` | Default forward: `dev → qa`, `qa → reviewer`, `reviewer → awaiting_merge`, `devops → awaiting_ops` |
+| `/dma:handoff <KEY> <to-role>` | Explicit target: `dev`, `qa`, `reviewer`, `devops`, `team-lead`, `awaiting_merge`, `awaiting_ops`, `done` |
+| `/dma:handoff <KEY> <to-role> <comment>` | Same, with a custom comment body |
 
 ## Target → status key / label changes
 
@@ -35,12 +35,12 @@ Status names in this skill are referenced by semantic key (e.g. `code_review`, `
 
 Why these rules:
 - **`area:<area>` is never touched.** It's the permanent area-ownership label, not a queue marker.
-- **`done`, `awaiting_merge`, and `awaiting_ops` drop `agent:<from>` and add no new `agent:` label.** None of those statuses has an agent owner: `done` is terminal, `awaiting_merge` waits on a human merge, `awaiting_ops` waits on the human executing a devops runbook. The status column is the routing signal; `/pr-feedback` reconciles `awaiting_merge` into `done` (merged) or `to_do` + `agent:dev` (declined); `awaiting_ops` is closed by the user manually via `/handoff <KEY> done`.
+- **`done`, `awaiting_merge`, and `awaiting_ops` drop `agent:<from>` and add no new `agent:` label.** None of those statuses has an agent owner: `done` is terminal, `awaiting_merge` waits on a human merge, `awaiting_ops` waits on the human executing a devops runbook. The status column is the routing signal; `/dma:pr-feedback` reconciles `awaiting_merge` into `done` (merged) or `to_do` + `agent:dev` (declined); `awaiting_ops` is closed by the user manually via `/dma:handoff <KEY> done`.
 - **For `team-lead`, the extra `needs-decision` label is mandatory.** The team-lead's `on_hold` queue filters on it — without it the task gets lost.
 
 ## Steps
 
-1. Read `.claude/config.yml` → `tasks.provider`, `tasks.workflow.statuses` (semantic-key → display-name map), and `tasks.jira.transitions` (semantic-key → numeric transition id map; jira provider only).
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`, `tasks.workflow.statuses` (semantic-key → display-name map), and `tasks.jira.transitions` (semantic-key → numeric transition id map; jira provider only).
 2. Parse arguments into `<KEY>`, optional `<to-role>`, optional `<comment>`.
 3. Read the issue (see provider section below) to get current `agent:<role>` and `area:<area>` labels.
 4. If `<to-role>` is omitted, derive the default forward target:
@@ -62,9 +62,9 @@ Why these rules:
 
 Step 8 implementation:
 1. `mcp__atlassian__jira_update_issue(issue_key=<KEY>, fields={"labels": [<new label list>]})` — full label list replacement.
-2. Read `tasks.jira.transitions.<status key from step 7's source table>` from config — the numeric transition id for the target status. If missing or `0`: stop and report — run `/sentinel-bootstrap-jira` to populate the map.
+2. Read `tasks.jira.transitions.<status key from step 7's source table>` from config — the numeric transition id for the target status. If missing or `0`: stop and report — run `/dma:sentinel-bootstrap-jira` to populate the map.
 3. `mcp__atlassian__jira_transition_issue(issue_key=<KEY>, transition_id=<id>)`. If Jira rejects the transition, stop and report — do not retry. The most common cause is that the Jira workflow does not expose a transition from the current status to the target; that requires a Jira workflow change, not a skill change.
-4. `mcp__atlassian__jira_add_comment(issue_key=<KEY>, body="🤖 <from-role> (<area>): handoff → <to-role>\n\n<comment body or 'Manual handoff via /handoff.'>")`.
+4. `mcp__atlassian__jira_add_comment(issue_key=<KEY>, body="🤖 <from-role> (<area>): handoff → <to-role>\n\n<comment body or 'Manual handoff via /dma:handoff.'>")`.
 
 ---
 
@@ -74,19 +74,19 @@ Step 3: call `mcp__linear__get_issue(id=<KEY>)` to get labels and state.
 
 Step 8 implementation (labels + state in one call, then comment):
 1. `mcp__linear__save_issue(id=<KEY>, labels=[<new label list>], state=<status name from step 7>)`. If Linear rejects, stop and report.
-2. `mcp__linear__save_comment(issueId=<KEY>, body="🤖 <from-role> (<area>): handoff → <to-role>\n\n<comment body or 'Manual handoff via /handoff.'>")`.
+2. `mcp__linear__save_comment(issueId=<KEY>, body="🤖 <from-role> (<area>): handoff → <to-role>\n\n<comment body or 'Manual handoff via /dma:handoff.'>")`.
 
 ---
 
 ## Worktree cleanup (called by step 9 when target is `done`)
 
-A handoff to `done` is the canonical signal that the task / epic is closed. Persistent worktrees created by `/run` (see `commands/run.md → ## Worktree bootstrap`) are removed here. This is the only automated cleanup path; orphaned worktrees from other close-out routes surface in `/sentinel healthcheck` (HC-WT-001).
+A handoff to `done` is the canonical signal that the task / epic is closed. Persistent worktrees created by `/dma:run` (see `commands/run.md → ## Worktree bootstrap`) are removed here. This is the only automated cleanup path; orphaned worktrees from other close-out routes surface in `/dma:sentinel healthcheck` (HC-WT-001).
 
 ### Steps
 
-1. Read `.claude/config.yml` and `.claude/areas/*/area.yml` to enumerate candidate repos whose `.worktrees/<KEY>/` might exist:
-   - Project root (always): `<abs-project-root>`.
-   - Per area: `<abs-area-repo>` = `(cd <area.yml.workspace.path> && git rev-parse --show-toplevel)`. Collect distinct values; in a monorepo all areas resolve to project root and the set collapses to `{<abs-project-root>}`.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` and `${CLAUDE_PROJECT_DIR}/.claude/areas/*/area.yml` to enumerate candidate repos whose `.worktrees/<KEY>/` might exist:
+   - Project root (always): `${CLAUDE_PROJECT_DIR}`.
+   - Per area: `<abs-area-repo>` = `(cd <area.yml.workspace.path> && git rev-parse --show-toplevel)`. Collect distinct values; in a monorepo all areas resolve to project root and the set collapses to `{${CLAUDE_PROJECT_DIR}}`.
 2. For each candidate repo, build `<repo>/.worktrees/<KEY>`. If `test -d` succeeds, attempt removal:
    ```
    git -C <repo> worktree remove <repo>/.worktrees/<KEY>

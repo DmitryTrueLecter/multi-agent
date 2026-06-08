@@ -1,6 +1,6 @@
 ---
 name: issue-update-labels
-description: Update labels on an issue without changing its status. Accepts add/remove lists; preserves all other labels. Use for label-only changes not covered by /handoff. Invocation: /issue-update-labels <ISSUE-KEY> [add:<l1>,<l2>] [remove:<l1>,<l2>].
+description: Update labels on an issue without changing its status. Accepts add/remove lists; preserves all other labels. Use for label-only changes not covered by /dma:handoff. Invocation: /dma:issue-update-labels <ISSUE-KEY> [add:<l1>,<l2>] [remove:<l1>,<l2>].
 tools: mcp__atlassian__jira_get_issue, mcp__atlassian__jira_update_issue, mcp__linear__get_issue, mcp__linear__save_issue
 ---
 
@@ -10,13 +10,13 @@ Update labels on an issue without touching its status.
 
 ## Usage
 
-`/issue-update-labels <ISSUE-KEY> [add:<l1>,<l2>] [remove:<l1>,<l2>]`
+`/dma:issue-update-labels <ISSUE-KEY> [add:<l1>,<l2>] [remove:<l1>,<l2>]`
 
 At least one of `add:` or `remove:` must be provided.
 
 ## Steps
 
-1. Read `.claude/config.yml` → `tasks.provider`.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`.
 2. Follow the section for your provider.
 
 ---

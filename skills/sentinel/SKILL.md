@@ -1,6 +1,6 @@
 ---
 name: sentinel
-description: "Sentinel: meta-agent for prompt quality and pipeline health. /sentinel enters conversation mode; /sentinel full-audit, /sentinel retrospective <EPIC-KEY>, /sentinel healthcheck, or /sentinel healthcheck fix runs immediately."
+description: "Sentinel: meta-agent for prompt quality and pipeline health. /dma:sentinel enters conversation mode; /dma:sentinel full-audit, /dma:sentinel retrospective <EPIC-KEY>, /dma:sentinel healthcheck, or /dma:sentinel healthcheck fix runs immediately."
 ---
 
 # Sentinel
@@ -9,19 +9,19 @@ Audit the multi-agent system. Primary focus: prompt quality and agent architectu
 
 ## Usage
 
-`/sentinel [full-audit | retrospective <EPIC-KEY> | healthcheck [fix]]`
+`/dma:sentinel [full-audit | retrospective <EPIC-KEY> | healthcheck [fix]]`
 
 | Form | What it does |
 |------|--------------|
-| `/sentinel` | Enter conversation mode -- greet and ask what to analyze |
-| `/sentinel full-audit` | Full audit -- all areas, Done issues from last 60 days |
-| `/sentinel retrospective <KEY>` | Retrospective -- scoped to one Epic's children |
-| `/sentinel healthcheck` | Diagnose local setup -- symlinks, config, MCP reachability, tracker alignment |
-| `/sentinel healthcheck fix` | Diagnose + auto-fix mechanical findings (symlinks, empty dirs, templates) |
+| `/dma:sentinel` | Enter conversation mode -- greet and ask what to analyze |
+| `/dma:sentinel full-audit` | Full audit -- all areas, Done issues from last 60 days |
+| `/dma:sentinel retrospective <KEY>` | Retrospective -- scoped to one Epic's children |
+| `/dma:sentinel healthcheck` | Diagnose local setup -- project-local config, MCP reachability, tracker alignment |
+| `/dma:sentinel healthcheck fix` | Diagnose + auto-fix mechanical findings (empty dirs, templates, inbox link) |
 
 ## Steps
 
-1. Capture `<abs-project-root>` = `pwd` (skills run from the project root).
+1. Capture `${CLAUDE_PROJECT_DIR}` = `pwd` (skills run from the project root).
 2. Parse arguments:
    - No args -> **conversation mode** (see step 3a)
    - `full-audit` -> `Mode: full-audit` (see step 3b)
@@ -39,8 +39,8 @@ Audit the multi-agent system. Primary focus: prompt quality and agent architectu
    Spawn the sentinel agent (foreground -- wait for the report):
    ```
    Agent(
-     subagent_type="sentinel",
-     prompt="Project: <abs-project-root>. <mode-string>."
+     subagent_type="dma:sentinel",
+     prompt="Project: ${CLAUDE_PROJECT_DIR}. <mode-string>."
    )
    ```
    Relay the agent's report to the user verbatim.

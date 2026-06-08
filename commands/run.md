@@ -1,28 +1,28 @@
 ---
-description: "Run agent: /run | /run <ISSUE-KEY> | /run pipeline | /run all | /run dev | /run <area/role>"
+description: "Run agent: /dma:run | /dma:run <ISSUE-KEY> | /dma:run pipeline | /dma:run all | /dma:run dev | /dma:run <area/role>"
 ---
 
 Launch a subagent to work on a Jira task.
 
-**Setup:** Read `.claude/config.yml` to get `tasks.project_key`, `tasks.workflow.statuses` (semantic key → tracker display name), and known areas (scan `.claude/areas/` subdirectory names). Resolve every `<statuses.X>` reference below through that map. The task/PR operations use skills — no direct tracker or VCS platform MCP calls in this command.
+**Setup:** Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` to get `tasks.project_key`, `tasks.workflow.statuses` (semantic key → tracker display name), and known areas (scan `${CLAUDE_PROJECT_DIR}/.claude/areas/` subdirectory names). Resolve every `<statuses.X>` reference below through that map. The task/PR operations use skills — no direct tracker or VCS platform MCP calls in this command.
 
 **Usage patterns:**
 
 | Command | What it does |
 |---------|-------------|
-| `/run` | Auto-find highest priority task, run one step |
-| `/run <ISSUE-KEY>` | Run the responsible agent for this issue (role from label) |
-| `/run pipeline` | Find highest priority task, run full cycle (dev → qa → reviewer → done) |
-| `/run pipeline <ISSUE-KEY>` | Run full cycle for a specific task |
-| `/run all` | Run tasks until the board is clear (each task = full pipeline) |
-| `/run dev` | First available `to_do` task for **any** area's dev |
-| `/run qa` | First available `qa` task for **any** area's qa |
-| `/run reviewer` | First available `code_review` task for **any** area's reviewer |
-| `/run devops` | First available `to_do` task labelled `agent:devops` |
-| `/run sentinel` | First available `to_do` task labelled `agent:sentinel` |
-| `/run <area>/dev` | First available `to_do` task for that area's dev |
-| `/run <area>/<role> <ISSUE-KEY>` | Run a specific role on a specific issue (override role) |
-| `/run <KEY-1> <KEY-2>` | Two separate parallel agents (roles from labels) |
+| `/dma:run` | Auto-find highest priority task, run one step |
+| `/dma:run <ISSUE-KEY>` | Run the responsible agent for this issue (role from label) |
+| `/dma:run pipeline` | Find highest priority task, run full cycle (dev → qa → reviewer → done) |
+| `/dma:run pipeline <ISSUE-KEY>` | Run full cycle for a specific task |
+| `/dma:run all` | Run tasks until the board is clear (each task = full pipeline) |
+| `/dma:run dev` | First available `to_do` task for **any** area's dev |
+| `/dma:run qa` | First available `qa` task for **any** area's qa |
+| `/dma:run reviewer` | First available `code_review` task for **any** area's reviewer |
+| `/dma:run devops` | First available `to_do` task labelled `agent:devops` |
+| `/dma:run sentinel` | First available `to_do` task labelled `agent:sentinel` |
+| `/dma:run <area>/dev` | First available `to_do` task for that area's dev |
+| `/dma:run <area>/<role> <ISSUE-KEY>` | Run a specific role on a specific issue (override role) |
+| `/dma:run <KEY-1> <KEY-2>` | Two separate parallel agents (roles from labels) |
 
 **Role → queue mapping** (each role picks from one queue and claims by transitioning to `in_progress`):
 
@@ -45,22 +45,22 @@ The `agent:` label disambiguates queues that share a status: `code_review` split
 
 Reviewer-approved tasks sit in `statuses.awaiting_merge` until the user merges or declines the PR in the VCS platform. Before searching for the next task to run, this pre-flight syncs those user decisions into the issue tracker.
 
-**When to run.** As the very first step of every `/run` invocation — auto-mode, pipeline mode, all mode, single-issue mode, role-only shortcut. On `/run all`, re-runs before each iteration's task pickup.
+**When to run.** As the very first step of every `/dma:run` invocation — auto-mode, pipeline mode, all mode, single-issue mode, role-only shortcut. On `/dma:run all`, re-runs before each iteration's task pickup.
 
-Run `/pr-feedback` — the skill handles all PR list queries, issue tracker label/status updates, epic close-out promotion, and error recovery. It returns once all pending decisions are synced.
+Run `/dma:pr-feedback` — the skill handles all PR list queries, issue tracker label/status updates, epic close-out promotion, and error recovery. It returns once all pending decisions are synced.
 
 ## Stuck task pre-flight (runs after PR feedback reconciliation, before queue search)
 
 A task in `<statuses.in_progress>` with an `agent:<role>` label is either being worked on right now (this session or another) or was abandoned mid-flight by an externally-terminated subagent (usage limit, sandbox kill, OOM). The tracker alone cannot tell the two apart, and this session's `TaskList` only sees its own subagents. This pre-flight surfaces ambiguous tasks and asks the user — it never rolls back automatically.
 
-**When to run.** Once per `/run` invocation, immediately after `/pr-feedback`, before the first queue search. Runs in every mode (`/run`, `/run pipeline`, `/run all`, `/run <KEY>`, role-only shortcut). On `/run all`, does **not** re-run before each iteration — within a single invocation, the only new in-progress tasks are ones this session just spawned.
+**When to run.** Once per `/dma:run` invocation, immediately after `/dma:pr-feedback`, before the first queue search. Runs in every mode (`/dma:run`, `/dma:run pipeline`, `/dma:run all`, `/dma:run <KEY>`, role-only shortcut). On `/dma:run all`, does **not** re-run before each iteration — within a single invocation, the only new in-progress tasks are ones this session just spawned.
 
 1. **List in-progress tasks** across roles:
-   - `/issue-search status:<statuses.in_progress> label:agent:dev`
-   - `/issue-search status:<statuses.in_progress> label:agent:qa`
-   - `/issue-search status:<statuses.in_progress> label:agent:reviewer`
-   - `/issue-search status:<statuses.in_progress> label:agent:team-lead`
-   - `/issue-search status:<statuses.in_progress> label:agent:devops`
+   - `/dma:issue-search status:<statuses.in_progress> label:agent:dev`
+   - `/dma:issue-search status:<statuses.in_progress> label:agent:qa`
+   - `/dma:issue-search status:<statuses.in_progress> label:agent:reviewer`
+   - `/dma:issue-search status:<statuses.in_progress> label:agent:team-lead`
+   - `/dma:issue-search status:<statuses.in_progress> label:agent:devops`
 
 2. **Cross-reference with this session's live subagents** via `TaskList`. Every spawn prompt from "Steps" contains the issue key (`Issue: <KEY>`, `Coordination task: <KEY>`, `On Hold task: <KEY>`, `Group close-out: <KEY>`). A task is **active in this session** when some live `TaskList` entry's prompt mentions its key.
 
@@ -77,7 +77,7 @@ A task in `<statuses.in_progress>` with an `agent:<role>` label is either being 
    ```
 
    - **Roll back** — transition the task to `<statuses.to_do>`, keep the `agent:<role>` label, post a comment `🤖 team-lead: stuck-task recovery — external termination suspected, returned to queue.` The task re-enters normal queue pickup on the next iteration. If the branch shows uncommitted files or unpushed commits, repeat the warning with the file list and re-confirm before transitioning — the work survives in the branch, and the next dev that picks the task up decides what to do with it.
-   - **Leave alone** — no tracker change; skip this task for the current `/run` invocation. Use when the task is likely running in another session.
+   - **Leave alone** — no tracker change; skip this task for the current `/dma:run` invocation. Use when the task is likely running in another session.
 
 6. **Recency hint.** Tasks claimed within the last few minutes are almost certainly running in another session; tasks claimed hours or days ago are almost certainly stuck. Show the duration so the user has the signal — do not act on it automatically.
 
@@ -85,24 +85,20 @@ A task in `<statuses.in_progress>` with an `agent:<role>` label is either being 
 
 Every agent that operates on a specific branch's state — dev, qa, reviewer, devops, sentinel Mode: task, team-lead at epic close-out — runs inside a persistent git worktree under `.worktrees/<KEY>`. This isolates the working tree per task / epic so parallel agents on different keys do not collide.
 
-**When called.** Step 7 invokes this procedure once per agent the current `/run` invocation is about to spawn. For task-scoped agents the key is the task `ISSUE-KEY`; for team-lead epic close-out the key is the `EPIC-KEY` and the procedure runs once per area-repo touched by the epic (see "Multi-repo team-lead epic close-out" below).
+**When called.** Step 7 invokes this procedure once per agent the current `/dma:run` invocation is about to spawn. For task-scoped agents the key is the task `ISSUE-KEY`; for team-lead epic close-out the key is the `EPIC-KEY` and the procedure runs once per area-repo touched by the epic (see "Multi-repo team-lead epic close-out" below).
 
-**Inputs.** `<abs-project-root>` (orchestrator's cwd), `<workspace.path>` resolved per the agent's role (per step 7), the issue/epic key.
+**Inputs.** `${CLAUDE_PROJECT_DIR}` (orchestrator's cwd), `<workspace.path>` resolved per the agent's role (per step 7), the issue/epic key.
 
 ### Steps
 
-1. Resolve the repo that owns the workspace: `<abs-repo-root>` = `(cd <workspace.path> && git rev-parse --show-toplevel)`. In a monorepo this equals `<abs-project-root>`. In a multi-repo project this equals the area-repo (e.g. `<abs-project-root>/<area>-backend`).
+1. Resolve the repo that owns the workspace: `<abs-repo-root>` = `(cd <workspace.path> && git rev-parse --show-toplevel)`. In a monorepo this equals `${CLAUDE_PROJECT_DIR}`. In a multi-repo project this equals the area-repo (e.g. `${CLAUDE_PROJECT_DIR}/<area>-backend`).
 2. Set `<abs-worktree-path>` = `<abs-repo-root>/.worktrees/<KEY>`.
 3. If `<abs-worktree-path>` does not exist, create it:
    ```
    git -C <abs-repo-root> worktree add --detach <abs-worktree-path> HEAD
    ```
    On git failure (typical cause: branch already checked out in another worktree), stop and report — the user closes the conflicting worktree first.
-4. If `<abs-worktree-path>/.claude/` exists after the add (parent-repo case — monorepo, or any worktree whose checkout includes `.claude/`), replicate the gitignored pieces:
-   - Discover the plugin parent name dynamically — projects pin to upstream repo names, the canonical `.multi-agent` is one valid value among many. Read the target of any working entry symlink: `<plugin-parent-name>` = `dirname $(readlink <abs-project-root>/.claude/agents)`. If `agents` is not a symlink (no plugin mount in this project), skip step 4 entirely.
-   - Resolve the absolute plugin path: `<abs-plugin-root>` = `readlink -f <abs-project-root>/.claude/<plugin-parent-name>`.
-   - `ln -snf <abs-plugin-root> <abs-worktree-path>/.claude/<plugin-parent-name>` — restores the gitignored parent symlink so the worktree's committed entry symlinks (`.claude/agents`, `.claude/skills`, etc.) resolve.
-   - `ln -snf <abs-project-root>/.claude/sentinel-inbox <abs-worktree-path>/.claude/sentinel-inbox` — shares the inbox across worktrees.
+4. If `<abs-worktree-path>/.claude/` exists after the add (parent-repo case — monorepo, or any worktree whose checkout includes `.claude/`), share the gitignored inbox: `ln -snf ${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox <abs-worktree-path>/.claude/sentinel-inbox`. The `dma` plugin needs no replication — Claude Code loads it globally, so subagents reach their prompts in every worktree. Only `sentinel-inbox/` is gitignored and project-local, so it is the one piece a worktree checkout lacks.
 5. Link the gitignored artifacts the project declares for worktrees. For each entry in `config.yml` `worktree.link_paths` (unset or empty → skip): when `<abs-repo-root>/<entry>` exists and `<abs-worktree-path>/<entry>` does not, run `ln -snf <abs-repo-root>/<entry> <abs-worktree-path>/<entry>`. Use this for self-contained artifacts that are safe to share by reference and costly to rebuild — a language runtime such as a virtualenv. Do not link an install-managed dependency tree whose internal layout assumes a fixed location (e.g. `node_modules` under an isolated package manager); provision those through `setup_commands` in the next step. The list is project-local — the plugin stays stack-agnostic.
 6. Run the setup commands the project declares for worktrees. For each command in `config.yml` `worktree.setup_commands` (unset or empty → skip), run it from the worktree root: `( cd <abs-worktree-path> && <command> )`. Use this for per-worktree state that must be built rather than shared — installing an isolated dependency tree, generating code. Commands run in listed order; a non-zero exit aborts the bootstrap and surfaces the failing command. The list is project-local — the plugin stays stack-agnostic.
 7. Return `<abs-worktree-path>` to step 7 as the resolved workspace.
@@ -111,37 +107,37 @@ Every agent that operates on a specific branch's state — dev, qa, reviewer, de
 
 When step 7 prepares a `team-lead` epic close-out spawn, the worktree is created in **every area-repo touched by the epic's children**, not just one.
 
-1. Collect the set of areas touched by the epic — call `/issue-search parent:<EPIC-KEY>` and union the `area:<area>` labels of the children.
+1. Collect the set of areas touched by the epic — call `/dma:issue-search parent:<EPIC-KEY>` and union the `area:<area>` labels of the children.
 2. For each area in that set, resolve `<workspace.path>` from `<area>/area.yml` and run "Steps" above with `<EPIC-KEY>` as the key. Each iteration produces one worktree under that area-repo's `.worktrees/<EPIC-KEY>/`. Team-lead checks out branch `<vcs.branch_prefix><EPIC-KEY>` inside each per its agent prompt.
 3. Pass the full list to team-lead as `Workspaces: <area1>=<abs-worktree-path-1>;<area2>=<abs-worktree-path-2>;…` (see step 9 spawn shape).
 
 ### Cleanup
 
-The bootstrap creates the worktree; `/handoff <KEY> done` removes it (see `skills/handoff/SKILL.md`). `/run` does not clean up on its own. Orphaned worktrees (task closed via UI, `/pr-feedback` skipped, etc.) surface in `/sentinel healthcheck` (HC-WT-001).
+The bootstrap creates the worktree; `/dma:handoff <KEY> done` removes it (see `skills/handoff/SKILL.md`). `/dma:run` does not clean up on its own. Orphaned worktrees (task closed via UI, `/dma:pr-feedback` skipped, etc.) surface in `/dma:sentinel healthcheck` (HC-WT-001).
 
-## Auto-mode (`/run` without arguments)
+## Auto-mode (`/dma:run` without arguments)
 
 Search for the first available issue in priority order. Stop at the first match:
 
-0. **Run pre-flights** — `/pr-feedback` (see "PR feedback reconciliation" above), then stuck-task scan (see "Stuck task pre-flight" above).
-1. **On hold** — `/issue-search status:<statuses.on_hold> label:agent:team-lead`. Launch `team-lead` agent. (Tasks in `awaiting_merge` and `awaiting_ops` are skipped here — `awaiting_merge` is handled by `/pr-feedback`, `awaiting_ops` is closed manually by the user.)
-2. **To Do (team-lead coordination)** — `/issue-search status:<statuses.to_do> label:agent:team-lead` (filter out tasks whose blockers are not all `done`). Launch `team-lead` agent. Short lifecycle: `to_do` → team-lead acts → `done`, no dev/qa/reviewer cycle. Typical source: sentinel triage routing a finding that needs architect consultation followed by `Mode: structure` applies, or area scaffolding.
-3. **To Do (sentinel)** — `/issue-search status:<statuses.to_do> label:agent:sentinel` (filter out tasks whose blockers are not all `done`). Launch `sentinel` agent in task-mode. Short lifecycle: `to_do` → sentinel works the area branch and opens a PR → `awaiting_merge`, no dev/qa/reviewer cycle. Typical source: prompt-deliverable Task created by team-lead per `agents/team-lead.md → ## Consulting sentinel → Task`.
-4. **Code Review (group)** — `/issue-search type:group status:<statuses.code_review> label:agent:team-lead`. Launch `team-lead` agent for group close-out.
-5. **Code Review (Task)** — `/issue-search type:task status:<statuses.code_review> label:agent:reviewer`. Also accept `agent:reviewer` in `<statuses.to_do>` (a reviewer task the stuck-task pre-flight rolled back) — `agent:<role>` marks the owner, so a `to_do` task is dispatched to its agent just as `dev`/`devops`/`team-lead`/`sentinel` tasks are. Launch `reviewer` agent on the first match.
-6. **QA** — `/issue-search status:<statuses.qa> label:agent:qa`. Also accept `agent:qa` in `<statuses.to_do>` (a qa task the stuck-task pre-flight rolled back). Launch `qa` agent on the first match.
-7. **To Do (dev)** — `/issue-search status:<statuses.to_do> label:agent:dev` (filter out tasks whose blockers are not all `done`). Launch `dev` agent.
-8. **To Do (devops)** — `/issue-search status:<statuses.to_do> label:agent:devops` (filter out tasks whose blockers are not all `done`). Launch `devops` agent.
+0. **Run pre-flights** — `/dma:pr-feedback` (see "PR feedback reconciliation" above), then stuck-task scan (see "Stuck task pre-flight" above).
+1. **On hold** — `/dma:issue-search status:<statuses.on_hold> label:agent:team-lead`. Launch `team-lead` agent. (Tasks in `awaiting_merge` and `awaiting_ops` are skipped here — `awaiting_merge` is handled by `/dma:pr-feedback`, `awaiting_ops` is closed manually by the user.)
+2. **To Do (team-lead coordination)** — `/dma:issue-search status:<statuses.to_do> label:agent:team-lead` (filter out tasks whose blockers are not all `done`). Launch `team-lead` agent. Short lifecycle: `to_do` → team-lead acts → `done`, no dev/qa/reviewer cycle. Typical source: sentinel triage routing a finding that needs architect consultation followed by `Mode: structure` applies, or area scaffolding.
+3. **To Do (sentinel)** — `/dma:issue-search status:<statuses.to_do> label:agent:sentinel` (filter out tasks whose blockers are not all `done`). Launch `sentinel` agent in task-mode. Short lifecycle: `to_do` → sentinel works the area branch and opens a PR → `awaiting_merge`, no dev/qa/reviewer cycle. Typical source: prompt-deliverable Task created by team-lead per `agents/team-lead.md → ## Consulting sentinel → Task`.
+4. **Code Review (group)** — `/dma:issue-search type:group status:<statuses.code_review> label:agent:team-lead`. Launch `team-lead` agent for group close-out.
+5. **Code Review (Task)** — `/dma:issue-search type:task status:<statuses.code_review> label:agent:reviewer`. Also accept `agent:reviewer` in `<statuses.to_do>` (a reviewer task the stuck-task pre-flight rolled back) — `agent:<role>` marks the owner, so a `to_do` task is dispatched to its agent just as `dev`/`devops`/`team-lead`/`sentinel` tasks are. Launch `reviewer` agent on the first match.
+6. **QA** — `/dma:issue-search status:<statuses.qa> label:agent:qa`. Also accept `agent:qa` in `<statuses.to_do>` (a qa task the stuck-task pre-flight rolled back). Launch `qa` agent on the first match.
+7. **To Do (dev)** — `/dma:issue-search status:<statuses.to_do> label:agent:dev` (filter out tasks whose blockers are not all `done`). Launch `dev` agent.
+8. **To Do (devops)** — `/dma:issue-search status:<statuses.to_do> label:agent:devops` (filter out tasks whose blockers are not all `done`). Launch `devops` agent.
 
 If nothing found at any level, report that the board is clear.
 
-## Pipeline mode (`/run pipeline [ISSUE-KEY]`)
+## Pipeline mode (`/dma:run pipeline [ISSUE-KEY]`)
 
 Run a single task through the **full lifecycle** until `done` (or until it gets stuck on `on_hold`).
 
-**Devops tasks are not eligible for pipeline mode** — they have no qa/reviewer cycle, and `awaiting_ops` requires human action that the agent loop cannot drive. Use `/run <DEVOPS-KEY>` (single step) instead. If a key labelled `agent:devops` is passed to pipeline mode, stop and report: "devops tasks run as a single step — use /run <KEY> instead."
+**Devops tasks are not eligible for pipeline mode** — they have no qa/reviewer cycle, and `awaiting_ops` requires human action that the agent loop cannot drive. Use `/dma:run <DEVOPS-KEY>` (single step) instead. If a key labelled `agent:devops` is passed to pipeline mode, stop and report: "devops tasks run as a single step — use /dma:run <KEY> instead."
 
-0. **Run pre-flights** before the first stage — `/pr-feedback` (see "PR feedback reconciliation" above) and stuck-task scan (see "Stuck task pre-flight" above).
+0. **Run pre-flights** before the first stage — `/dma:pr-feedback` (see "PR feedback reconciliation" above) and stuck-task scan (see "Stuck task pre-flight" above).
 
 1. **Find the task:**
    - If `ISSUE-KEY` given: use it.
@@ -161,11 +157,11 @@ Run a single task through the **full lifecycle** until `done` (or until it gets 
 
 4. **Guard against infinite loops**: track how many times the task has bounced back. After **3 bounces** (e.g. qa rejects → dev fixes → qa rejects again → ...), stop and report to user.
 
-## All mode (`/run all`)
+## All mode (`/dma:run all`)
 
 Run tasks until the board is clear.
 
-1. **Run pre-flights** — `/pr-feedback` (see "PR feedback reconciliation" above) runs before each iteration; the stuck-task scan (see "Stuck task pre-flight" above) runs only on the first iteration.
+1. **Run pre-flights** — `/dma:pr-feedback` (see "PR feedback reconciliation" above) runs before each iteration; the stuck-task scan (see "Stuck task pre-flight" above) runs only on the first iteration.
 2. Use auto-mode priority to find a task.
 3. Run it through the **full pipeline** (same as pipeline mode).
 4. After the task reaches `done` (or `on_hold`), go back to step 1 (reconciliation runs again before the next iteration).
@@ -176,7 +172,7 @@ Run tasks until the board is clear.
 
 ## Stop semantics
 
-Subagents launched by `/run` always run in **background mode** (see step 8 in "Steps"), so this main session is responsive to user messages while a subagent works. The user can interrupt the loop at any time.
+Subagents launched by `/dma:run` always run in **background mode** (see step 8 in "Steps"), so this main session is responsive to user messages while a subagent works. The user can interrupt the loop at any time.
 
 **Stop intent.** A user message containing `stop`, `остановись`, `abort`, `cancel`, `отмена`, or equivalent phrasing means "kill the current subagent and exit the loop". Be conservative: a permission approval (`yes`, `ok`), a follow-up question, or any other message is **not** stop intent — only act on explicit signals.
 
@@ -192,7 +188,7 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
 
 ## Steps (for single-step modes)
 
-0. **Run pre-flights** before parsing arguments — `/pr-feedback` (see "PR feedback reconciliation" above) and stuck-task scan (see "Stuck task pre-flight" above). Both apply even on `/run <ISSUE-KEY>`, so a queued user-decline and any half-claimed in-progress task surface before this manual run picks anything up.
+0. **Run pre-flights** before parsing arguments — `/dma:pr-feedback` (see "PR feedback reconciliation" above) and stuck-task scan (see "Stuck task pre-flight" above). Both apply even on `/dma:run <ISSUE-KEY>`, so a queued user-decline and any half-claimed in-progress task surface before this manual run picks anything up.
 
 1. Parse `$ARGUMENTS`:
    - If empty: auto-mode (see above).
@@ -203,14 +199,14 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
    - Multiple issue keys: launch parallel agents.
 
 2. Find target task(s):
-   - If issue keys given: use `/task-read <KEY>` on each — determine role from `agent:` label and area from `area:` label.
+   - If issue keys given: use `/dma:task-read <KEY>` on each — determine role from `agent:` label and area from `area:` label.
      - `agent:dev` → role is `dev`.
      - `agent:qa` → role is `qa`.
      - `agent:reviewer` → role is `reviewer`.
      - `agent:team-lead` → role is `team-lead`.
      - `agent:sentinel` → role is `sentinel`.
      - `agent:devops` → role is `devops`.
-   - If role-only: use `/issue-search status:<statuses.[role-queue-key]> label:agent:<role>`, where the role-queue-key comes from the **Role → queue mapping** table above.
+   - If role-only: use `/dma:issue-search status:<statuses.[role-queue-key]> label:agent:<role>`, where the role-queue-key comes from the **Role → queue mapping** table above.
    - Take the **first** result only (unless multiple keys given).
 
 3. If no tasks found, report why and stop.
@@ -219,10 +215,10 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
 
 5. Verify blocked-by issues are all `done` (for dev tasks, using data already returned in step 2). If not, report and stop.
 
-6. **Claim the task**: `/issue-claim <KEY>` (for every role). On failure (another runner claimed it first), drop this task and pick the next one. If the queue is now empty, report "board contended, nothing else to take" and stop. On success, use the full task data returned by the skill — no separate `/task-read` needed.
+6. **Claim the task**: `/dma:issue-claim <KEY>` (for every role). On failure (another runner claimed it first), drop this task and pick the next one. If the queue is now empty, report "board contended, nothing else to take" and stop. On success, use the full task data returned by the skill — no separate `/dma:task-read` needed.
 
 7. **Resolve absolute paths and bootstrap the worktree** (dev / qa / reviewer / devops / sentinel Mode: task / team-lead epic close-out).
-   - `<abs-project-root>` = `pwd` (your cwd).
+   - `${CLAUDE_PROJECT_DIR}` = `pwd` (your cwd).
    - `<workspace.path>` resolution per agent role:
      - dev / qa / reviewer / sentinel Mode: task: `area.yml.workspace.path` → `config.yml.workspace.path` → `.`.
      - devops: `config.yml.workspace.path` → `.` (no area override).
@@ -236,24 +232,24 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
     - `dev`/`qa`/`reviewer`:
       ```
       Agent(
-        subagent_type="<role>",
-        prompt="Project: <abs-project-root>. Area: <area>. Workspace: <abs-workspace-path>. Issue: <ISSUE-KEY>.",
+        subagent_type="dma:<role>",
+        prompt="Project: ${CLAUDE_PROJECT_DIR}. Area: <area>. Workspace: <abs-workspace-path>. Issue: <ISSUE-KEY>.",
         run_in_background=true,
       )
       ```
     - `team-lead` on Task in `to_do` (coordination):
       ```
-      Agent(subagent_type="team-lead", prompt="Coordination task: <ISSUE-KEY>.", run_in_background=true)
+      Agent(subagent_type="dma:team-lead", prompt="Coordination task: <ISSUE-KEY>.", run_in_background=true)
       ```
     - `team-lead` on Task in `on_hold`:
       ```
-      Agent(subagent_type="team-lead", prompt="On Hold task: <ISSUE-KEY>.", run_in_background=true)
+      Agent(subagent_type="dma:team-lead", prompt="On Hold task: <ISSUE-KEY>.", run_in_background=true)
       ```
     - `team-lead` on group issue in `code_review`:
       ```
       Agent(
-        subagent_type="team-lead",
-        prompt="Project: <abs-project-root>. Group close-out: <ISSUE-KEY>. Workspaces: <area1>=<abs-worktree-path-1>;<area2>=<abs-worktree-path-2>.",
+        subagent_type="dma:team-lead",
+        prompt="Project: ${CLAUDE_PROJECT_DIR}. Group close-out: <ISSUE-KEY>. Workspaces: <area1>=<abs-worktree-path-1>;<area2>=<abs-worktree-path-2>.",
         run_in_background=true,
       )
       ```
@@ -261,16 +257,16 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
     - `sentinel` on Task in `to_do` (prompt-deliverable):
       ```
       Agent(
-        subagent_type="sentinel",
-        prompt="Project: <abs-project-root>. Workspace: <abs-workspace-path>. Mode: task. Issue: <ISSUE-KEY>.",
+        subagent_type="dma:sentinel",
+        prompt="Project: ${CLAUDE_PROJECT_DIR}. Workspace: <abs-workspace-path>. Mode: task. Issue: <ISSUE-KEY>.",
         run_in_background=true,
       )
       ```
     - `devops`:
       ```
       Agent(
-        subagent_type="devops",
-        prompt="Project: <abs-project-root>. Workspace: <abs-workspace-path>. Issue: <ISSUE-KEY>.",
+        subagent_type="dma:devops",
+        prompt="Project: ${CLAUDE_PROJECT_DIR}. Workspace: <abs-workspace-path>. Issue: <ISSUE-KEY>.",
         run_in_background=true,
       )
       ```
@@ -279,4 +275,4 @@ Subagents launched by `/run` always run in **background mode** (see step 8 in "S
 10. **End your turn after the spawn** — do **not** poll, do **not** sleep. The harness will notify you automatically when the background subagent completes. When the notification arrives, classify the final result before reporting:
 
     - **Clean completion** — final result describes a handoff, a stop reason, or a normal terminal state. Report `✓ <ISSUE-KEY> done — <one-sentence summary>` or `✗ <ISSUE-KEY> blocked — <reason>` and continue per the active mode (next stage in pipeline mode, next task in all mode, or stop in single-step modes).
-    - **External termination** — final result matches one of: `session limit`, `usage limit`, `rate limit`, `killed`, `aborted`, `OOM`, or other phrasing indicating the subagent did not exit on its own decision. Report `⏸ <ISSUE-KEY> interrupted (external — <quote the trigger phrase>)` and **stop the loop** — do not advance the pipeline, do not pick the next task in all-mode. Make no tracker changes: the task stays in `<statuses.in_progress>` with `agent:<role>` and will be surfaced by the stuck-task pre-flight on the next `/run` invocation.
+    - **External termination** — final result matches one of: `session limit`, `usage limit`, `rate limit`, `killed`, `aborted`, `OOM`, or other phrasing indicating the subagent did not exit on its own decision. Report `⏸ <ISSUE-KEY> interrupted (external — <quote the trigger phrase>)` and **stop the loop** — do not advance the pipeline, do not pick the next task in all-mode. Make no tracker changes: the task stays in `<statuses.in_progress>` with `agent:<role>` and will be surfaced by the stuck-task pre-flight on the next `/dma:run` invocation.

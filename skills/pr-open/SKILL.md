@@ -1,6 +1,6 @@
 ---
 name: pr-open
-description: Open a pull request from a source branch to a destination branch. Routes by VCS host (GitHub / Bitbucket) derived from the git remote URL, not by the issue tracker. Returns the PR URL on success or an error on failure. Invocation: /pr-open <source-branch> <destination-branch> <title> [workspace-path:<path>] [remote:<name>] [description:<text>].
+description: Open a pull request from a source branch to a destination branch. Routes by VCS host (GitHub / Bitbucket) derived from the git remote URL, not by the issue tracker. Returns the PR URL on success or an error on failure. Invocation: /dma:pr-open <source-branch> <destination-branch> <title> [workspace-path:<path>] [remote:<name>] [description:<text>].
 tools: Bash, mcp__atlassian__bitbucket_create_pull_request
 ---
 
@@ -10,7 +10,7 @@ Open a pull request for a branch.
 
 ## Usage
 
-`/pr-open <source-branch> <destination-branch> <title> [options]`
+`/dma:pr-open <source-branch> <destination-branch> <title> [options]`
 
 | Argument | Description |
 |----------|-------------|
