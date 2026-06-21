@@ -14,7 +14,7 @@ starts the cycle over.
 
 This hook matches by path *content* instead of by anchor: any Read whose target
 resolves under a `.claude/` directory is approved. Portable across machines,
-projects, and worktrees — mirrors write_guard.py. Everything else defers to the
+projects, and worktrees. Everything else defers to the
 normal permission flow (exit 0, no decision) — this hook only widens, never blocks.
 
 Per Claude Code docs, an "allow" decision still respects deny and ask rules, so the

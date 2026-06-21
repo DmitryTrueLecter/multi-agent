@@ -17,7 +17,7 @@ Epic-scoped lifecycle analysis. Run manually via `/dma:sentinel retrospective <E
    - Whether the child carries the `stale-merge` label.
    - `ARCH-EPIC-SYNC` drift handoffs (`🤖 dev … handoff → team-lead (ARCH-EPIC-SYNC drift)`).
 
-3. Cross-reference the sentinel inbox archive: grep `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/archive/*.md` for `originating_task: <CHILD-KEY>` in frontmatter. Catalog the flags fired during the Epic's lifetime.
+3. Cross-reference the Sentinel queue: `/dma:issue-search label:sentinel-flag`, then read each flag's `Originating` description field. Catalog the flags whose originating task is one of this Epic's children.
 
 4. Aggregate against the taxonomy:
    - Same rejection reason in ≥2 children → `PATTERN-REPEAT` candidate.
@@ -55,7 +55,7 @@ Epic-scoped lifecycle analysis. Run manually via `/dma:sentinel retrospective <E
 
 ### Sentinel flags filed during this Epic
 
-- <archive filename> — <type> — one-line summary.
+- <issue-key> — <flag-type> — one-line summary.
 
 ### Findings
 

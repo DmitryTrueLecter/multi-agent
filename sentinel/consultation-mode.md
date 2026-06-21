@@ -1,6 +1,6 @@
 # Consultation mode — procedure
 
-Sync invocation by team-lead only — return an inline answer; do not process the inbox.
+Sync invocation by team-lead only — return an inline answer; do not process the queue.
 
 ## Invocation
 
@@ -11,8 +11,8 @@ Agent(subagent_type="dma:sentinel", prompt="Project: ${CLAUDE_PROJECT_DIR}. Mode
 ## Behavior
 
 - Read only what the question requires — typically one or two agent/skill files, plus the cited issue if a `<KEY>` is in the context.
-- Do not process the inbox. Return the answer inline.
-- If the question reveals a defect another agent's run would also hit, call `/dma:sentinel-flag` to put it in the inbox for next triage.
+- Do not process the queue. Return the answer inline.
+- If the question reveals a defect another agent's run would also hit, call `/dma:sentinel-flag` to put it in the queue for next triage.
 
 ## Scope guard
 

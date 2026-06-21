@@ -32,12 +32,13 @@ Each check declares:
 
 Under `Fix: true`, sentinel may run these classes of action without per-action confirmation:
 
-1. **Directory create** — `mkdir -p <path>` for empty, project-local directories (e.g. `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`).
+1. **Directory create** — `mkdir -p <path>` for an empty, project-local directory the workflow expects.
 2. **Template materialization** — copy a template file into a missing project-local path; never overwrites an existing file.
 3. **Apply config-declared git identity** — when `config.yml → git.identity.email` AND `git.identity.name` are both set, copy them into a workspace's local git config via `git -C <workspace> config user.email <config.git.identity.email> && git -C <workspace> config user.name <config.git.identity.name>`. Only when both target keys are unset on the workspace — never overwrites. When `git.identity` is absent from config, no auto-fix is attempted: sentinel does not invent identity values. Requires `settings.json` to whitelist `Bash(git -C * config user.email *)` and `Bash(git -C * config user.name *)`; on permission denial, falls through to the standard auto-fix-failure line.
 4. **Append to `config.yml` `worktree.link_paths`** — add a detected link-safe runtime-artifact directory name (a self-contained runtime such as a virtualenv dir) to `config.yml` → `worktree.link_paths`, creating the `worktree:` block if absent. Values are derived mechanically from the workspace — present on disk, gitignored, and carrying a known runtime marker — not chosen by the user. Scope is link-safe artifacts only; install-managed trees (e.g. `node_modules`) are never added here — their provisioning is a user-authored `setup_commands` entry. Never removes an existing entry; idempotent (skips names already listed). Used by HC-WT-003.
+5. **Flag migration** — for each leftover file under `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`, create the equivalent flag issue in the Sentinel queue and delete the file (HC-MIG-001). This is the lone tracker-mutating auto-fix: each issue is a mechanical 1:1 projection of an existing flag file, not user-authored content. Runs only when the tracker responds and the `sentinel_inbox` status is transition-ready.
 
-Everything else — config edits other than `worktree.link_paths`, tracker mutations, area-schema fields — stays a manual finding even in fix mode. The boundary: deterministic mechanical action with no user-choice content. Display names, area paths, label semantics are user choices; sentinel does not invent them. `worktree.link_paths` is the lone auto-fixable config edit precisely because its values are detected, not authored.
+Everything else — config edits other than `worktree.link_paths`, tracker mutations other than the one-time flag migration (HC-MIG-001), area-schema fields — stays a manual finding even in fix mode. The boundary: deterministic mechanical action with no user-choice content. Display names, area paths, label semantics are user choices; sentinel does not invent them. `worktree.link_paths` is the lone auto-fixable config edit precisely because its values are detected, not authored.
 
 When an auto-fix runs successfully, the check line uses `↻ FIXED — <command>`. On auto-fix failure (e.g. permission denied), the line is `✗ FAIL — auto-fix failed: <stderr>; manual fix: <command>`.
 
@@ -56,12 +57,6 @@ When an auto-fix runs successfully, the check line uses `↻ FIXED — <command>
   - Detection: read file; YAML parser returns without error.
   - Auto-fix: none. Parser errors require human-readable resolution.
   - Manual fix: address the parse error at the cited line.
-
-- **HC-FS-006** — `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/` directory exists.
-  - Severity: WARN.
-  - Detection: `test -d ${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox`.
-  - Auto-fix: `mkdir -p ${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox`.
-  - Manual fix: same command.
 
 - **HC-FS-007** — If `config.yml → devops_paths` is declared OR the tracker has an `area:devops` label: `${CLAUDE_PROJECT_DIR}/.claude/devops/environments.md` exists.
   - Severity: WARN.
@@ -133,7 +128,7 @@ For each subdirectory `<area>` under `${CLAUDE_PROJECT_DIR}/.claude/areas/`. No 
 
 ## Stage 4 — Live integration
 
-Skip entirely if any of HC-FS-005, HC-CFG-003, HC-CFG-005 failed. No auto-fix in this stage — tracker mutations require admin-only API and user-choice naming.
+Skip entirely if any of HC-FS-005, HC-CFG-003, HC-CFG-005 failed. No auto-fix in this stage except HC-MIG-001 (the one-time flag migration) — other tracker mutations require admin-only API and user-choice naming.
 
 - **HC-MCP-001** — `.mcp.json` exists at project root.
   - Severity: CRITICAL. Without it every provider-bound skill (`/dma:issue-create`, `/dma:task-read`, `/dma:handoff`, `/dma:issue-search`, etc.) deadlocks — `ToolSearch` returns no matching deferred tool for the tracker MCP.
@@ -173,30 +168,30 @@ Skip entirely if any of HC-FS-005, HC-CFG-003, HC-CFG-005 failed. No auto-fix in
   - Detection: `mcp__atlassian__jira_get_transitions` on any in-flight issue; cross-check IDs.
   - Manual fix: run `/dma:sentinel-bootstrap-jira` — workflow has changed.
 
+- **HC-MIG-001** — No leftover file-based flags under `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`; any legacy flag is migrated to the Sentinel queue. Covers the file→tracker cutover; once clean it is a permanent no-op.
+  - Severity: WARN per leftover flag.
+  - Detection: `ls ${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/*.md 2>/dev/null` — each top-level match is an unmigrated flag. PASS when the directory is absent or holds no top-level `*.md`. SKIPPED when HC-MCP-002 failed, or (jira) `tasks.jira.transitions.sentinel_inbox` is `0` — migration cannot create issues.
+  - Auto-fix: per leftover file, parse its frontmatter (`type`, `reporter`, `where`, `originating_task`) and `## Problem` / `## Details` body, then create the flag issue as `/dma:sentinel-flag` would — `/dma:issue-create Task "[<TYPE>] <problem>" labels:sentinel-flag,flag-type:<type lowercased>,agent:sentinel state:sentinel_inbox description:<Where / Reporter / Originating / Details>`. On a created key, delete the file (`git rm` if tracked, else `rm`). Emit one `↻` line per migrated flag with its new key.
+  - Manual fix: re-file each via `/dma:sentinel-flag`, or run `/dma:sentinel healthcheck fix` once the tracker responds and (jira) the `sentinel_inbox` transition id is populated via `/dma:sentinel-bootstrap-jira`.
+
 ## Stage 5 — Hygiene
 
 Pure visibility; never a FAIL, never auto-fixed.
 
-- **HC-HYG-001** — Count files in `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`. Report count; if >20, suggest triage.
+- **HC-HYG-001** — Count open flags in the Sentinel queue: `/dma:issue-search status:<S> label:sentinel-flag`, where `<S>` is the display name of `sentinel_inbox` from `config.yml.tasks.workflow.statuses`. Report count; if >20, suggest triage.
 - **HC-HYG-002** — Tasks in `on_hold` for >7 days. Detection: tracker search with status filter and updated-before predicate. List keys and last-updated dates.
 - **HC-HYG-003** — Tasks in `awaiting_merge` for >7 days. Same shape.
 - **HC-HYG-004** — Tasks in `awaiting_ops` for >7 days. Same shape.
 
 ## Stage 6 — Worktrees
 
-Persistent per-task worktrees created by `/dma:run → ## Worktree bootstrap` need two invariants: (a) every worktree on disk belongs to an open task, (b) every worktree whose checkout includes `.claude/` shares the gitignored `sentinel-inbox/` so flags raised inside a worktree land in the one inbox sentinel reads. The `dma` plugin itself needs no replication — Claude Code loads it globally, so subagents reach their prompts in every worktree without any per-worktree symlink.
+Persistent per-task worktrees created by `/dma:run → ## Worktree bootstrap` need one invariant: every worktree on disk belongs to an open task. Flags raised inside a worktree go straight to the tracker's Sentinel queue, so no project-local flag state needs sharing across worktrees. The `dma` plugin itself needs no replication either — Claude Code loads it globally, so subagents reach their prompts in every worktree without any per-worktree symlink.
 
 - **HC-WT-001** — No orphaned worktree directories.
   - Severity: WARN.
   - Detection: enumerate candidate repos (project root + each area-repo from `area.yml.workspace.path`). For each, list `git -C <repo> worktree list --porcelain` entries whose path matches `<repo>/.worktrees/<KEY>`. For each `<KEY>`, query the tracker. Orphaned = task is `done` or the issue does not exist.
   - Auto-fix: `git -C <repo> worktree remove <repo>/.worktrees/<KEY>`. If removal fails on uncommitted changes, downgrade to WARN with the file list and do not force.
   - Manual fix: same command, or `git worktree remove --force` after reviewing uncommitted files yourself.
-
-- **HC-WT-002** — Each worktree whose checkout includes `.claude/` has its `sentinel-inbox/` symlink present and resolving.
-  - Severity: WARN per worktree.
-  - Detection: for every worktree path `<P>` enumerated by HC-WT-001 where `test -d <P>/.claude` succeeds, check that `readlink -f <P>/.claude/sentinel-inbox` resolves to a directory. If it fails, the worktree was created before the bootstrap landed or the symlink was removed manually.
-  - Auto-fix: `ln -snf ${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox <P>/.claude/sentinel-inbox`.
-  - Manual fix: same command.
 
 - **HC-WT-003** — `worktree` config covers the project's gitignored runtime artifacts.
   - Severity: WARN per uncovered artifact.
@@ -219,7 +214,7 @@ Persistent per-task worktrees created by `/dma:run → ## Worktree bootstrap` ne
 
 ### Stage 1 — Filesystem & config files
 ✓ HC-FS-001 — .claude/ present
-↻ HC-FS-006 — ${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/ missing — FIXED via `mkdir -p ${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox`
+↻ HC-FS-007 — devops/environments.md missing — FIXED via template copy
 ✗ HC-FS-005 — config.yml parse error at line 12
   Manual fix: address the parse error at the cited line
 ...
@@ -235,11 +230,12 @@ Persistent per-task worktrees created by `/dma:run → ## Worktree bootstrap` ne
 ...
 
 ### Stage 4 — Live integration
-<per-check lines, or>
+↻ HC-MIG-001 — 2 legacy file flags migrated to Sentinel queue (<KEY1>, <KEY2>)
+<other per-check lines, or>
 – SKIPPED — HC-CFG-005 failed (statuses incomplete)
 
 ### Stage 5 — Hygiene
-ℹ HC-HYG-001 — 3 pending flags in sentinel-inbox
+ℹ HC-HYG-001 — 3 open flags in Sentinel queue
 ℹ HC-HYG-002 — 0 tasks stuck on_hold >7d
 ...
 

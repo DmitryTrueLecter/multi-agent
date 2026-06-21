@@ -1,12 +1,12 @@
 ---
 name: sentinel-flag
-description: Record a prompt/process problem for sentinel to review. Writes a file in ${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/. Async; does not block the caller. Invocation: /dma:sentinel-flag <type> "<problem>" where:<file:section> [originating:<KEY>] [details:<text>].
-tools: Write
+description: Record a prompt/process problem for sentinel to review. Creates a Task issue in the tracker's Sentinel queue (status sentinel_inbox; labels sentinel-flag + flag-type:<type> + agent:sentinel). Async; does not block the caller. Invocation: /dma:sentinel-flag <type> "<problem>" where:<file:section> [originating:<KEY>] [details:<text>].
+tools: Read, mcp__atlassian__jira_create_issue, mcp__atlassian__jira_transition_issue, mcp__linear__save_issue
 ---
 
 # sentinel-flag
 
-Write a file in `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/` describing a defect in an agent prompt, skill, or process step. Sentinel reads the inbox when invoked.
+Create a Task issue in the tracker's Sentinel queue describing a defect in an agent prompt, skill, or process step. Sentinel triages the queue when invoked.
 
 ## Usage
 
@@ -37,8 +37,16 @@ Write a file in `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/` describing a def
 
 ## Steps
 
-1. Reject if `<type>` not in the table or `where:` missing.
-2. Filename: `<UTC-ISO>-<reporter>-<type>.md`, replacing `:` in the timestamp with `-`.
-3. Build body — frontmatter (`type`, `reporter`, `where`, `created_at`, `originating_task` if given) + `## Problem` + optional `## Details`.
-4. Write to `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/<filename>`. Create directory if missing.
-5. Return `flagged → <filename>`.
+1. Reject if `<type>` is not in the Types table or `where:` is missing.
+2. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`, `tasks.workflow.statuses.sentinel_inbox` (display name). For jira also read `tasks.project_key` and `tasks.jira.transitions.sentinel_inbox`; for linear also read `tasks.team_key`.
+3. Set `reporter` to your own agent role (e.g. `dev`, `qa`, `reviewer`, `architect`, `devops`).
+4. Build the summary `[<TYPE>] <problem>` and the description (Markdown):
+   - `**Where:** <file:section>`
+   - `**Reporter:** <reporter>`
+   - `**Originating:** <KEY>` — only if `originating:` given
+   - `**Details:** <text>` — only if `details:` given
+5. Build the label set: `sentinel-flag`, `flag-type:<type>` (lowercase the type, e.g. `PROMPT-UNCLEAR` → `flag-type:prompt-unclear`), `agent:sentinel`.
+6. Create the issue per provider:
+   - **jira:** call `mcp__atlassian__jira_create_issue` with `project_key`, `issue_type="Task"`, `summary`, `description`, `additional_fields={"labels": [<labels>]}`. Capture the new key. Then read `tasks.jira.transitions.sentinel_inbox`: if missing or `0`, fail with `jira transition id for 'sentinel_inbox' not configured; run /dma:sentinel-bootstrap-jira` and return the new key for cleanup. Otherwise call `mcp__atlassian__jira_transition_issue(issue_key=<new-key>, transition_id=<id>)`.
+   - **linear:** call `mcp__linear__save_issue` (omit `id`) with `team=<team_key>`, `title=<summary>`, `description`, `labels=[<labels>]`, `state=<sentinel_inbox display name>`. If the returned status does not match, call `mcp__linear__save_issue(id=<new-key>, state=<sentinel_inbox display name>)` once to correct it.
+7. Return `flagged → <issue-key>`.

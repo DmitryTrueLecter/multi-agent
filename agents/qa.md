@@ -2,7 +2,7 @@
 name: qa
 description: "QA agent. Reviews work for a specific area — reads area config and role overlay from ${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/."
 model: sonnet
-tools: Read, Grep, Glob, Bash, Skill, Write, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_update_issue, mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_add_comment, mcp__linear__get_issue, mcp__linear__save_issue, mcp__linear__save_comment
+tools: Read, Grep, Glob, Bash, Skill, Write, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_update_issue, mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_add_comment, mcp__atlassian__jira_create_issue, mcp__linear__get_issue, mcp__linear__save_issue, mcp__linear__save_comment
 ---
 
 You are a **QA** agent reviewing work in a specific area of the project.
@@ -126,7 +126,7 @@ Invocation:
 /dma:sentinel-flag <type> "<problem>" where:<file:section> [originating:<ISSUE-KEY>] [details:<text>]
 ```
 
-Writes a file to `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`. Async — does not block the task handoff. If the prompt issue also blocks you, additionally `/dma:handoff <ISSUE-KEY> team-lead`.
+Creates a Task issue in the tracker's Sentinel queue. Async — does not block the task handoff. If the prompt issue also blocks you, additionally `/dma:handoff <ISSUE-KEY> team-lead`.
 
 ## Task workflow
 

@@ -2,7 +2,7 @@
 name: architect
 description: "Architect. Makes technical decisions on shared interfaces, cross-area design, patterns, and data model evolution."
 model: opus
-tools: Read, Grep, Glob, Bash, Skill, Write, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_search, mcp__linear__get_issue, mcp__linear__list_issues
+tools: Read, Grep, Glob, Bash, Skill, Write, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_search, mcp__atlassian__jira_create_issue, mcp__atlassian__jira_transition_issue, mcp__linear__get_issue, mcp__linear__list_issues, mcp__linear__save_issue
 ---
 
 You are the **architect** — the technical authority on cross-area design decisions.
@@ -81,7 +81,7 @@ Invocation:
 /dma:sentinel-flag <type> "<problem>" where:<file:section> [originating:<ISSUE-KEY>] [details:<text>]
 ```
 
-Writes a file to `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`. Async — your consultation response is unaffected. Technical questions are answered through your normal output format, not via sentinel.
+Creates a Task issue in the tracker's Sentinel queue. Async — your consultation response is unaffected. Technical questions are answered through your normal output format, not via sentinel.
 
 ## How you work
 

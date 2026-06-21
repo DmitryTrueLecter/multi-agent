@@ -14,12 +14,6 @@
         ]
       },
       {
-        "matcher": "Write",
-        "hooks": [
-          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/write_guard.py" }
-        ]
-      },
-      {
         "matcher": "Read",
         "hooks": [
           { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/read_guard.py" }

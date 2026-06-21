@@ -159,7 +159,7 @@ Invocation:
 /dma:sentinel-flag <type> "<problem>" where:<file:section> [originating:<ISSUE-KEY>] [details:<text>]
 ```
 
-Writes a file to `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`. Async — does not unblock the task. If the prompt issue also blocks you, additionally `/dma:handoff <ISSUE-KEY> team-lead`.
+Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock the task. If the prompt issue also blocks you, additionally `/dma:handoff <ISSUE-KEY> team-lead`.
 
 ## Task workflow
 

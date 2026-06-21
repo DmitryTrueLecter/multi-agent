@@ -2,8 +2,7 @@
   "permissions": {
     "allow": [
       "Glob(.claude/**)",
-      "Grep(.claude/**)",
-      "Write(.claude/sentinel-inbox/**)"
+      "Grep(.claude/**)"
     ],
     "deny": [
       "Read(**/.env)"

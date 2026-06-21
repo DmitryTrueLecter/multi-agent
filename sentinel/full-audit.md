@@ -9,7 +9,7 @@ System-wide structural audit across the agent system. Run manually via `/dma:sen
 3. `${CLAUDE_PLUGIN_ROOT}/commands/run.md` and `${CLAUDE_PLUGIN_ROOT}/commands/board.md` — the two orchestration commands. Other commands only when an entry above references one.
 4. `${CLAUDE_PLUGIN_ROOT}/sentinel/patterns/*.md`, `${CLAUDE_PLUGIN_ROOT}/sentinel/solutions/*.md`, `${CLAUDE_PLUGIN_ROOT}/sentinel/area-config-schema.md`.
 5. `${CLAUDE_PROJECT_DIR}/.claude/config.yml` and `${CLAUDE_PLUGIN_ROOT}/config.example.yml`.
-6. `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/archive/*.md` — frontmatter only, last 14 days. Use to spot `PATTERN-REPEAT` candidates.
+6. Filed flags from the tracker — `/dma:issue-search label:sentinel-flag` — titles and `flag-type:` labels only. Use to spot `PATTERN-REPEAT` candidates (the same `flag-type:` recurring across issues).
 7. One representative `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml` — on demand, only if a finding pivots on area-config shape.
 8. `${CLAUDE_PLUGIN_ROOT}/hooks/skill_acl.py` — the per-agent skill ACL, for the ACL-DRIFT cross-check.
 
