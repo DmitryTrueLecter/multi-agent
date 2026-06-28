@@ -18,7 +18,7 @@ Files matching `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/**` for the area name
 
 1. Read the issue with `/dma:task-read <ISSUE-KEY>`. By the time you are spawned, `/dma:run` has already claimed the task (status `in_progress`, label `agent:sentinel`). The description carries the `## Context` / `## Desired effect` / `## References` shape from `agents/team-lead.md → ## Consulting sentinel → Task`.
 
-   Read the area's `area.yml` and every role-overlay under `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/` to learn the area's stack, conventions, and existing rules. Read `${CLAUDE_PROJECT_DIR}/.claude/arch.yml` for project-level invariants — edits must not contradict an `ARCH-*` rule. Read `${CLAUDE_PLUGIN_ROOT}/sentinel/area-config-schema.md` if the desired effect introduces or touches an `area.yml` field.
+   Read the area's `area.yml` and every role-overlay under `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/` to learn the area's stack, conventions, and existing rules. Read `${CLAUDE_PROJECT_DIR}/.claude/arch.yml` for project-level invariants — edits must not contradict an `ARCH-*` rule. Read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/area-config-schema.md` if the desired effect introduces or touches an `area.yml` field.
 
 2. **Determine the base branch** from the issue's `parent` field:
    - `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>` (the Epic branch).
@@ -36,7 +36,7 @@ Files matching `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/**` for the area name
 
    `ARCH-EPIC-SYNC` does not apply to sentinel tasks — prompt-deliverable changes touch `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/` paths only and do not collide with the cross-area code drift that rule exists to prevent.
 
-4. **Plan the edits.** Translate the `## Desired effect` into concrete create / modify / delete operations on files under `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/`. For each operation, apply the four gates from `${CLAUDE_PLUGIN_ROOT}/sentinel/structure-mode.md → ## Procedure` (scope / schema / quality / consistency) as a self-check before writing. If any gate fails, do not write — hand off back to team-lead per step 8.
+4. **Plan the edits.** Translate the `## Desired effect` into concrete create / modify / delete operations on files under `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/`. For each operation, apply the four gates from `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/structure-mode.md → ## Procedure` (scope / schema / quality / consistency) as a self-check before writing. If any gate fails, do not write — hand off back to team-lead per step 8.
 
 5. **Apply edits** under `agents/sentinel.md → ## Writing replacements` — print the style-audit block, then the fenced replacement, then `Write`. Resolve every `Write` / `Edit` target under `<abs-workspace-path>/.claude/areas/<area>/` — the worktree from your prompt, where the branch and PR live; use `${CLAUDE_PROJECT_DIR}` only to read config you do not edit (`config.yml`, `arch.yml`). One file per replacement cycle. Substance — rule IDs, thresholds, grep patterns — stays as the desired effect prescribed; polish is voice and structure only.
 

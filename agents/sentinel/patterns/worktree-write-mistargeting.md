@@ -6,7 +6,7 @@ An agent runs inside a per-task git worktree (`.worktrees/<KEY>`) handed to it a
 
 ## Observed instances
 
-- **dev/qa/sentinel worktree mis-targeting (2026-05-27, AITSAI-216).** Recurred 4× in one session (sentinel/AITSAI-213, dev/AITSAI-209, dev/AITSAI-212, dev/AITSAI-216): edits/commits landed on the main checkout (on branch `ai/AITSAI-207`); AITSAI-216 recovery needed `git reset --soft HEAD^` on the branch the team-lead session occupied. All self-recovered, no work escaped. Fix: added an explicit absolute-path prefix rule (`<abs-workspace-path>` for task-tree files, `${CLAUDE_PROJECT_DIR}` only for `.claude/*`) to the Workspace section of `agents/dev.md`, `qa.md`, `reviewer.md`, and step 5 of `sentinel/task-mode.md`; replaced the false "always project-relative; no absolute paths" bullet with a Bash-scoped rule that defers to Workspace.
+- **dev/qa/sentinel worktree mis-targeting (2026-05-27, AITSAI-216).** Recurred 4× in one session (sentinel/AITSAI-213, dev/AITSAI-209, dev/AITSAI-212, dev/AITSAI-216): edits/commits landed on the main checkout (on branch `ai/AITSAI-207`); AITSAI-216 recovery needed `git reset --soft HEAD^` on the branch the team-lead session occupied. All self-recovered, no work escaped. Fix: added an explicit absolute-path prefix rule (`<abs-workspace-path>` for task-tree files, `${CLAUDE_PROJECT_DIR}` only for `.claude/*`) to the Workspace section of `agents/dev.md`, `qa.md`, `reviewer.md`, and step 5 of `agents/sentinel/task-mode.md`; replaced the false "always project-relative; no absolute paths" bullet with a Bash-scoped rule that defers to Workspace.
 
 ## Triage rule
 

@@ -63,7 +63,7 @@ Process labels remain legal alongside status: `area:<area>` (permanent area owne
 
 ## Knowledge base
 
-Before triage, read `${CLAUDE_PLUGIN_ROOT}/sentinel/README.md` if present — it indexes durable knowledge: `patterns/` (recurring problem shapes) and `solutions/` (conditional recommendations applicable when an area meets specified conditions). Match new flags against the catalog before re-deriving analysis. When a flag references an area, also read `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml` for the area's characteristics so `solutions/` IF-conditions can be evaluated.
+Before triage, read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/README.md` if present — it indexes durable knowledge: `patterns/` (recurring problem shapes) and `solutions/` (conditional recommendations applicable when an area meets specified conditions). Match new flags against the catalog before re-deriving analysis. When a flag references an area, also read `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml` for the area's characteristics so `solutions/` IF-conditions can be evaluated.
 
 This priming read is a precondition; per-flag work still bounds itself to the cited `where:` per `## Rules`.
 
@@ -147,7 +147,7 @@ Triggered by spawn prompt containing `Mode: triage`, or by user verb "triage" / 
 
 Goal: process pending Sentinel-queue flags — per flag, read cited location, classify (confirmed defect / duplicate / not actionable), present findings, then apply / route / resolve on user direction.
 
-Procedure: read `${CLAUDE_PLUGIN_ROOT}/sentinel/triage-mode.md` — per-flag steps, type-specific reads, report format, and disposition branches (apply, route via `/dma:issue-create`, resolve by transition).
+Procedure: read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/triage-mode.md` — per-flag steps, type-specific reads, report format, and disposition branches (apply, route via `/dma:issue-create`, resolve by transition).
 
 ## Consultation mode
 
@@ -155,13 +155,13 @@ Triggered by spawn prompt containing `Mode: consultation. Question: <q>. Context
 
 Goal: answer one structured question inline. Read only what the question requires; do not process the queue.
 
-Procedure: read `${CLAUDE_PLUGIN_ROOT}/sentinel/consultation-mode.md` — invocation form, scope guard (technical questions route to architect), and output structure.
+Procedure: read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/consultation-mode.md` — invocation form, scope guard (technical questions route to architect), and output structure.
 
 ## Structure mode
 
 Triggered by spawn prompt containing `Mode: structure`. Sync intake by team-lead for create / modify / delete on project-local area and arch files (`arch.yml`, `area.yml`, role overlays, area directories). Two legitimate callers, both routed by team-lead: forwarding architect-authored content verbatim from an approved recommendation, or team-lead's own scaffolding (introducing or dismantling an area, project init).
 
-Procedure: read `${CLAUDE_PLUGIN_ROOT}/sentinel/structure-mode.md` — invocation form, in-scope and out-of-scope paths, validation gates (scope / schema / quality / consistency), polish rules, and rejection-block format. The procedure file is the extension point; new gates, scope changes, or in-scope paths land there, not in this charter.
+Procedure: read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/structure-mode.md` — invocation form, in-scope and out-of-scope paths, validation gates (scope / schema / quality / consistency), polish rules, and rejection-block format. The procedure file is the extension point; new gates, scope changes, or in-scope paths land there, not in this charter.
 
 Authorization: team-lead's invocation stands in for the user's per-write go-ahead. The provenance contract — architect-content routing or own-scaffolding — lives in `agents/team-lead.md → ## Consulting the architect` and `## What you DO decide yourself`.
 
@@ -171,7 +171,7 @@ Triggered by spawn prompt containing `Mode: full-audit`. Run manually via the `/
 
 Goal: surface structural defects across the agent system in one pass. Exhaustive within a fixed inventory; do not expand the read budget mid-pass.
 
-Procedure: read `${CLAUDE_PLUGIN_ROOT}/sentinel/full-audit.md` — inventory (every agent / skill / orchestration command, plus KB and configs), cross-checks (rule-source vs detection, status-key coverage, agent-label taxonomy, MCP-tool grants), severity scheme, and report format.
+Procedure: read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/full-audit.md` — inventory (every agent / skill / orchestration command, plus KB and configs), cross-checks (rule-source vs detection, status-key coverage, agent-label taxonomy, MCP-tool grants), severity scheme, and report format.
 
 ## Retrospective mode
 
@@ -179,7 +179,7 @@ Triggered by spawn prompt containing `Mode: retrospective. Epic: <EPIC-KEY>`. Ru
 
 Goal: detect recurring meta-problems from how one Epic actually played out. Scope is the Epic and its children; broader-system audit belongs to full-audit.
 
-Procedure: read `${CLAUDE_PLUGIN_ROOT}/sentinel/retrospective.md` — Epic + children fetch via tracker, per-child bounce-profile extraction, resolved-flag cross-reference via tracker, taxonomy aggregation, and report format.
+Procedure: read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/retrospective.md` — Epic + children fetch via tracker, per-child bounce-profile extraction, resolved-flag cross-reference via tracker, taxonomy aggregation, and report format.
 
 ## Healthcheck mode
 
@@ -187,7 +187,7 @@ Triggered by spawn prompt containing `Mode: healthcheck` (diagnose only) or `Mod
 
 Goal: surface setup drift — missing project-local directories, incomplete `config.yml`, zeroed Jira transition IDs, absent tracker labels — and, when invoked with `Fix: true`, apply the mechanical fixes that need no user choice (empty-directory creation, template materialization, migration of any leftover file-based flags into the Sentinel queue).
 
-Procedure: read `${CLAUDE_PLUGIN_ROOT}/sentinel/healthcheck.md` — full check catalogue, severity scheme, auto-fix contract, and report format. The procedure file is the extension point; new checks land there, not in this charter.
+Procedure: read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/healthcheck.md` — full check catalogue, severity scheme, auto-fix contract, and report format. The procedure file is the extension point; new checks land there, not in this charter.
 
 Authorization: passing `Fix: true` (or invoking `/dma:sentinel healthcheck fix`) is the user's authorization for the auto-fix actions declared in the procedure file. No per-fix confirmation; sentinel applies the declared command set and reports what ran. Findings without a declared auto-fix — config edits with user-choice content, tracker mutations, area-schema gaps — remain manual even in fix mode.
 
@@ -197,6 +197,6 @@ Triggered by spawn prompt containing `Mode: task. Issue: <KEY>`. Spawned by `/dm
 
 Goal: implement a prompt-deliverable Task scoped to `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/` — read the issue, work on branch `<vcs.branch_prefix><KEY>` in the area's workspace, open a PR to the parent Epic branch (or `<vcs.dev_branch>` if standalone), hand off to `awaiting_merge`. No dev / qa / reviewer cycle: the user reviews the PR directly.
 
-Procedure: read `${CLAUDE_PLUGIN_ROOT}/sentinel/task-mode.md` — branch-cut, area-scope guard, four-gate self-check per file, PR shape, handoff format.
+Procedure: read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/task-mode.md` — branch-cut, area-scope guard, four-gate self-check per file, PR shape, handoff format.
 
 Authorization: `/dma:run`'s automated dispatch stands in for the user's per-write go-ahead. The provenance contract — Task created by team-lead per the `## Consulting sentinel → Task` path with the user's approval — lives in `agents/team-lead.md`.

@@ -100,10 +100,10 @@ Pass `parent:<EPIC-KEY>` to `/dma:issue-create` when creating Tasks — the skil
 
    1. Identify every affected `workspace.path` from the Epic's child Task labels (same resolution rule as the create step above).
    2. For each workspace, run the **Create + push** + **Verify on remote** sub-steps above. Use `git checkout -b` if no local branch exists, or `git checkout` then `git push -u` if a stale local branch exists from an earlier attempt.
-   3. If any child Task was already merged to `<workspace.dev_branch>` while no epic branch existed (i.e. dev silently fell back to dev-branch base — the pre-2026-05 prompt allowed this), post `/dma:issue-comment <EPIC-KEY> "🤖 team-lead: epic branch <vcs.branch_prefix><EPIC-KEY> created retroactively after N child(ren) already merged to <dev_branch>. ARCH-EPIC-SYNC contract was not enforced for those children — the close-out integration-drift check in `team-lead/epic-closeout.md → ## Closing Epics` step 7 will catch any resulting drift."`. List the merged child keys in the comment.
+   3. If any child Task was already merged to `<workspace.dev_branch>` while no epic branch existed (i.e. dev silently fell back to dev-branch base — the pre-2026-05 prompt allowed this), post `/dma:issue-comment <EPIC-KEY> "🤖 team-lead: epic branch <vcs.branch_prefix><EPIC-KEY> created retroactively after N child(ren) already merged to <dev_branch>. ARCH-EPIC-SYNC contract was not enforced for those children — the close-out integration-drift check in `agents/team-lead/epic-closeout.md → ## Closing Epics` step 7 will catch any resulting drift."`. List the merged child keys in the comment.
    4. Return each on-hold child citing the missing epic branch to `To Do` + `agent:dev` via `/dma:handoff <CHILD-KEY> dev "Epic branch <vcs.branch_prefix><EPIC-KEY> now present on <workspace.remote>. Re-run task workflow step 2."`.
 
-   The retroactive comment is the audit trail — close-out (`team-lead/epic-closeout.md → ## Closing Epics` step 7) is where the drift, if any, is actually mechanically caught and resolved.
+   The retroactive comment is the audit trail — close-out (`agents/team-lead/epic-closeout.md → ## Closing Epics` step 7) is where the drift, if any, is actually mechanically caught and resolved.
 5. **Verify the base is green per affected workspace, before decomposing.** Test rot on the base masquerades as task failures once decomposition lands — every child task that touches a rotted file pays the cost (dev hits red tests, escalates via `dev.md` step 4, triage task is filed, original task re-queues). Catch the rot once, here. For each `workspace.path` from step 4, in a subshell:
 
    ```
@@ -113,7 +113,7 @@ Pass `parent:<EPIC-KEY>` to `/dma:issue-create` when creating Tasks — the skil
    ```
 
    - **All green** → proceed to step 6.
-   - **Failures exist** → classify each failing test (or group sharing a failure mode) into **fix** / **delete** / **temporarily disable** per the criteria in `team-lead/on-hold.md → ## Handling On Hold tasks` step 4 (the test-rot bullet). File triage tasks against this Epic before any application Task — label `area:<area> agent:dev`, link each as `Blocks` for any application Task whose Requirements touch the rotted file's symbols. Triage tasks land first; application Tasks land after. Do not decompose application work over rotted tests.
+   - **Failures exist** → classify each failing test (or group sharing a failure mode) into **fix** / **delete** / **temporarily disable** per the criteria in `agents/team-lead/on-hold.md → ## Handling On Hold tasks` step 4 (the test-rot bullet). File triage tasks against this Epic before any application Task — label `area:<area> agent:dev`, link each as `Blocks` for any application Task whose Requirements touch the rotted file's symbols. Triage tasks land first; application Tasks land after. Do not decompose application work over rotted tests.
 6. Create Task issues with `/dma:issue-create Task "<summary>" parent:<EPIC-KEY> labels:area:<area>,agent:dev description:<task-desc>`. The `parent:<EPIC-KEY>` argument is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace). Pass `blocks:<KEY>` for any dependency links.
 7. Present the decomposition to user for approval.
 8. User launches agents via `/dma:run`. You report progress.

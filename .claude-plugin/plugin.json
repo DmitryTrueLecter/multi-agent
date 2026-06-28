@@ -3,5 +3,14 @@
   "version": "0.1.0",
   "description": "Multi-agent Jira/Linear delivery system: team-lead, dev, qa, reviewer, devops, architect, and the sentinel meta-agent, with handoff/run orchestration and permission-guard hooks.",
   "author": { "name": "Dmitry Egorov" },
-  "repository": "git@github.com:DmitryTrueLecter/multi-agent.git"
+  "repository": "git@github.com:DmitryTrueLecter/multi-agent.git",
+  "agents": [
+    "./agents/architect.md",
+    "./agents/dev.md",
+    "./agents/devops.md",
+    "./agents/qa.md",
+    "./agents/reviewer.md",
+    "./agents/sentinel.md",
+    "./agents/team-lead.md"
+  ]
 }

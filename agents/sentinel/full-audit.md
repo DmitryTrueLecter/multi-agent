@@ -7,7 +7,7 @@ System-wide structural audit across the agent system. Run manually via `/dma:sen
 1. All `${CLAUDE_PLUGIN_ROOT}/agents/*.md` — every agent prompt, including this one.
 2. All `${CLAUDE_PLUGIN_ROOT}/skills/*/SKILL.md` — every skill the agents call.
 3. `${CLAUDE_PLUGIN_ROOT}/commands/run.md` and `${CLAUDE_PLUGIN_ROOT}/commands/board.md` — the two orchestration commands. Other commands only when an entry above references one.
-4. `${CLAUDE_PLUGIN_ROOT}/sentinel/patterns/*.md`, `${CLAUDE_PLUGIN_ROOT}/sentinel/solutions/*.md`, `${CLAUDE_PLUGIN_ROOT}/sentinel/area-config-schema.md`.
+4. `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/patterns/*.md`, `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/solutions/*.md`, `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/area-config-schema.md`.
 5. `${CLAUDE_PROJECT_DIR}/.claude/config.yml` and `${CLAUDE_PLUGIN_ROOT}/config.example.yml`.
 6. Filed flags from the tracker — `/dma:issue-search label:sentinel-flag` — titles and `flag-type:` labels only. Use to spot `PATTERN-REPEAT` candidates (the same `flag-type:` recurring across issues).
 7. One representative `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml` — on demand, only if a finding pivots on area-config shape.
@@ -20,7 +20,7 @@ System-wide structural audit across the agent system. Run manually via `/dma:sen
 - Every status semantic key referenced in a shared-plugin file must appear in `config.example.yml.tasks.workflow.statuses`. Missing → schema drift.
 - Every `agent:<X>` label referenced anywhere must have `<X>` in the `agents/sentinel.md → ## Agent roles` table.
 - Every MCP tool referenced in a skill body must appear in that skill's `tools:` frontmatter.
-- Every skill an agent invokes — `/<skill>` in `agents/<agent>.md` or in a `sentinel/*.md` procedure it consumes — must appear in that agent's row of `hooks/skill_acl.py`. Missing → `ACL-DRIFT`. A row entry no prompt or procedure cites → `ACL-EXCESS`.
+- Every skill an agent invokes — `/<skill>` in `agents/<agent>.md` or in a `agents/sentinel/*.md` procedure it consumes — must appear in that agent's row of `hooks/skill_acl.py`. Missing → `ACL-DRIFT`. A row entry no prompt or procedure cites → `ACL-EXCESS`.
 
 ## Severity
 

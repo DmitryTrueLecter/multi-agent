@@ -17,7 +17,7 @@ Agent(subagent_type="dma:sentinel", prompt="Project: ${CLAUDE_PROJECT_DIR}. Mode
 
 ## Out of scope (reject with `Criterion: scope`)
 
-- `agents/*.md`, `skills/**`, `commands/**`, `hooks/**`, `sentinel/**` — shared-plugin, flag → triage path.
+- `agents/*.md`, `skills/**`, `commands/**`, `hooks/**`, `agents/sentinel/**` — shared-plugin, flag → triage path.
 - `config.yml`, `settings*.json` — dedicated bootstrap skills.
 - Anything outside `.claude/`.
 
@@ -36,7 +36,7 @@ Target inside the in-scope list above. Operation allowed for that path.
 
 ### Gate 2: Schema
 
-Validate against `${CLAUDE_PLUGIN_ROOT}/sentinel/area-config-schema.md`:
+Validate against `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/area-config-schema.md`:
 
 - Required fields present.
 - Rule IDs unique within the file.

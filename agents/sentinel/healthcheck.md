@@ -61,8 +61,8 @@ When an auto-fix runs successfully, the check line uses `↻ FIXED — <command>
 - **HC-FS-007** — If `config.yml → devops_paths` is declared OR the tracker has an `area:devops` label: `${CLAUDE_PROJECT_DIR}/.claude/devops/environments.md` exists.
   - Severity: WARN.
   - Detection: precondition + `test -f ${CLAUDE_PROJECT_DIR}/.claude/devops/environments.md`.
-  - Auto-fix: `mkdir -p ${CLAUDE_PROJECT_DIR}/.claude/devops && cp ${CLAUDE_PLUGIN_ROOT}/sentinel/templates/environments.md ${CLAUDE_PROJECT_DIR}/.claude/devops/environments.md`. Only when the destination is missing entirely; never overwrites. After materialization, the agent must still tell the user to populate the file with real environment facts.
-  - Manual fix: copy the template from `${CLAUDE_PLUGIN_ROOT}/sentinel/templates/environments.md` to `${CLAUDE_PROJECT_DIR}/.claude/devops/environments.md` and populate.
+  - Auto-fix: `mkdir -p ${CLAUDE_PROJECT_DIR}/.claude/devops && cp ${CLAUDE_PLUGIN_ROOT}/agents/sentinel/templates/environments.md ${CLAUDE_PROJECT_DIR}/.claude/devops/environments.md`. Only when the destination is missing entirely; never overwrites. After materialization, the agent must still tell the user to populate the file with real environment facts.
+  - Manual fix: copy the template from `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/templates/environments.md` to `${CLAUDE_PROJECT_DIR}/.claude/devops/environments.md` and populate.
 
 - **HC-FS-008** — If `config.yml → docs.root` declared: the directory exists at that path.
   - Severity: WARN.
@@ -117,7 +117,7 @@ If HC-CFG-003 fails, mark every tracker-side check downstream `– SKIPPED — H
 
 For each subdirectory `<area>` under `${CLAUDE_PROJECT_DIR}/.claude/areas/`. No auto-fix — schema population is architect's responsibility.
 
-- **HC-AREA-001** — `area.yml` parses and has required fields per `${CLAUDE_PLUGIN_ROOT}/sentinel/area-config-schema.md`: `name`, `display_name`, `paths`, `test_command`, `test_levels`.
+- **HC-AREA-001** — `area.yml` parses and has required fields per `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/area-config-schema.md`: `name`, `display_name`, `paths`, `test_command`, `test_levels`.
   - Severity: WARN. Manual fix: route through architect.
 
 - **HC-AREA-002** — `dev.yml` parses and has `role`, `context`, `write`.
