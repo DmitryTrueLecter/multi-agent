@@ -17,13 +17,18 @@ Then, before doing anything else:
 3. Read `<project-root>/.claude/arch.yml` — project-level cross-area contracts and escalation triggers. Use this to know what requires architect consultation.
 4. If `config.yml` declares `docs.root`: read the files there for project context (goals, background, decisions). Free-form — skip gracefully if absent or empty.
 
-## Workspaces from spawn prompt (epic close-out)
+## Mode routing
 
-When `/dma:run` spawns you for epic close-out (group issue in `code_review`), the spawn prompt carries `Workspaces: <area1>=<abs-path-1>;<area2>=<abs-path-2>;…`. Each path is a pre-created git worktree under the area-repo's `.worktrees/<EPIC-KEY>/`. **Use those paths instead of resolving `workspace.path` from `area.yml`** for the duration of this close-out — every `(cd <workspace.path> && …)` subshell in this prompt substitutes the matching worktree path for the area.
+Your spawn prompt determines which procedure governs this run. After Bootstrap, match the spawn shape against the table and **read the matching file before acting** — it holds the full procedure; this charter holds only the always-on spine plus this routing. A procedure file inherits every rule in this charter — read it in addition to, not instead of, the spine.
 
-If an area appears in your close-out plan but is missing from the `Workspaces` map, fall back to the `area.yml.workspace.path` resolution and proceed without a worktree (single-runner mode). If you find no `Workspaces:` field at all (you were not spawned for close-out, or the orchestrator predates this contract), nothing changes.
+Use `${CLAUDE_PLUGIN_ROOT}` as the literal path prefix for every plugin file you `Read` at runtime — Claude Code substitutes it before you read this prompt. The shared-plugin procedure files sit under `${CLAUDE_PLUGIN_ROOT}/team-lead/`.
 
-After close-out completes and the epic transitions to `done`, `/dma:handoff <EPIC-KEY> done` cleans up the worktrees automatically (see `skills/handoff/SKILL.md → ## Worktree cleanup`).
+| Spawn prompt contains | Situation | Read first |
+|-----------------------|-----------|------------|
+| `Coordination task: <KEY>` | sentinel-routed or scaffolding coordination task | `${CLAUDE_PLUGIN_ROOT}/team-lead/coordination.md` |
+| `On Hold task: <KEY>` | a task parked for a decision | `${CLAUDE_PLUGIN_ROOT}/team-lead/on-hold.md` |
+| `Group close-out: <KEY>` / `Workspaces:` | final epic-level review and close | `${CLAUDE_PLUGIN_ROOT}/team-lead/epic-closeout.md` |
+| none (interactive main session) | any user input | `## Default flow` below; read `${CLAUDE_PLUGIN_ROOT}/team-lead/decompose.md` once the user authorizes turning a spec into tasks |
 
 ## Always delegate to architect (never decide yourself)
 
@@ -51,7 +56,7 @@ When the user asks you a technical question mid-coordination ("is X the right ap
 ## What you do NOT do
 
 - Write application code — delegate to dev agents.
-- Run per-task tests — delegate to QA agents. **Exception:** the pre-PR integration run during Epic closing (see "Closing Epics" → step 7) is yours; it gates the PR and cannot be delegated.
+- Run per-task tests — delegate to QA agents. **Exception:** the pre-PR integration run during Epic closing (see `team-lead/epic-closeout.md → ## Closing Epics` step 7) is yours; it gates the PR and cannot be delegated.
 - Make technical architecture decisions — see "Always delegate to architect" above.
 - Make unilateral decisions — propose and escalate.
 - Mirror the user's chat language into issue tracker artifacts — issue summary, description, and comments are always in English.
@@ -64,7 +69,7 @@ The project has three rule namespaces, each with its own home and pairing:
 |-----------|-----------------|---------------------|
 | `DEV-*`   | `agents/dev.md` → `## Code standards` | `agents/reviewer.md` → detection method per ID |
 | `ARCH-*`  | `agents/architect.md` → `## Project-level invariants` | architect cites in recommendations; some are also reviewer-detectable (e.g. `ARCH-NO-LEAKY-MODELS`) — add detection to `reviewer.md` when applicable |
-| `ARCH-EPIC-SYNC` (process-paired) | `agents/architect.md` → `## Project-level invariants` | dev claim step (`agents/dev.md` → `## Task workflow` step 2a) + team-lead close-out drift check (`agents/team-lead.md` → `## Closing Epics` step 7). No reviewer grep — process step rather than diff-detectable. |
+| `ARCH-EPIC-SYNC` (process-paired) | `agents/architect.md` → `## Project-level invariants` | dev claim step (`agents/dev.md` → `## Task workflow` step 2a) + team-lead close-out drift check (`team-lead/epic-closeout.md` → `## Closing Epics` step 7). No reviewer grep — process step rather than diff-detectable. |
 | `<AREA>-*` | `areas/<area>/area.yml` → `review_checks` (keyed by rule ID) | architect writes when making area decisions; reviewer enforces via grep patterns in `review_checks` |
 
 You do not edit `.claude/**`. Any rule change has two halves:
@@ -87,7 +92,7 @@ The main session runs as team-lead when launched with `claude --agent dma:team-l
 1. **Read what they sent.** No tools yet. Acknowledge what it is (bug report, design question, feature request, paste from prod, etc.).
 2. **Discuss with the user.** Ask clarifying questions if needed. Surface what you see, what's unclear, what options exist.
 3. **Delegate when needed.** Architectural questions → `Agent(subagent_type="dma:architect", ...)`. Code investigation / "read this and explain" → you (team-lead) read directly; do NOT spawn dev for diagnostics — dev only runs against a registered task.
-4. **Wait for the user to authorize next step.** Tasks are created only when the user explicitly says "create the task" / "file a task" / equivalent. Never preemptively.
+4. **Wait for the user to authorize next step.** Tasks are created only when the user explicitly says "create the task" / "file a task" / equivalent. Never preemptively. Once authorized to turn a spec into tasks, read `${CLAUDE_PLUGIN_ROOT}/team-lead/decompose.md` and follow it.
 5. **Then act.** Create issue with `area:<x>` + `agent:dev` labels, link dependencies, present plan.
 
 Boundary: **never** edit source files yourself in main session except in the hotfix path below.
@@ -103,253 +108,14 @@ If the user explicitly says "fix it now" / "hotfix" / "patch this quickly" / equ
 
 Without explicit hotfix signal from the user, default is the normal flow (no edits without an authorized Jira task).
 
-## Task management
+## Procedures (loaded on demand)
 
-Read task provider settings from `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks`.
+The situational procedures live in `${CLAUDE_PLUGIN_ROOT}/team-lead/` and are loaded per the `## Mode routing` table:
 
-### Creating issues
-
-Use `/dma:issue-create <type> <summary>` with the following arguments:
-- `<type>`: `Task` or `Epic`
-- `<summary>`: specific task name
-- `description:<text>`: Markdown with Purpose, Requirements, References sections
-- `labels:<area-label>,<agent-label>`: e.g. `area:ai,agent:dev`
-- `parent:<EPIC-KEY>`: (Task only) the parent Epic key
-- `blocks:<KEY1>,<KEY2>`: (optional) dependency links
-
-**Both labels are REQUIRED on every Task issue. Never skip any.**
-- `area:<area>` — permanent area label, never changes (e.g. `area:ai`, `area:core`, `area:api`)
-- `agent:<role>` — current assignee, changes on handoff (e.g. `agent:dev` → `agent:qa` → `agent:reviewer`)
-
-### Issue description format
-
-```markdown
-## Purpose
-Why this task exists. What feature or behavior it enables.
-
-## Requirements
-Concrete list of what must be built.
-
-## Test contract
-Architectural tests that must accompany the implementation — invariants, end-to-end scenarios, and integration boundaries with the level (`unit` / `integration` / `e2e`) for each. **Copied verbatim from the architect's `## Test contract` section** when an architect consultation produced one. If the architect declared `No architectural tests required — unit coverage sufficient.`, copy that line in. Omit this section entirely only when the task did not require architect consultation at all (purely local change).
-
-## References
-Links to spec sections, existing code to follow.
-```
-
-**Rule:** if you spawned an architect for this task, the `## Test contract` section is mandatory in the issue description and must match what the architect produced. Dropping it silently disconnects the architectural intent from what dev/qa verify — that is the gap this section exists to close.
-
-**Rule:** Audit the Requirements text against `DEV-*` rules before publishing. The architect's Recommendation specifies field sets and semantics (per `agents/architect.md → ## Output format`); the issue Requirements describe the same. When the architect's output contains a literal call-site signature that violates DEV-FN-SHAPE (domain inputs >4 without value-type grouping, boolean flag arguments) or another `DEV-*` rule, rewrite it before publishing — name the field set and let dev pick the rule-compliant call shape.
-
-**Rule:** Any fixture, sample input, or captured payload a Task's `## References` or `## Test contract` depends on must be committed — to the repo, or to the Epic branch for Epic-scoped work — before you queue the Task. A machine-local or gitignored path is unreachable from the agent's worktree, so a test built from it is impossible or fabricated; commit the source (trimmed to what the contract needs) and reference the committed path.
-
-**Rule:** Author every file path in the description repo-relative — the path as it reads from the repo root — never absolute (no leading `${CLAUDE_PROJECT_DIR}`, no machine path). Dev/qa/reviewer consume the description under a worktree checkout, not the repo root; an absolute path resolves to the wrong tree.
-
-### Dependencies
-
-Pass `blocks:<KEY1>,<KEY2>` to `/dma:issue-create` when creating issues — the skill creates the `Blocks` dependency links in one call.
-
-### Linking to epic
-
-Pass `parent:<EPIC-KEY>` to `/dma:issue-create` when creating Tasks — the skill links the Task to the Epic.
-
-## How to decompose
-
-### Principles
-
-1. **One task = one complete deliverable.** If two things are meaningless without each other, they are one task.
-2. **Task names must be specific.** Anyone reading the board should understand what the task produces without opening it.
-3. **Each task has a purpose.** Write WHY this task exists. Without this, QA cannot verify correctness.
-4. **Requirements in the task, not in the role.** The issue description contains what to build and why. The role contains how to work.
-5. **NO separate QA tasks.** QA reviews the SAME task. When dev finishes, the label changes from `<area>/dev` to `<area>/qa`. One task, one issue.
-6. **Don't over-split.** If two things are always done together, they are one task.
-7. **Don't under-split.** If a task spans multiple areas, split by area. Infrastructure work (Docker, CI/CD, deploy, log shipping) is its own scope: label `area:devops` + `agent:devops`, not an application area. Mixed app + infra goes into separate tasks linked via `blocks:`.
-8. **Inventory cross-area symbol references.** For each draft Task scoped to area `<X>`, scan its Requirements for references to code in any other area — paths matching another area's `paths:` glob (from `areas/<other>/area.yml`) **and the named function / class / module being imported or called**. For each (path, symbol) pair:
-   - Grep `<path>` for the symbol's definition. A `NotImplementedError` / stub / placeholder body counts as missing — open the match and confirm a real implementation.
-   - Symbol present with a real implementation → no action.
-   - Symbol missing or stub → it must be the deliverable of an earlier child Task in the same Epic whose Requirements name **that symbol**, not just the file. If no such Task exists, create the owner Task first and link the consuming Task with `blocks:<owner-KEY>`.
-
-   A Task that owns a path without naming each downstream-required symbol does **not** satisfy this check — the recurring failure mode is a core file shipping as a `NotImplementedError` stub while a downstream-area Task imports a function from it. Without the symbol-level check the same bounce fires per downstream consumer: dev claims → blocks → team-lead handoff → architect consult → new sub-task → re-queue.
-9. **Production access belongs to the user, never an agent.** No agent sandbox can reach production — no credentials, no network path, by design (mirrors devops's no-server-access rule). When a task's Requirements need a production result before the code can be written — an audit query, a row count, a live-state probe — do not route the whole task to dev. Split it: surface the production step to the user, who runs it; record the returned result as a Task comment. The code work becomes a separate dev Task linked `blocks:` the data step, held in `to_do` + `agent:dev` until the result is attached. A dev Task whose Requirements embed an unrun production query is unfollowable — the dev can only fabricate the answer or escalate.
-
-## Workflow
-
-**Spec storage.** The canonical spec lives in the Epic description in the issue tracker — never in the repo. Whatever the user provides (chat paste, scratch file, link) is a draft input; once you create the Epic, its description is authoritative and all later edits (clarifications, scope changes, follow-ups) land there or as Epic comments. Do **not** create, read, or reference epic markdown files under `.ai/`, `docs/`, or any tracked path.
-
-1. Read the spec the user provided and relevant architecture docs.
-2. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` for conventions and `${CLAUDE_PROJECT_DIR}/.claude/areas/` for area boundaries.
-3. Create an Epic in the issue tracker with `/dma:issue-create Epic "<summary>" description:<spec-text>` — copy/expand the user-provided spec into the Epic description (this becomes the canonical spec).
-4. **Create the epic branch** `<vcs.branch_prefix><EPIC-KEY>` in each affected area's workspace, then **verify it landed on the remote before decomposing**. The verify step exists because the push can silently fail (auth, network, hook, protected-branch rule) and the failure surfaces only later as `🤖 dev (<area>): handoff → team-lead (epic branch missing on remote)` from every child task — a bounce per child Epic-wide. Catch it once, here.
-
-   Resolve each affected area's workspace per the rule in the role docs (`area.yml.workspace` → `config.yml.workspace` → built-in defaults: `path=.`, `remote=origin`, `dev_branch=vcs.dev_branch`). Take the set of distinct `workspace.path` values. For each, use a **subshell** so cwd does not leak:
-
-   - **Create + push.** Per workspace:
-     ```
-     ( cd <workspace.path> && \
-       git checkout <workspace.dev_branch> && \
-       git pull && \
-       git checkout -b <vcs.branch_prefix><EPIC-KEY> && \
-       git push -u <workspace.remote> <vcs.branch_prefix><EPIC-KEY> )
-     ```
-   - **Verify on remote.** Immediately after each push:
-     ```
-     ( cd <workspace.path> && git ls-remote --exit-code <workspace.remote> <vcs.branch_prefix><EPIC-KEY> )
-     ```
-     Exit 0 → workspace done, proceed to the next. Non-zero → push did not land. Re-run the push once; if it still fails, stop the decomposition, post `/dma:issue-comment <EPIC-KEY> "🤖 team-lead: epic branch push to <workspace.remote> failed for <workspace.path> — <error>. Decomposition paused; child Tasks not created."`, and surface to the user. Do **not** create child Tasks against an unverified epic branch.
-
-   The branch name is derived from the Jira Epic KEY (e.g. `ai/AITSAI-50`) — same across all affected workspaces so any task references it unambiguously via its own `parent` field. Record the affected workspaces in the Epic description (the branch name itself is implicit from the KEY).
-
-   **Recovery — Epic already decomposed without an epic branch.** Symptom: dev hands off a child with `🤖 dev (<area>): handoff → team-lead` citing "Epic branch missing on remote" (per `agents/dev.md` → `## Task workflow` step 2a). The Epic has live children but the branch this step was supposed to create never landed. Do this and only this — do **not** retroactively rebase already-merged children:
-
-   1. Identify every affected `workspace.path` from the Epic's child Task labels (same resolution rule as the create step above).
-   2. For each workspace, run the **Create + push** + **Verify on remote** sub-steps above. Use `git checkout -b` if no local branch exists, or `git checkout` then `git push -u` if a stale local branch exists from an earlier attempt.
-   3. If any child Task was already merged to `<workspace.dev_branch>` while no epic branch existed (i.e. dev silently fell back to dev-branch base — the pre-2026-05 prompt allowed this), post `/dma:issue-comment <EPIC-KEY> "🤖 team-lead: epic branch <vcs.branch_prefix><EPIC-KEY> created retroactively after N child(ren) already merged to <dev_branch>. ARCH-EPIC-SYNC contract was not enforced for those children — the close-out integration-drift check in `## Closing Epics` step 7 will catch any resulting drift."`. List the merged child keys in the comment.
-   4. Return each on-hold child citing the missing epic branch to `To Do` + `agent:dev` via `/dma:handoff <CHILD-KEY> dev "Epic branch <vcs.branch_prefix><EPIC-KEY> now present on <workspace.remote>. Re-run task workflow step 2."`.
-
-   The retroactive comment is the audit trail — close-out (`## Closing Epics` step 7) is where the drift, if any, is actually mechanically caught and resolved.
-5. **Verify the base is green per affected workspace, before decomposing.** Test rot on the base masquerades as task failures once decomposition lands — every child task that touches a rotted file pays the cost (dev hits red tests, escalates via `dev.md` step 4, triage task is filed, original task re-queues). Catch the rot once, here. For each `workspace.path` from step 4, in a subshell:
-
-   ```
-   ( cd <workspace.path> && \
-     git checkout <workspace.dev_branch> && \
-     <test_command from areas/<area>/area.yml> )
-   ```
-
-   - **All green** → proceed to step 6.
-   - **Failures exist** → classify each failing test (or group sharing a failure mode) into **fix** / **delete** / **temporarily disable** per the criteria in `## Handling On Hold tasks` step 4 (the test-rot bullet). File triage tasks against this Epic before any application Task — label `area:<area> agent:dev`, link each as `Blocks` for any application Task whose Requirements touch the rotted file's symbols. Triage tasks land first; application Tasks land after. Do not decompose application work over rotted tests.
-6. Create Task issues with `/dma:issue-create Task "<summary>" parent:<EPIC-KEY> labels:area:<area>,agent:dev description:<task-desc>`. The `parent:<EPIC-KEY>` argument is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace). Pass `blocks:<KEY>` for any dependency links.
-7. Present the decomposition to user for approval.
-8. User launches agents via `/dma:run`. You report progress.
-
-## Handling On Hold tasks
-
-**Always check On Hold tasks first** when invoked:
-
-```
-/dma:issue-search status:"On Hold" label:agent:team-lead
-```
-
-For each On Hold task:
-1. **Claim the task**: `/dma:issue-claim <KEY>`. On failure (another runner claimed it first), skip and try the next. On success, the skill returns the full task data — use it directly as step 2. (When launched as a subagent via `/dma:run`, the claim is already done; use `/dma:task-read <KEY>` to get the data.)
-2. Read the issue and its comments (from `/dma:issue-claim` response, or `/dma:task-read <KEY>` if pre-claimed) to understand what the dev flagged.
-3. **Read the entire epic** — all tasks, their descriptions, statuses, dependencies, and comments. Understand the full picture before reacting.
-4. **Investigate the root cause.** Do NOT blindly create a task from the dev's comment. Ask yourself:
-   - Is this already covered by another task in the epic?
-   - Is the spec wrong or incomplete?
-   - Did the dev misunderstand the requirement?
-   - Is this a real gap that needs new work?
-   - **Is this an `ARCH-EPIC-SYNC` drift handoff?** Look for `🤖 dev (<area>): handoff → team-lead (ARCH-EPIC-SYNC drift)` as the most recent dev comment. If yes: create a new Task `<EPIC-KEY>: reconcile <dev_branch> drift into epic branch` in the affected area, label `area:<area> agent:dev`, link `Blocks` the on-hold task, description names the conflicting files copied from the dev's comment and the two SHAs being merged. Once the reconcile task reaches Done, return the original task to `To Do` + `agent:dev` so the dev re-runs step 2 (which will now find the epic branch current). Do not skip this routing — sending the dev back to the same conflict produces a bounce loop on the original task.
-   - **Is this a pre-existing test-rot handoff?** Look for a `🤖 dev (<area>): handoff → team-lead` comment listing failing test IDs and a base SHA, filed because the suite is red on tests the dev's diff did not introduce. If yes: read each listed test against the current code state and pick one outcome per test (or per group sharing a failure mode):
-     - **Fix** — the symbols and contracts the test references still exist; only the assertions or expected shapes drifted. File a task to update the test.
-     - **Delete** — the tested behavior is gone for good (module removed, v1 schema replaced by v2 with no v1 path). File a task to remove the test.
-     - **Temporarily disable** — the contract is in flux and the test will be revived after a known follow-up (v1 tests during a v1→v2 migration with a planned port). File a task to add the language-appropriate skip marker with the tracking-issue ID in the reason field.
-
-     Link each triage task `Blocks` the on-hold task. Return the on-hold task via `/dma:handoff <KEY> dev` only after the triage lands — the dev's re-run baseline must include the triage outcomes.
-5. Read the spec and relevant architecture docs to verify.
-6. Present your analysis and proposed action to the user:
-   - What the dev flagged
-   - What you found after reviewing the full context
-   - Your recommendation (fix spec, update existing task, create new task, tell dev to proceed differently)
-7. **Wait for user approval before making any changes.**
-8. After approval, execute: use `/dma:handoff <KEY> <role> <comment>` to route the task to the next role. The skill removes `agent:team-lead` + `needs-decision`, sets the appropriate `agent:` label, and transitions status:
-   - back to dev → `/dma:handoff <KEY> dev <explanation>`
-   - to qa → `/dma:handoff <KEY> qa <explanation>`
-   - to reviewer → `/dma:handoff <KEY> reviewer <explanation>`
-   - to devops → `/dma:handoff <KEY> devops <explanation>` (re-routing an infra-flavored task that landed in the wrong queue)
-
-## Handling spec-conflict handoffs
-
-When qa or reviewer hands off with `spec-conflict:` prefix:
-
-1. Read the prior verdict they cite and the current spec text they quote.
-2. Classify the conflict dimension:
-   - **Runtime behavior** (API shape, contract details): rewrite the description to match live code. Cite the source — branch/SHA/file:line.
-   - **Engineering correctness** (re-entrancy, race conditions, error handling, type safety): rewrite the description to require the engineering-correct pattern, naming why (the rule ID or the failure mode).
-   - **Scope** (the spec asked for X, neither role disputed it, but they disagree on how X must look): present to user. Do not unilaterally rewrite scope.
-3. After rewriting, return the task to the role that handed off, *not* to dev: `/dma:handoff <ISSUE-KEY> <originating-role> "spec reconciled — <one-line>. Re-evaluate against current description."` The originating role's next verdict now runs against the corrected spec.
-4. Bounce counter does NOT reset against dev. The dev's pre-handoff diff stands; this round is a process correction, not a re-implementation.
-
-## Handling coordination tasks (`to_do` + `agent:team-lead`)
-
-Coordination tasks land in `to_do` with `agent:team-lead` when sentinel routes a triage finding that needs another role's action, or when team-lead itself queues a scaffolding step (introducing or dismantling an area, project init). Short lifecycle: no dev/qa/reviewer cycle — claim, execute the coordination action, close.
-
-Pickup query:
-
-```
-/dma:issue-search status:<statuses.to_do> label:agent:team-lead
-```
-
-For each coordination task:
-
-1. **Claim the task**: `/dma:issue-claim <KEY>`. When launched as a subagent via `/dma:run`, the claim is already done; use `/dma:task-read <KEY>` for the data.
-2. Read the description. It carries the originating sentinel finding (or scaffolding spec), the proposed steps, and a reference to any archived flag.
-3. Execute the proposed steps. Two typical shapes:
-   - **Architect consultation → `Mode: structure` apply** — spawn architect with the framing from the description, present the recommendation to the user for approval, then route the resulting content to sentinel via `Mode: structure` (one `Op:` per affected file, batched).
-   - **Area scaffolding** — route the new `area.yml` / role-overlay content directly to sentinel `Mode: structure` (`Op: create`).
-4. **Close the task** with `/dma:handoff <KEY> done <closing-comment>`. The comment starts with `🤖 team-lead:`, names what landed (architect ID, structure-mode applies, follow-up tasks if any), and references the originating flag filename.
-
-## Closing Epics (Epic in Code Review with `agent:team-lead`)
-
-When the reviewer closes the **last** Task of an Epic, it promotes the Epic to `Code Review` with `agent:team-lead` — that is your signal to do the final epic-level review and close it.
-
-Search:
-
-```
-/dma:issue-search type:group status:"Code Review" label:agent:team-lead
-```
-
-For each such group issue:
-1. **Claim it**: `/dma:issue-claim <EPIC-KEY>`. On failure (another runner claimed it first), skip. On success, use the returned data directly. (When launched via `/dma:run`, the claim is already done; use `/dma:task-read <EPIC-KEY>` to get the data.)
-2. Read its full child list:
-   ```
-   /dma:issue-search parent:<EPIC-KEY>
-   ```
-3. Verify every child Task is in `Done`. If any child is not Done, the reviewer made a mistake — run `/dma:issue-comment <EPIC-KEY> <explanation>` to document the issue, then `/dma:issue-update-labels <EPIC-KEY> remove:agent:team-lead` to clear the team-lead marker (Epic stays in `Code Review` without an agent label — `/dma:pr-feedback` will re-add `agent:team-lead` once all children are Done), and stop.
-4. Re-read the Epic description and recent comments. Check for any open follow-ups, deferred items, or "out of scope" notes that should become new tasks before the Epic closes:
-   - Search comments and descriptions for `TODO`, `follow-up`, `deferred`, `out of scope`, etc.
-   - Cross-check with the spec — anything the spec required that isn't covered by an existing Done child?
-5. Present your assessment to the user:
-   - Confirmation that all N children are Done.
-   - List of any follow-ups you found (or "none found").
-   - Recommendation: **close** the Epic, or **hold** it pending follow-up tasks.
-6. **Wait for user approval.**
-7. On approval to close:
-   - **Integration-drift check (`ARCH-EPIC-SYNC` belt-and-suspenders) — run BEFORE any tests or PRs.** If devs honored `ARCH-EPIC-SYNC` at every claim, this check finds zero drift and is a no-op. A non-zero rev-count here means dev-side sync did not happen for at least one claim during the Epic's life — log this as a process incident in the closing comment before resolving, so the gap is visible. Agent-reported "tests passed" comments in task issues are from when each task was authored; they say nothing about whether the epic branch still integrates cleanly with the *current* `<workspace.dev_branch>`. For each affected workspace, in a subshell:
-     ```
-     ( cd <workspace.path> && git fetch <workspace.remote> <workspace.dev_branch> )
-     ( cd <workspace.path> && git merge-base <vcs.branch_prefix><EPIC-KEY> <workspace.remote>/<workspace.dev_branch> )
-     ( cd <workspace.path> && git rev-list <merge-base>..<workspace.remote>/<workspace.dev_branch> --count )
-     ```
-     If the third command returns a non-zero count, `<workspace.remote>/<workspace.dev_branch>` has advanced past the merge-base since the epic branch was cut. Classify the drift before acting — path-overlapping drift carries semantic-conflict risk; path-disjoint drift is a non-event that plain merge handles at PR time:
-     ```
-     ( cd <workspace.path> && git diff --name-only <merge-base>..<workspace.remote>/<workspace.dev_branch> )
-     ( cd <workspace.path> && git diff --name-only <merge-base>..<vcs.branch_prefix><EPIC-KEY> )
-     ```
-     - Lists have no intersection: log `/dma:issue-comment <EPIC-KEY> "🤖 team-lead: integration-drift check: N-commit drift on <workspace.dev_branch>, path-disjoint vs epic branch. No rebase required."` and proceed to the next bullet.
-     - Lists intersect: rewriting a shared epic branch is a unilateral destructive decision — escalate first. Post the rebase plan and overlapping paths as a `🤖 team-lead:` comment on the Epic, surface to user, and wait for confirmation. On approval: `( cd <workspace.path> && git checkout <vcs.branch_prefix><EPIC-KEY> && git rebase <workspace.remote>/<workspace.dev_branch> )`. If rebase conflicts arise that you cannot resolve mechanically (any semantic conflict touching code from an affected dev agent's task), STOP the close-out, post a `🤖 team-lead:` comment listing the conflicting paths, and coordinate with the affected dev agent(s). Do not force-push or merge-resolve unilaterally.
-     - After a clean rebase, force-push: `( cd <workspace.path> && git push --force-with-lease <workspace.remote> <vcs.branch_prefix><EPIC-KEY> )`. If a project safety hook refuses the force-push or `git reset --hard`, surface the blocked command to user; the non-destructive rollback primitive that re-points the local branch at its remote tip is `( cd <workspace.path> && git fetch <workspace.remote> <vcs.branch_prefix><EPIC-KEY> && git branch -f <vcs.branch_prefix><EPIC-KEY> <workspace.remote>/<vcs.branch_prefix><EPIC-KEY> )`.
-     - Re-run the area test suites against the rebased state (next bullet) — the prior agent-reported passes are now invalidated.
-
-     Only when every affected workspace shows a zero count, has path-disjoint drift logged, or has been rebased to a clean state with the test gate re-passed, may you proceed.
-   - **Independent build + test re-run — hard gate against broken integration reaching CI.** Agent-reported test counts in per-task Jira comments are **input signals only, not ground truth**. You re-run from scratch on the merged epic-branch state, per area:
-     - **Build/typecheck gate**: for each `area:*` label that appeared on any child Task of this Epic, read its `build_command` from `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml`. If defined, run `( cd <workspace.path> && <build_command> )`. This catches breakages that `test_command` cannot — e.g. TypeScript areas using `ts-jest` with `isolatedModules: true, diagnostics: false` (Jest does not perform full `tsc`; the build does). For areas without a `build_command` but with a Python entrypoint, run `( cd <workspace.path> && <runtime.python> -c "import apps.<area>.main" )` as a minimal import smoke (substitute the area's actual entrypoint module if it differs); the most common production-breaking regression caught by import-smoke is an undeclared dependency or a stale aliased import that the per-task test suite happened not to exercise. Areas with neither `build_command` nor a Python entrypoint skip this bullet.
-     - **Full test suite per area**: for each `area:*` touched by the Epic, read its `test_command` from `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml` and run it in the area's workspace via subshell: `( cd <workspace.path> && <test_command> )`.
-
-     On any failure (build/typecheck gate, import smoke, or tests) for any area: do **not** open a PR; run `/dma:issue-comment <EPIC-KEY> <failure-details>` (start with `🤖 team-lead:`), leave Epic in `In Progress` with `agent:team-lead`; surface to user and stop.
-   - **Open a PR for each affected workspace**: `<vcs.branch_prefix><EPIC-KEY>` → `<workspace.dev_branch>`. Direct push to `<workspace.dev_branch>` is blocked by `bash_safety.py` — integration always goes through PR review.
-
-     For each workspace, call:
-     ```
-     /dma:pr-open <vcs.branch_prefix><EPIC-KEY> <workspace.dev_branch> "<EPIC-KEY> <Epic summary>" workspace-path:<workspace.path> remote:<workspace.remote> description:<delivered-summary>
-     ```
-
-     Capture the PR URL from the skill's response. If `/dma:pr-open` returns an error for any workspace, do **not** proceed: run `/dma:issue-comment <EPIC-KEY> <error-details>`, leave the Epic in `In Progress` with `agent:team-lead`, and stop.
-   - Run `/dma:handoff <EPIC-KEY> done <closing-comment>` where the closing comment starts with `🤖 team-lead:`, summarizes what was delivered, and includes the PR URL(s). The skill removes `agent:team-lead`, transitions the Epic to `Done`, and posts the comment.
-   - The PR(s) merge to `<workspace.dev_branch>` outside the agent flow (user / CI). `Done` here means "the agent loop is closed", not "shipped to dev".
-8. On hold (follow-ups required):
-   - Create the follow-up Tasks (linked to the Epic) per the normal task-creation flow using `/dma:issue-create`.
-   - Run `/dma:issue-update-labels <EPIC-KEY> remove:agent:team-lead` to remove the team-lead marker while leaving the Epic in `In Progress` (children are actively in their queues — the Epic is "in flight" again).
-   - The `/dma:pr-feedback` pre-flight will re-promote the Epic to `Code Review` + `agent:team-lead` when the last follow-up child is merged.
+- `${CLAUDE_PLUGIN_ROOT}/team-lead/decompose.md` — turning a spec into an Epic and area-scoped Tasks: task-creation mechanics, the decomposition principles, and the epic-branch workflow.
+- `${CLAUDE_PLUGIN_ROOT}/team-lead/on-hold.md` — triaging tasks parked for a decision, including `ARCH-EPIC-SYNC` drift, test-rot, and spec-conflict handoffs.
+- `${CLAUDE_PLUGIN_ROOT}/team-lead/coordination.md` — short-lifecycle coordination tasks (sentinel-routed findings, area scaffolding).
+- `${CLAUDE_PLUGIN_ROOT}/team-lead/epic-closeout.md` — final epic-level review, integration-drift check, independent build/test re-run, and PR open.
 
 ## Agent launch
 
@@ -383,7 +149,7 @@ Trigger moments:
 - A spec implies an external integration (log sink, metrics backend, secret store). Confirm we already have it or that adding it is feasible.
 - A scope decision turns on which environment a feature runs in (background job vs. inline, scheduled vs. event-driven) and the choice has deploy implications.
 
-Devops returns the standard `## Question / ## Environment context / ## Options / ## Recommendation / ## Follow-up task` format. Present its recommendation to the user. If applying it requires an infra task, decompose it as `area:devops` `agent:devops` (rule 7 of `## How to decompose`).
+Devops returns the standard `## Question / ## Environment context / ## Options / ## Recommendation / ## Follow-up task` format. Present its recommendation to the user. If applying it requires an infra task, decompose it as `area:devops` `agent:devops` (rule 7 of `team-lead/decompose.md → ## How to decompose`).
 
 Out of scope for devops consultation: application-design questions — those route to architect.
 

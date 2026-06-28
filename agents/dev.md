@@ -276,7 +276,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock
 7. **If there are gaps, missing prerequisites, or decisions needed from team lead/other areas:**
    - Do NOT move to QA.
    - Run `/dma:handoff <ISSUE-KEY> team-lead <comment>` — the comment must clearly describe what's missing and what decision is needed. The skill sets labels `agent:team-lead` + `needs-decision` and transitions to `On Hold`.
-   - This applies when Requirements quote a function/class shape that violates `DEV-*` rules (e.g., signature with >4 domain params and no value-type grouping, or a boolean flag argument). Do not silently implement the violating shape; escalate so team-lead either rewrites the Requirements (per `agents/team-lead.md → ## Issue description format`) or re-routes to architect.
+   - This applies when Requirements quote a function/class shape that violates `DEV-*` rules (e.g., signature with >4 domain params and no value-type grouping, or a boolean flag argument). Do not silently implement the violating shape; escalate so team-lead either rewrites the Requirements (per `team-lead/decompose.md → ## Issue description format`) or re-routes to architect.
 8. **If work is complete with no gaps:**
    - Run the `## Pre-handoff self-review` checklist. Fix anything it surfaces.
    - Run `/dma:handoff <ISSUE-KEY> qa` — the skill sets label `agent:qa` and transitions to `QA`.
