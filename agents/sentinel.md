@@ -108,6 +108,7 @@ Checklist (each line is a test to try to fail, not a label to assign):
 - Length capped at the replaced section. Bold-prefix bullets only when the surrounding sub-bullets already use them.
 - XML tags only where structural ambiguity warrants them. Default is prose plus bullets.
 - References resolve. Every placeholder, cross-reference, and claimed dependency in the draft exists in the destination file or its config; quote the file:line where it resolves. An unverifiable reference is `FAIL`.
+- Cross-agent references point to a contract, not a coordinate. A reference from one agent's prompt into another's names a stable contract — a rule ID, a rule catalog, an interface in `arch.yml`/`config.yml` — never an ordinal coordinate in the other agent's procedure (`step 7`, `rule 8`, an arbitrary `## Section` of a workflow). A deep-link into another agent's procedure layout is `FAIL`: it rots on reorder and forces ripple edits. A same-file self-reference or a source-of-truth catalog reference is `N/A`.
 - Stack- and machine-agnostic in shared-plugin targets. When the destination is a shared-plugin path, every concrete token is a placeholder (`${CLAUDE_PROJECT_DIR}`, `<area>`) or universal — never a project tree, a machine path, or a stack tool. Project-local targets (per `## Plugin architecture`) may carry specifics.
 - The `**Fix:**` block holds only the fenced replacement. Commentary goes in a separate `**Note:**` block after the fence, ≤3 sentences.
 

@@ -198,14 +198,14 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock
      ```
 
      - **Exit 0 (epic branch present)** → continue to 2b.
-     - **Exit 2 (epic branch missing on remote)** → team-lead's `## Workflow` step 4 (epic-branch creation) did not run or did not complete for this workspace. Do NOT silently fall back to `<workspace.dev_branch>`: that drops the epic's integration contract and produces the `ARCH-EPIC-SYNC` drift that step 2b exists to prevent. Do this and stop:
+     - **Exit 2 (epic branch missing on remote)** → team-lead's epic-branch creation did not run or did not complete for this workspace. Do NOT silently fall back to `<workspace.dev_branch>`: that drops the epic's integration contract and produces the `ARCH-EPIC-SYNC` drift that step 2b exists to prevent. Do this and stop:
 
        1. Run `/dma:handoff <ISSUE-KEY> team-lead` with the comment body:
           ```
           Epic branch missing on remote.
           Expected: <vcs.branch_prefix><EPIC-KEY> on <workspace.remote>
           Workspace: <workspace.path>
-          Team-lead to create the epic branch per `## Workflow` step 4, then return this task to To Do + agent:dev.
+          Team-lead to create the epic branch, then return this task to To Do + agent:dev.
           ```
           The skill will prefix the comment with `🤖 dev (<area>): handoff → team-lead`, set label `agent:team-lead` + `needs-decision`, and transition to `On Hold`.
        2. Stop. Do not cut the task branch. Do not invent a fallback base.
@@ -276,7 +276,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock
 7. **If there are gaps, missing prerequisites, or decisions needed from team lead/other areas:**
    - Do NOT move to QA.
    - Run `/dma:handoff <ISSUE-KEY> team-lead <comment>` — the comment must clearly describe what's missing and what decision is needed. The skill sets labels `agent:team-lead` + `needs-decision` and transitions to `On Hold`.
-   - This applies when Requirements quote a function/class shape that violates `DEV-*` rules (e.g., signature with >4 domain params and no value-type grouping, or a boolean flag argument). Do not silently implement the violating shape; escalate so team-lead either rewrites the Requirements (per `team-lead/decompose.md → ## Issue description format`) or re-routes to architect.
+   - This applies when Requirements quote a function/class shape that violates `DEV-*` rules (e.g., signature with >4 domain params and no value-type grouping, or a boolean flag argument). Do not silently implement the violating shape; escalate so team-lead either rewrites the Requirements or re-routes to architect.
 8. **If work is complete with no gaps:**
    - Run the `## Pre-handoff self-review` checklist. Fix anything it surfaces.
    - Run `/dma:handoff <ISSUE-KEY> qa` — the skill sets label `agent:qa` and transitions to `QA`.
