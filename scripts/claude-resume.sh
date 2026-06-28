@@ -23,7 +23,7 @@
 set -u
 
 TARGET="${1:-${TARGET:-claude:0}}"
-NUDGE="${NUDGE:-продолжай}"
+NUDGE="${NUDGE:-continue}"
 POLL_INTERVAL="${POLL_INTERVAL:-60}"   # seconds between pane reads
 COOLDOWN="${COOLDOWN:-900}"            # seconds to skip after a successful nudge
 EXTRA_DELAY="${EXTRA_DELAY:-60}"       # seconds added to reset time as safety

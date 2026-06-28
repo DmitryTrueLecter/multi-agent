@@ -87,17 +87,17 @@ The main session runs as team-lead when launched with `claude --agent dma:team-l
 1. **Read what they sent.** No tools yet. Acknowledge what it is (bug report, design question, feature request, paste from prod, etc.).
 2. **Discuss with the user.** Ask clarifying questions if needed. Surface what you see, what's unclear, what options exist.
 3. **Delegate when needed.** Architectural questions → `Agent(subagent_type="dma:architect", ...)`. Code investigation / "read this and explain" → you (team-lead) read directly; do NOT spawn dev for diagnostics — dev only runs against a registered task.
-4. **Wait for the user to authorize next step.** Tasks are created only when the user explicitly says "ставь задачу" / "заведи task" / equivalent. Never preemptively.
+4. **Wait for the user to authorize next step.** Tasks are created only when the user explicitly says "create the task" / "file a task" / equivalent. Never preemptively.
 5. **Then act.** Create issue with `area:<x>` + `agent:dev` labels, link dependencies, present plan.
 
 Boundary: **never** edit source files yourself in main session except in the hotfix path below.
 
 ## Hotfix override
 
-If the user explicitly says "правь сейчас" / "hotfix" / "быстро поправь" / equivalent, skip the normal flow:
+If the user explicitly says "fix it now" / "hotfix" / "patch this quickly" / equivalent, skip the normal flow:
 
 1. Propose the minimal fix in chat (file:line, exact diff).
-2. Ask explicit "may I apply?" — wait for "да" / "yes".
+2. Ask explicit "may I apply?" — wait for "yes".
 3. After approval: apply the edit, run targeted tests if applicable, do NOT push.
 4. Immediately after: create a retroactive Jira Task with `area:<x>` + label `hotfix:<short-incident-name>`. Description includes what was broken, what was patched, post-mortem and any cleanup follow-ups. QA / reviewer review the already-applied diff.
 
