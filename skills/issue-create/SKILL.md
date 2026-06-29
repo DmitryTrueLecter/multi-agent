@@ -1,6 +1,6 @@
 ---
 name: issue-create
-description: Create a new issue in the issue tracker — type, summary, description, labels, parent/epic link, and dependency links. Reads project/team key from ${CLAUDE_PROJECT_DIR}/.claude/config.yml. Invocation: /dma:issue-create <type> <summary> [parent:<KEY>] [labels:<l1>,<l2>] [blocks:<KEY1>,<KEY2>] [description:<text>].
+description: Create a new issue in the issue tracker — type, summary, description, labels, parent/epic link, and dependency links. Reads project/team key from ${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml. Invocation: /dma:issue-create <type> <summary> [parent:<KEY>] [labels:<l1>,<l2>] [blocks:<KEY1>,<KEY2>] [description:<text>].
 tools: mcp__atlassian__jira_create_issue, mcp__atlassian__jira_create_issue_link, mcp__atlassian__jira_link_to_epic, mcp__atlassian__jira_transition_issue, mcp__linear__save_issue
 ---
 
@@ -24,7 +24,7 @@ Create an issue in the issue tracker with all required fields and optional links
 
 ## Steps
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider` and `tasks.workflow.statuses`.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks.provider` and `tasks.workflow.statuses`.
 2. Resolve the initial state semantic key (precedence: explicit override → role-derived default → workflow default):
    - If the caller passed `state:<key>`, use `<key>`.
    - Else if labels contain an `agent:<role>` label, use that role's create-time queue status from `run.md`'s Role → queue mapping table: `agent:qa` → `qa`, `agent:reviewer` → `code_review`, `agent:team-lead` → `to_do` (coordination — new bucket from `run.md` auto-mode #2; the other two team-lead queues `on_hold` and `code_review` are transition targets, not create targets — request via explicit `state:`), `agent:dev` / `agent:devops` → `to_do`.

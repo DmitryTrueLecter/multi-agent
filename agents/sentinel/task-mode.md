@@ -12,13 +12,13 @@ Spawn is automated by `/dma:run` — see `commands/run.md → ## Auto-mode` buck
 
 ## In scope
 
-Files matching `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/**` for the area named on the Task's `area:<area>` label. Out-of-scope writes — `agents/*.md`, `skills/**`, `commands/**`, `hooks/**`, `arch.yml`, `config.yml`, anything outside `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/` — abort the task and hand back to team-lead per step 8. Shared-plugin or arch-level prompt changes route through `/dma:sentinel-flag` (async) or consultation (sync), not task-mode.
+Files matching `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/**` for the area named on the Task's `area:<area>` label. Out-of-scope writes — `agents/*.md`, `skills/**`, `commands/**`, `hooks/**`, `arch.yml`, `config.yml`, anything outside `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` — abort the task and hand back to team-lead per step 8. Shared-plugin or arch-level prompt changes route through `/dma:sentinel-flag` (async) or consultation (sync), not task-mode.
 
 ## Procedure
 
 1. Read the issue with `/dma:task-read <ISSUE-KEY>`. By the time you are spawned, `/dma:run` has already claimed the task (status `in_progress`, label `agent:sentinel`). The description carries the `## Context` / `## Desired effect` / `## References` shape from `agents/team-lead.md → ## Consulting sentinel → Task`.
 
-   Read the area's `area.yml` and every role-overlay under `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/` to learn the area's stack, conventions, and existing rules. Read `${CLAUDE_PROJECT_DIR}/.claude/arch.yml` for project-level invariants — edits must not contradict an `ARCH-*` rule. Read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/area-config-schema.md` if the desired effect introduces or touches an `area.yml` field.
+   Read the area's `area.yml` and every role-overlay under `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` to learn the area's stack, conventions, and existing rules. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/arch.yml` for project-level invariants — edits must not contradict an `ARCH-*` rule. Read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/area-config-schema.md` if the desired effect introduces or touches an `area.yml` field.
 
 2. **Determine the base branch** from the issue's `parent` field:
    - `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>` (the Epic branch).
@@ -34,11 +34,11 @@ Files matching `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/**` for the area name
    - **Re-run** (`git ls-remote --exit-code <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>` returns 0): `git checkout <vcs.branch_prefix><ISSUE-KEY>` + `git pull`. Continue from prior state — the user declined a previous PR; read the most recent `🤖 user (decline) via PR <URL>:` comment for what objections to address.
    - **Fresh task**: `git checkout <base>` → `git pull` → `git checkout -b <vcs.branch_prefix><ISSUE-KEY>`.
 
-   `ARCH-EPIC-SYNC` does not apply to sentinel tasks — prompt-deliverable changes touch `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/` paths only and do not collide with the cross-area code drift that rule exists to prevent.
+   `ARCH-EPIC-SYNC` does not apply to sentinel tasks — prompt-deliverable changes touch `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` paths only and do not collide with the cross-area code drift that rule exists to prevent.
 
-4. **Plan the edits.** Translate the `## Desired effect` into concrete create / modify / delete operations on files under `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/`. For each operation, apply the four gates from `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/structure-mode.md → ## Procedure` (scope / schema / quality / consistency) as a self-check before writing. If any gate fails, do not write — hand off back to team-lead per step 8.
+4. **Plan the edits.** Translate the `## Desired effect` into concrete create / modify / delete operations on files under `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/`. For each operation, apply the four gates from `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/structure-mode.md → ## Procedure` (scope / schema / quality / consistency) as a self-check before writing. If any gate fails, do not write — hand off back to team-lead per step 8.
 
-5. **Apply edits** under `agents/sentinel.md → ## Writing replacements` — print the style-audit block, then the fenced replacement, then `Write`. Resolve every `Write` / `Edit` target under `<abs-workspace-path>/.claude/areas/<area>/` — the worktree from your prompt, where the branch and PR live; use `${CLAUDE_PROJECT_DIR}` only to read config you do not edit (`config.yml`, `arch.yml`). One file per replacement cycle. Substance — rule IDs, thresholds, grep patterns — stays as the desired effect prescribed; polish is voice and structure only.
+5. **Apply edits** under `agents/sentinel.md → ## Writing replacements` — print the style-audit block, then the fenced replacement, then `Write`. Resolve every `Write` / `Edit` target under `<abs-workspace-path>/.claude/dma/areas/<area>/` — the worktree from your prompt, where the branch and PR live; use `${CLAUDE_PROJECT_DIR}` only to read config you do not edit (`config.yml`, `arch.yml`). One file per replacement cycle. Substance — rule IDs, thresholds, grep patterns — stays as the desired effect prescribed; polish is voice and structure only.
 
 6. **Commit your changes** (do NOT push yet). Commit message format:
    ```
@@ -75,12 +75,12 @@ Files matching `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/**` for the area name
      2. A one-paragraph TL;DR of what changed.
      3. `Local checkout: just task <ISSUE-KEY>`.
      4. `Approved tip: <sha>` on its own line — full 40-char SHA, no backticks. `/dma:pr-feedback` matches this line when reconciling the merge.
-   - **Self-gate failure or scope conflict** (a desired effect cannot be expressed inside `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/`, or the four gates reject the requested change): do not write, do not open a PR. `/dma:handoff <ISSUE-KEY> team-lead <reason>` with `needs-decision`. Team-lead either revises the desired effect or re-routes to architect.
+   - **Self-gate failure or scope conflict** (a desired effect cannot be expressed inside `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/`, or the four gates reject the requested change): do not write, do not open a PR. `/dma:handoff <ISSUE-KEY> team-lead <reason>` with `needs-decision`. Team-lead either revises the desired effect or re-routes to architect.
 
 ## Out of task scope
 
 - **Shared-plugin or arch-level changes.** Route via `/dma:sentinel-flag` or consultation; do not coerce them through a task.
-- **Code changes.** A prompt-deliverable Task touches `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/` only. If the Epic also requires code changes, they live in paired dev / devops Tasks linked via `blocks:` — not in the sentinel Task.
+- **Code changes.** A prompt-deliverable Task touches `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` only. If the Epic also requires code changes, they live in paired dev / devops Tasks linked via `blocks:` — not in the sentinel Task.
 - **Rule-content disputes.** If the desired effect declares a rule whose substance you disagree with on engineering grounds but that passes the four gates, you apply it. Subjective architectural taste is architect's call, not sentinel's.
 
 ## Cross-mode contracts

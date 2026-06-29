@@ -14,7 +14,7 @@ Fetch a task's complete data from the issue tracker and surface it to the callin
 
 ## Steps
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks.provider`.
 2. Follow the section for your provider.
 
 ---

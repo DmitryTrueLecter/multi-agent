@@ -52,17 +52,17 @@ When an auto-fix runs successfully, the check line uses `↻ FIXED — <command>
   - Auto-fix: none. Project not bootstrapped at all.
   - Manual fix: bootstrap the project — beyond healthcheck scope.
 
-- **HC-FS-005** — `${CLAUDE_PROJECT_DIR}/.claude/config.yml` parses as YAML.
+- **HC-FS-005** — `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` parses as YAML.
   - Severity: CRITICAL.
   - Detection: read file; YAML parser returns without error.
   - Auto-fix: none. Parser errors require human-readable resolution.
   - Manual fix: address the parse error at the cited line.
 
-- **HC-FS-007** — If `config.yml → devops_paths` is declared OR the tracker has an `area:devops` label: `${CLAUDE_PROJECT_DIR}/.claude/devops/environments.md` exists.
+- **HC-FS-007** — If `config.yml → devops_paths` is declared OR the tracker has an `area:devops` label: `${CLAUDE_PROJECT_DIR}/.claude/dma/devops/environments.md` exists.
   - Severity: WARN.
-  - Detection: precondition + `test -f ${CLAUDE_PROJECT_DIR}/.claude/devops/environments.md`.
-  - Auto-fix: `mkdir -p ${CLAUDE_PROJECT_DIR}/.claude/devops && cp ${CLAUDE_PLUGIN_ROOT}/agents/sentinel/templates/environments.md ${CLAUDE_PROJECT_DIR}/.claude/devops/environments.md`. Only when the destination is missing entirely; never overwrites. After materialization, the agent must still tell the user to populate the file with real environment facts.
-  - Manual fix: copy the template from `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/templates/environments.md` to `${CLAUDE_PROJECT_DIR}/.claude/devops/environments.md` and populate.
+  - Detection: precondition + `test -f ${CLAUDE_PROJECT_DIR}/.claude/dma/devops/environments.md`.
+  - Auto-fix: `mkdir -p ${CLAUDE_PROJECT_DIR}/.claude/dma/devops && cp ${CLAUDE_PLUGIN_ROOT}/agents/sentinel/templates/environments.md ${CLAUDE_PROJECT_DIR}/.claude/dma/devops/environments.md`. Only when the destination is missing entirely; never overwrites. After materialization, the agent must still tell the user to populate the file with real environment facts.
+  - Manual fix: copy the template from `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/templates/environments.md` to `${CLAUDE_PROJECT_DIR}/.claude/dma/devops/environments.md` and populate.
 
 - **HC-FS-008** — If `config.yml → docs.root` declared: the directory exists at that path.
   - Severity: WARN.
@@ -74,11 +74,11 @@ When an auto-fix runs successfully, the check line uses `↻ FIXED — <command>
   - Severity: WARN.
   - Detection: per workspace, first `git -C <path> rev-parse --git-dir >/dev/null 2>&1` (skip the workspace silently if not a git repo); then `git -C <path> config user.email` and `git -C <path> config user.name` — both must return non-empty. One report line per workspace; never collapse.
   - Auto-fix: per workspace failing the check, **only if** `config.yml → git.identity.email` AND `git.identity.name` are both set — `git -C <path> config user.email <config.git.identity.email> && git -C <path> config user.name <config.git.identity.name>`. Sets only keys that are unset; never overwrites. When `git.identity` is absent from config, no auto-fix runs — manual fix reported instead.
-  - Manual fix: declare `git.identity.email` and `git.identity.name` in `${CLAUDE_PROJECT_DIR}/.claude/config.yml` and re-run with `Fix: true`; or set them directly with `git -C <path> config user.email <your-email> && git -C <path> config user.name <your-name>`. Sentinel does not pick the identity — it is project- and user-specific (personal repo → personal identity; shared repo → conventional bot identity).
+  - Manual fix: declare `git.identity.email` and `git.identity.name` in `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` and re-run with `Fix: true`; or set them directly with `git -C <path> config user.email <your-email> && git -C <path> config user.name <your-name>`. Sentinel does not pick the identity — it is project- and user-specific (personal repo → personal identity; shared repo → conventional bot identity).
 
 ## Stage 2 — Config completeness
 
-Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` once. All checks operate on the parsed structure. If HC-FS-005 failed, skip the entire stage.
+Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` once. All checks operate on the parsed structure. If HC-FS-005 failed, skip the entire stage.
 
 No check in this stage has an auto-fix — every value here carries user-choice content (display names, branch names, paths, team keys), and silent injection of defaults would mask a real configuration intent.
 
@@ -105,7 +105,7 @@ No check in this stage has an auto-fix — every value here carries user-choice 
 - **HC-CFG-007** — (WARN) `runtime.<key>` paths (if declared) point to existing executable files.
   - Severity: WARN. Detection: `test -x <path>` per key. Manual fix: correct path or remove key.
 
-- **HC-CFG-008** — At least one area under `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/` with both `area.yml` and `dev.yml`.
+- **HC-CFG-008** — At least one area under `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` with both `area.yml` and `dev.yml`.
   - Severity: CRITICAL. Detection: glob + file presence. Manual fix: route through architect.
 
 - **HC-CFG-009** — (WARN) `devops_paths` declared as a non-empty list.
@@ -115,7 +115,7 @@ If HC-CFG-003 fails, mark every tracker-side check downstream `– SKIPPED — H
 
 ## Stage 3 — Area config schema
 
-For each subdirectory `<area>` under `${CLAUDE_PROJECT_DIR}/.claude/areas/`. No auto-fix — schema population is architect's responsibility.
+For each subdirectory `<area>` under `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/`. No auto-fix — schema population is architect's responsibility.
 
 - **HC-AREA-001** — `area.yml` parses and has required fields per `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/area-config-schema.md`: `name`, `display_name`, `paths`, `test_command`, `test_levels`.
   - Severity: WARN. Manual fix: route through architect.
@@ -157,7 +157,7 @@ Skip entirely if any of HC-FS-005, HC-CFG-003, HC-CFG-005 failed. No auto-fix in
     - `jira` → trivial search per label (`label = "agent:dev"`). A `0 results` response with `200 OK` means label exists; an error indicates label is unknown.
   - Manual fix: create the missing label.
 
-- **HC-BOARD-003** — For each `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/`: label `area:<area>` exists in tracker.
+- **HC-BOARD-003** — For each `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/`: label `area:<area>` exists in tracker.
   - Severity: WARN. Detection: as HC-BOARD-002. Manual fix: create label.
 
 - **HC-BOARD-004** — If `devops_paths` non-empty: label `area:devops` exists.
@@ -197,7 +197,7 @@ Persistent per-task worktrees created by `/dma:run → ## Worktree bootstrap` ne
   - Severity: WARN per entry.
   - Detection: for each entry in `config.yml` → `worktree.link_paths` (unset or empty → skip the check), at each workspace repo root (project root + each `area.yml.workspace.path`): `<repo>/<entry>` exists on disk AND `git -C <repo> check-ignore -q <entry>` returns 0. Finding once per entry missing at the repo root (bootstrap step 5 silently skips it, leaving the worktree without it) or not gitignored (a tracked path needs no link).
   - Auto-fix: none — a missing or mistyped entry needs human judgment.
-  - Manual fix: correct or remove the entry in `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `worktree.link_paths`; an artifact a `setup_commands` step rebuilds belongs there, not in `link_paths`.
+  - Manual fix: correct or remove the entry in `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `worktree.link_paths`; an artifact a `setup_commands` step rebuilds belongs there, not in `link_paths`.
 
 - **HC-WT-004** — Every `worktree.setup_commands` leading binary resolves on PATH.
   - Severity: CRITICAL — an unresolved binary aborts the worktree bootstrap (`commands/run.md` step 6), so no agent run on a fresh worktree can proceed.
@@ -224,7 +224,7 @@ Persistent per-task worktrees created by `/dma:run → ## Worktree bootstrap` ne
 
 ### Stage 2 — Config completeness
 ✗ HC-CFG-005 — missing status key: awaiting_ops
-  Manual fix: add to ${CLAUDE_PROJECT_DIR}/.claude/config.yml → tasks.workflow.statuses
+  Manual fix: add to ${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml → tasks.workflow.statuses
 ...
 
 ### Stage 3 — Area config schema

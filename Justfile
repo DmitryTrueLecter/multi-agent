@@ -2,9 +2,9 @@
 #
 # Usage in the project's root Justfile:
 #
-#     import '.claude/Justfile'
+#     import '.claude/dma/Justfile'
 #
-# This file lives at `.claude/Justfile` in the project (installed from the dma
+# This file lives at `.claude/dma/Justfile` in the project (installed from the dma
 # plugin, not a symlink). The launch recipes start Claude with the namespaced
 # plugin agent, e.g. `claude --agent dma:team-lead`, so the dma plugin must be
 # enabled in that session (marketplace/skills-dir install, or `--plugin-dir`).
@@ -24,7 +24,7 @@ session := "claude-" + project
 
 # Auto-resume claude after rate-limit reset (logs: /tmp/claude-resume-<session>.log)
 claude-resume:
-    @pgrep -f "claude-resume.sh {{session}}" > /dev/null && echo "already running" || (cd "{{justfile_directory()}}" && nohup bash .claude/scripts/claude-resume.sh {{session}}:0 > /tmp/claude-resume-{{session}}.log 2>&1 & disown ; echo started)
+    @pgrep -f "claude-resume.sh {{session}}" > /dev/null && echo "already running" || (cd "{{justfile_directory()}}" && nohup bash .claude/dma/scripts/claude-resume.sh {{session}}:0 > /tmp/claude-resume-{{session}}.log 2>&1 & disown ; echo started)
 
 # Stop claude auto-resume (only this project's watchdog)
 claude-resume-stop:

@@ -2,7 +2,7 @@ Procedure for decomposing a spec into an Epic and area-scoped Tasks. Reached fro
 
 ## Task management
 
-Read task provider settings from `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks`.
+Read task provider settings from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks`.
 
 ### Creating issues
 
@@ -74,7 +74,7 @@ Pass `parent:<EPIC-KEY>` to `/dma:issue-create` when creating Tasks — the skil
 **Spec storage.** The canonical spec lives in the Epic description in the issue tracker — never in the repo. Whatever the user provides (chat paste, scratch file, link) is a draft input; once you create the Epic, its description is authoritative and all later edits (clarifications, scope changes, follow-ups) land there or as Epic comments. Do **not** create, read, or reference epic markdown files under `.ai/`, `docs/`, or any tracked path.
 
 1. Read the spec the user provided and relevant architecture docs.
-2. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` for conventions and `${CLAUDE_PROJECT_DIR}/.claude/areas/` for area boundaries.
+2. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` for conventions and `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/` for area boundaries.
 3. Create an Epic in the issue tracker with `/dma:issue-create Epic "<summary>" description:<spec-text>` — copy/expand the user-provided spec into the Epic description (this becomes the canonical spec).
 4. **Create the epic branch** `<vcs.branch_prefix><EPIC-KEY>` in each affected area's workspace, then **verify it landed on the remote before decomposing**. The verify step exists because the push can silently fail (auth, network, hook, protected-branch rule) and the failure surfaces only later as `🤖 dev (<area>): handoff → team-lead (epic branch missing on remote)` from every child task — a bounce per child Epic-wide. Catch it once, here.
 

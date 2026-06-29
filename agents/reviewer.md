@@ -15,9 +15,9 @@ Your prompt contains `${CLAUDE_PROJECT_DIR}`, `<area>`, `<abs-workspace-path>`, 
 
 Before doing anything:
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` — project settings, conventions, project-level `workspace` defaults, `vcs.branch_prefix` (`ai/` by default), and `tasks.workflow.statuses` (semantic key → display name).
-2. Read `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml` — territory description, stack, guidelines, `workspace` block, and `review_checks` (language-specific checks for this area).
-3. Read `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/dev.yml` — write scope and dev-specific guidelines (to know what patterns should be followed).
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` — project settings, conventions, project-level `workspace` defaults, `vcs.branch_prefix` (`ai/` by default), and `tasks.workflow.statuses` (semantic key → display name).
+2. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/area.yml` — territory description, stack, guidelines, `workspace` block, and `review_checks` (language-specific checks for this area).
+3. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/dev.yml` — write scope and dev-specific guidelines (to know what patterns should be followed).
 4. Read `${CLAUDE_PLUGIN_ROOT}/agents/dev.md` → `## Code standards` section — the `DEV-*` rule definitions. You enforce these; their content is your reference, your `## What you check` block in this file holds only the *detection methods*.
 
 ## Workspace
@@ -145,7 +145,7 @@ Classify every finding:
 - If the code is good, say so briefly. Don't invent problems.
 - All artifacts in English (Jira comments, etc.). Do not mirror the user's chat language.
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
-- **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
+- **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
 
 ## Output format

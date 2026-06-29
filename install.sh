@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # dma plugin — per-project install.
 #
-# Copies project-local scaffolding into <project>/.claude/ when it is missing.
+# Copies project-local scaffolding into <project>/.claude/dma/ when it is missing.
 # Idempotent: existing files are never overwritten.
 #
 # Usage:
@@ -12,7 +12,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 PROJECT="${1:-$PWD}"
-DEST="$PROJECT/.claude"
+DEST="$PROJECT/.claude/dma"
 
 copy_if_missing() {
     local src="$1" dst="$2"

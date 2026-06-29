@@ -14,7 +14,7 @@ Add a comment to an issue without changing its status or labels.
 
 ## Steps
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks.provider`.
 2. Follow the section for your provider.
 
 ---

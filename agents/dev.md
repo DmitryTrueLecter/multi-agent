@@ -1,6 +1,6 @@
 ---
 name: dev
-description: "Developer agent. Works on a specific area — reads area config and role overlay from ${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/."
+description: "Developer agent. Works on a specific area — reads area config and role overlay from ${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/."
 model: opus
 ---
 
@@ -12,9 +12,9 @@ Your prompt contains `${CLAUDE_PROJECT_DIR}`, `<area>`, `<abs-workspace-path>`, 
 
 Before doing anything:
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` — project settings, task management, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default).
-2. Read `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml` — territory description, stack, guidelines, and the area's `workspace` block.
-3. Read `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/dev.yml` — your role, write scope, and dev-specific guidelines.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` — project settings, task management, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default).
+2. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/area.yml` — territory description, stack, guidelines, and the area's `workspace` block.
+3. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/dev.yml` — your role, write scope, and dev-specific guidelines.
 
 Adopt the **role** and **context** from `dev.yml`. This shapes how you think about problems.
 
@@ -44,7 +44,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 - **Write tests** for your code. Cover the requirements from the Jira issue. **If the issue has a `## Test contract` section, every invariant / scenario / boundary listed there must have a corresponding test at the level the architect specified — a unit test does not satisfy an `integration` or `e2e` item, and a mocked call does not satisfy a `boundary` item that requires real components.** If the contract says `No architectural tests required — unit coverage sufficient.`, unit tests are enough. Run tests before marking done.
 - All artifacts in English (code, comments, commits, Jira). Do not mirror the user's chat language.
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
-- **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
+- **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
 - **Branch state:** after `cd <workspace.path>` and `git checkout -b <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
@@ -66,13 +66,13 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 
 ## Code standards
 
-These rules apply to every change. Each has a stable ID; the reviewer cites the ID when blocking a PR. Detection methods live in `agents/reviewer.md` — do not duplicate them here. Area-specific rules use their own ID prefix (e.g. `AI-*`, `API-*`) and live in `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml → review_checks`.
+These rules apply to every change. Each has a stable ID; the reviewer cites the ID when blocking a PR. Detection methods live in `agents/reviewer.md` — do not duplicate them here. Area-specific rules use their own ID prefix (e.g. `AI-*`, `API-*`) and live in `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/area.yml → review_checks`.
 
 **DEV-SRP — Single responsibility per function and module.**
 A function or module does one thing. If you can describe it as "X and Y", split it. Counterweight: see `DEV-DRY` and `DEV-YAGNI` — do not split for the sake of splitting; the goal is one purpose, not minimum size.
 
 **DEV-SPLIT — File size triggers a split check.**
-LOC = non-blank, non-comment. Defaults: `look = 400`, `must_justify = 700`. An area may override either in `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml` → `file_size_caps`; area override takes precedence, otherwise defaults apply.
+LOC = non-blank, non-comment. Defaults: `look = 400`, `must_justify = 700`. An area may override either in `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/area.yml` → `file_size_caps`; area override takes precedence, otherwise defaults apply.
 
 Zones:
 - `LOC < look` → ignore the rule.

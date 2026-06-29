@@ -40,7 +40,7 @@ Why these rules:
 
 ## Steps
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`, `tasks.workflow.statuses` (semantic-key → display-name map), and `tasks.jira.transitions` (semantic-key → numeric transition id map; jira provider only).
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks.provider`, `tasks.workflow.statuses` (semantic-key → display-name map), and `tasks.jira.transitions` (semantic-key → numeric transition id map; jira provider only).
 2. Parse arguments into `<KEY>`, optional `<to-role>`, optional `<comment>`.
 3. Read the issue (see provider section below) to get current `agent:<role>` and `area:<area>` labels.
 4. If `<to-role>` is omitted, derive the default forward target:
@@ -84,7 +84,7 @@ A handoff to `done` is the canonical signal that the task / epic is closed. Pers
 
 ### Steps
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` and `${CLAUDE_PROJECT_DIR}/.claude/areas/*/area.yml` to enumerate candidate repos whose `.worktrees/<KEY>/` might exist:
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` and `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/*/area.yml` to enumerate candidate repos whose `.worktrees/<KEY>/` might exist:
    - Project root (always): `${CLAUDE_PROJECT_DIR}`.
    - Per area: `<abs-area-repo>` = `(cd <area.yml.workspace.path> && git rev-parse --show-toplevel)`. Collect distinct values; in a monorepo all areas resolve to project root and the set collapses to `{${CLAUDE_PROJECT_DIR}}`.
 2. For each candidate repo, build `<repo>/.worktrees/<KEY>`. If `test -d` succeeds, attempt removal:

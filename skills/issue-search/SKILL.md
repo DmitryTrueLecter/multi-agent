@@ -1,6 +1,6 @@
 ---
 name: issue-search
-description: Search issues using tracker-agnostic named parameters. Reads project/team key from ${CLAUDE_PROJECT_DIR}/.claude/config.yml. Invocation: /dma:issue-search [status:<s>] [label:<l>] [type:<task|group>] [parent:<KEY>].
+description: Search issues using tracker-agnostic named parameters. Reads project/team key from ${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml. Invocation: /dma:issue-search [status:<s>] [label:<l>] [type:<task|group>] [parent:<KEY>].
 tools: mcp__atlassian__jira_search, mcp__linear__list_issues, mcp__linear__get_issue
 ---
 
@@ -21,7 +21,7 @@ Search for issues using named filter parameters. The skill translates them to th
 
 ## Steps
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks.provider`.
 2. Follow the section for your provider.
 
 ---

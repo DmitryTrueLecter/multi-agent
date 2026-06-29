@@ -12,9 +12,9 @@ Your cwd at session start is the project root — Claude Code launches you there
 
 Then, before doing anything else:
 
-1. Read `config.yml` for project settings, task management config, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default). Read it via `cat -- "$(pwd)/.claude/config.yml"` so the shell resolves the root instead of you typing it.
-2. Scan `<project-root>/.claude/areas/` — each subdirectory is an area. Read `area.yml` from each to understand boundaries and the area's `workspace`.
-3. Read `<project-root>/.claude/arch.yml` — project-level cross-area contracts and escalation triggers. Use this to know what requires architect consultation.
+1. Read `config.yml` for project settings, task management config, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default). Read it via `cat -- "$(pwd)/.claude/dma/config.yml"` so the shell resolves the root instead of you typing it.
+2. Scan `<project-root>/.claude/dma/areas/` — each subdirectory is an area. Read `area.yml` from each to understand boundaries and the area's `workspace`.
+3. Read `<project-root>/.claude/dma/arch.yml` — project-level cross-area contracts and escalation triggers. Use this to know what requires architect consultation.
 4. If `config.yml` declares `docs.root`: read the files there for project context (goals, background, decisions). Free-form — skip gracefully if absent or empty.
 
 ## Mode routing
@@ -34,11 +34,11 @@ Use `${CLAUDE_PLUGIN_ROOT}` as the literal path prefix for every plugin file you
 
 Spawn `Agent(subagent_type="dma:architect", ...)` for any of:
 
-- **Shared-interface changes**: anything that defines or alters a contract crossing area boundaries — data models, API/transport schemas, RPC or tool contracts, dependency boundaries between shared libraries and their consumers. The concrete list of "what counts" for this project is in `${CLAUDE_PROJECT_DIR}/.claude/arch.yml` → `shared_interfaces` and `escalation_triggers`.
+- **Shared-interface changes**: anything that defines or alters a contract crossing area boundaries — data models, API/transport schemas, RPC or tool contracts, dependency boundaries between shared libraries and their consumers. The concrete list of "what counts" for this project is in `${CLAUDE_PROJECT_DIR}/.claude/dma/arch.yml` → `shared_interfaces` and `escalation_triggers`.
 - **Pattern choice when 2+ valid approaches exist**: where shared code should live vs. consumer-local, async vs. sync, file split vs. consolidation, lazy vs. eager initialisation, new vs. reused pattern.
 - **Data model evolution**: any schema/entity change visible to ≥2 consumers.
 - **Cross-area coupling**: any change that requires editing code in 2+ areas in one task.
-- **Anything that changes a cross-area contract** listed in `${CLAUDE_PROJECT_DIR}/.claude/arch.yml`.
+- **Anything that changes a cross-area contract** listed in `${CLAUDE_PROJECT_DIR}/.claude/dma/arch.yml`.
 - **New area introduction**: before authoring an `area.yml` for an area whose stack has no recorded build/test convention in `arch.yml`, delegate to architect to settle and record it. Do not draft `area.yml` until the convention is there.
 
 Even if the question seems small. Even if you "obviously" know the answer. The architect's response becomes the audit trail — that is the value, not the answer itself. If you analyze and decide yourself, you are silently breaking the multi-agent contract that this project exists to enforce.
@@ -195,7 +195,7 @@ Not for defect reports (those are flags). Not for ambiguities discovered mid-fli
 
 Constraints:
 
-- **Scope is `${CLAUDE_PROJECT_DIR}/.claude/areas/**` only.** Sentinel in task-mode refuses any other path. If the Epic genuinely needs shared-plugin changes (root `CLAUDE.md`, `agents/*.md`, `config.yml`), route through `/dma:sentinel-flag` or consultation instead.
+- **Scope is `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/**` only.** Sentinel in task-mode refuses any other path. If the Epic genuinely needs shared-plugin changes (root `CLAUDE.md`, `agents/*.md`, `config.yml`), route through `/dma:sentinel-flag` or consultation instead.
 - **Cycle has no qa or reviewer.** Sentinel works on `<vcs.branch_prefix><KEY>`, opens a PR to the parent Epic branch (or `<vcs.dev_branch>` if standalone), task moves to `awaiting_merge`. You and the user review the PR.
 - **Request, not instruction.** Sentinel owns prompt quality, so it decides what changes and where. You write the desired effect; sentinel may implement differently and explain in the PR, or decline and handoff back to you on `on_hold`.
 

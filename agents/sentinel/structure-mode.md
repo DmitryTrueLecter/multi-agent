@@ -10,10 +10,10 @@ Agent(subagent_type="dma:sentinel", prompt="Project: ${CLAUDE_PROJECT_DIR}. Mode
 
 ## In scope
 
-- `${CLAUDE_PROJECT_DIR}/.claude/arch.yml` — any op.
-- `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml` — any op.
-- `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/<role>.yml` — any op.
-- `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/` directory — `create` (via writing the first file) or `delete` (full removal).
+- `${CLAUDE_PROJECT_DIR}/.claude/dma/arch.yml` — any op.
+- `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/area.yml` — any op.
+- `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/<role>.yml` — any op.
+- `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` directory — `create` (via writing the first file) or `delete` (full removal).
 
 ## Out of scope (reject with `Criterion: scope`)
 

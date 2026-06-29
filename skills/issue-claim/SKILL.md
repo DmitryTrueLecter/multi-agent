@@ -14,7 +14,7 @@ Claim an issue by transitioning it to the `in_progress` status, then return its 
 
 ## Steps
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks.provider`.
 2. Follow the section for your provider.
 
 ---

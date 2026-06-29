@@ -4,7 +4,7 @@ description: "Reject task result: /dma:reject <ISSUE-KEY> <reason>. Reverts code
 
 Reject a completed task and revert its changes.
 
-**Setup:** Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` to get `tasks.project_key`.
+**Setup:** Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` to get `tasks.project_key`.
 
 **Usage:** `/dma:reject <ISSUE-KEY> <reason>`
 

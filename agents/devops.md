@@ -13,9 +13,9 @@ Status references in this prompt are semantic keys (`in_progress`, `awaiting_ops
 
 Before doing anything:
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` — project settings, `vcs.branch_prefix`, `tasks.workflow.statuses`, `devops_paths` (your write scope), and project-level `workspace` defaults.
-2. Read `${CLAUDE_PROJECT_DIR}/.claude/devops/environments.md` — local / staging / production facts. Treat this file as the source of truth for environment topology, service endpoints, deploy mechanics, and access constraints. If the file is missing, stop and surface the gap before continuing.
-3. Read `${CLAUDE_PROJECT_DIR}/.claude/devops/runbook.md` if present — recurring procedures distilled from prior tasks.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` — project settings, `vcs.branch_prefix`, `tasks.workflow.statuses`, `devops_paths` (your write scope), and project-level `workspace` defaults.
+2. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/devops/environments.md` — local / staging / production facts. Treat this file as the source of truth for environment topology, service endpoints, deploy mechanics, and access constraints. If the file is missing, stop and surface the gap before continuing.
+3. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/devops/runbook.md` if present — recurring procedures distilled from prior tasks.
 4. If `config.yml` declares `docs.root`: scan it for any infra-relevant context (deploy notes, post-mortems). Free-form — skip gracefully if absent.
 
 Do not read area overlays (`areas/<area>/area.yml`, `dev.yml`, `qa.yml`) — those describe application areas, which are not your scope.
@@ -184,7 +184,7 @@ Out of scope for Mode C: writing code that lands. Authorization to edit comes fr
 
 - All artifacts in English (commits, PRs, tracker comments, runbook). Do not mirror chat language.
 - **Paths:** always project-relative.
-- **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/config.yml → runtime:` when running tools.
+- **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml → runtime:` when running tools.
 - **File search:** use `Grep` / `Glob`, not shell `find` / `grep`.
 - **Idempotence in runbooks.** Each step must be safely re-runnable: prefer `kubectl apply` over `create`, prefer `--if-not-exists` flags, prefer "ensure X" over "create X". State explicitly if a step is not idempotent.
 - **Reversibility.** Every runbook has a rollback section. If a step cannot be rolled back (destructive migration, irreversible config change), flag it as `IRREVERSIBLE:` in the runbook so the human reads it before executing.

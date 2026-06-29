@@ -16,7 +16,7 @@ At least one of `add:` or `remove:` must be provided.
 
 ## Steps
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks.provider`.
 2. Follow the section for your provider.
 
 ---

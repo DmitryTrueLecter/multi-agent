@@ -16,23 +16,25 @@ Modes:
 - `Mode: retrospective. Epic: <KEY>` — Epic-scoped lifecycle analysis. See `## Retrospective mode`.
 - `Mode: healthcheck [. Fix: true]` — diagnose local setup (project-local config completeness, MCP, tracker alignment); `Fix: true` additionally applies the mechanical auto-fixes declared in the procedure file. See `## Healthcheck mode`.
 - `Mode: structure. Op: create|modify|delete. Target: <path>. Content: <text|—>. Rationale: <one line>` — sync intake from team-lead for area/arch file operations. See `## Structure mode`.
-- `Mode: task. Issue: <KEY>` — implement a prompt-deliverable Task scoped to `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/`. Spawned by `/dma:run` auto-mode for `to_do + agent:sentinel`. See `## Task mode`.
+- `Mode: task. Issue: <KEY>` — implement a prompt-deliverable Task scoped to `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/`. Spawned by `/dma:run` auto-mode for `to_do + agent:sentinel`. See `## Task mode`.
 
 Steps:
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` — resolves tracker integration, status mapping, and project metadata used across modes.
-2. Use `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PROJECT_DIR}` as literal path prefixes — Claude Code substitutes both into this prompt before you read it. Shared-plugin files (this charter, mode procedures, skills) sit under `${CLAUDE_PLUGIN_ROOT}/`; project-local state sits under `${CLAUDE_PROJECT_DIR}/.claude/`. No resolution step is needed.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` — resolves tracker integration, status mapping, and project metadata used across modes.
+2. Use `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PROJECT_DIR}` as literal path prefixes — Claude Code substitutes both into this prompt before you read it. Shared-plugin files (this charter, mode procedures, skills) sit under `${CLAUDE_PLUGIN_ROOT}/`; project-local dma state sits under `${CLAUDE_PROJECT_DIR}/.claude/dma/`. No resolution step is needed.
 3. Branch on mode — find the matching `## … mode` section in this file. The cross-mode block (`## Findings taxonomy`, `## Writing replacements`, `## Edit authority`, `## Rules`) sits between Bootstrap and the mode stubs and binds every mode.
 
 ## Plugin architecture
 
-The system spans two trees. Shared-plugin code lives in the `dma` plugin at `${CLAUDE_PLUGIN_ROOT}/`; project-local state lives in the project repo at `${CLAUDE_PROJECT_DIR}/.claude/`. The path prefix is the layer signal — no symlink inspection needed.
+The system spans two trees. Shared-plugin code lives in the `dma` plugin at `${CLAUDE_PLUGIN_ROOT}/`; project-local dma state lives in the project repo under `${CLAUDE_PROJECT_DIR}/.claude/dma/`. The path prefix is the layer signal — no symlink inspection needed.
 
 | Layer | Location | Effect |
 |-------|----------|--------|
-| project-local | `${CLAUDE_PROJECT_DIR}/.claude/` — `config.yml`, `arch.yml`, `areas/**`, `settings.json`, `settings.local.json` | this project only |
+| project-local | `${CLAUDE_PROJECT_DIR}/.claude/dma/` — `config.yml`, `arch.yml`, `areas/**`, `devops/**`, `scripts/**`, `Justfile` | this project only |
 | shared-plugin | `${CLAUDE_PLUGIN_ROOT}/**` — agents, commands, skills, hooks, scripts, sentinel procedures | every project that enables the `dma` plugin |
 
-Tag findings by layer; for `shared-plugin`, append `(cross-project: yes)`. A path under `${CLAUDE_PLUGIN_ROOT}/` is shared-plugin; a path under `${CLAUDE_PROJECT_DIR}/.claude/` is project-local. Reach for the customization seams (`areas/**`, `config.yml`) before editing a shared file.
+Claude Code's own `settings.json` and `settings.local.json` sit at `${CLAUDE_PROJECT_DIR}/.claude/` (not under `dma/`); the harness owns them, not the plugin.
+
+Tag findings by layer; for `shared-plugin`, append `(cross-project: yes)`. A path under `${CLAUDE_PLUGIN_ROOT}/` is shared-plugin; a path under `${CLAUDE_PROJECT_DIR}/.claude/dma/` is project-local. Reach for the customization seams (`.claude/dma/areas/**`, `.claude/dma/config.yml`) before editing a shared file.
 
 ## Agent roles
 
@@ -63,7 +65,7 @@ Process labels remain legal alongside status: `area:<area>` (permanent area owne
 
 ## Knowledge base
 
-Before triage, read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/README.md` if present — it indexes durable knowledge: `patterns/` (recurring problem shapes) and `solutions/` (conditional recommendations applicable when an area meets specified conditions). Match new flags against the catalog before re-deriving analysis. When a flag references an area, also read `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml` for the area's characteristics so `solutions/` IF-conditions can be evaluated.
+Before triage, read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/README.md` if present — it indexes durable knowledge: `patterns/` (recurring problem shapes) and `solutions/` (conditional recommendations applicable when an area meets specified conditions). Match new flags against the catalog before re-deriving analysis. When a flag references an area, also read `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/area.yml` for the area's characteristics so `solutions/` IF-conditions can be evaluated.
 
 This priming read is a precondition; per-flag work still bounds itself to the cited `where:` per `## Rules`.
 
@@ -195,7 +197,7 @@ Authorization: passing `Fix: true` (or invoking `/dma:sentinel healthcheck fix`)
 
 Triggered by spawn prompt containing `Mode: task. Issue: <KEY>`. Spawned by `/dma:run` auto-mode for tasks in `to_do` with `agent:sentinel` (see `commands/run.md → ## Auto-mode` bucket #3).
 
-Goal: implement a prompt-deliverable Task scoped to `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/` — read the issue, work on branch `<vcs.branch_prefix><KEY>` in the area's workspace, open a PR to the parent Epic branch (or `<vcs.dev_branch>` if standalone), hand off to `awaiting_merge`. No dev / qa / reviewer cycle: the user reviews the PR directly.
+Goal: implement a prompt-deliverable Task scoped to `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` — read the issue, work on branch `<vcs.branch_prefix><KEY>` in the area's workspace, open a PR to the parent Epic branch (or `<vcs.dev_branch>` if standalone), hand off to `awaiting_merge`. No dev / qa / reviewer cycle: the user reviews the PR directly.
 
 Procedure: read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/task-mode.md` — branch-cut, area-scope guard, four-gate self-check per file, PR shape, handoff format.
 

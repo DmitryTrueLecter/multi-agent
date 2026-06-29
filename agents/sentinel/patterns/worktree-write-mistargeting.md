@@ -17,5 +17,5 @@ When an agent reports editing or committing into the wrong checkout (main repo i
 Other shapes likely to fit this pattern when they surface:
 
 - Agent `cd`s correctly into the worktree but uses `git -C <project-root>` or an absolute `git --git-dir` that re-targets the parent repo.
-- task-mode (inverse direction): sentinel edits `.claude/areas/<area>/**` but writes to `${CLAUDE_PROJECT_DIR}/.claude/...` rather than the worktree copy, so the change never reaches the PR branch.
+- task-mode (inverse direction): sentinel edits `.claude/dma/areas/<area>/**` but writes to `${CLAUDE_PROJECT_DIR}/.claude/...` rather than the worktree copy, so the change never reaches the PR branch.
 - Any future agent role that gains `Edit`/`Write` authority without inheriting the Workspace prefix rule.

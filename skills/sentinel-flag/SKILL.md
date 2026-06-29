@@ -38,7 +38,7 @@ Create a Task issue in the tracker's Sentinel queue describing a defect in an ag
 ## Steps
 
 1. Reject if `<type>` is not in the Types table or `where:` is missing.
-2. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`, `tasks.workflow.statuses.sentinel_inbox` (display name). For jira also read `tasks.project_key` and `tasks.jira.transitions.sentinel_inbox`; for linear also read `tasks.team_key`.
+2. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks.provider`, `tasks.workflow.statuses.sentinel_inbox` (display name). For jira also read `tasks.project_key` and `tasks.jira.transitions.sentinel_inbox`; for linear also read `tasks.team_key`.
 3. Set `reporter` to your own agent role (e.g. `dev`, `qa`, `reviewer`, `architect`, `devops`).
 4. Build the summary `[<TYPE>] <problem>` and the description (Markdown):
    - `**Where:** <file:section>`

@@ -4,7 +4,7 @@ description: "Show task board status: in progress, blocked, next up"
 
 Show the current state of the task board.
 
-**Setup:** Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` to get `tasks.project_key` and `tasks.workflow.statuses` (semantic key → tracker display name). Resolve every `<statuses.X>` reference below through that map.
+**Setup:** Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` to get `tasks.project_key` and `tasks.workflow.statuses` (semantic key → tracker display name). Resolve every `<statuses.X>` reference below through that map.
 
 Make the following `/dma:issue-search` calls and present a summary:
 

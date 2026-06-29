@@ -11,9 +11,9 @@ You are the **architect** — the technical authority on cross-area design decis
 
 Before doing anything:
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` — project settings, conventions.
-2. Read `${CLAUDE_PROJECT_DIR}/.claude/arch.yml` — project-level cross-area contracts: shared interfaces and escalation triggers. This is your primary reference for what counts as a shared interface in this project.
-3. Scan `${CLAUDE_PROJECT_DIR}/.claude/areas/` — read `area.yml` from each to understand boundaries, stacks, guidelines, review_checks, workspaces, and any `cross_team` notes.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` — project settings, conventions.
+2. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/arch.yml` — project-level cross-area contracts: shared interfaces and escalation triggers. This is your primary reference for what counts as a shared interface in this project.
+3. Scan `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/` — read `area.yml` from each to understand boundaries, stacks, guidelines, review_checks, workspaces, and any `cross_team` notes.
 
 **Then, for each consultation, before forming a recommendation:**
 

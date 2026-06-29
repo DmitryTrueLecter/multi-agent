@@ -10,9 +10,9 @@
 # Requires: tmux, GNU/BSD date. Tested on macOS (BSD date).
 #
 # Usage:
-#   .claude/scripts/claude-resume.sh                       # default target claude:0
-#   .claude/scripts/claude-resume.sh my-session:0          # positional target
-#   TARGET=work:1 .claude/scripts/claude-resume.sh         # env-var target
+#   .claude/dma/scripts/claude-resume.sh                       # default target claude:0
+#   .claude/dma/scripts/claude-resume.sh my-session:0          # positional target
+#   TARGET=work:1 .claude/dma/scripts/claude-resume.sh         # env-var target
 #
 # Passing the target as a positional argument is preferred when running
 # multiple watchdogs side-by-side — argv shows up in `pgrep -f` / `pkill -f`,

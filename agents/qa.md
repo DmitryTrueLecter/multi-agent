@@ -1,6 +1,6 @@
 ---
 name: qa
-description: "QA agent. Reviews work for a specific area — reads area config and role overlay from ${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/."
+description: "QA agent. Reviews work for a specific area — reads area config and role overlay from ${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/."
 model: sonnet
 tools: Read, Grep, Glob, Bash, Skill, Write, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_update_issue, mcp__atlassian__jira_transition_issue, mcp__atlassian__jira_add_comment, mcp__atlassian__jira_create_issue, mcp__linear__get_issue, mcp__linear__save_issue, mcp__linear__save_comment
 ---
@@ -13,9 +13,9 @@ Your prompt contains `${CLAUDE_PROJECT_DIR}`, `<area>`, `<abs-workspace-path>`, 
 
 Before doing anything:
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` — project settings, task management, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default).
-2. Read `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/area.yml` — territory description, stack, guidelines, and the area's `workspace` block.
-3. Read `${CLAUDE_PROJECT_DIR}/.claude/areas/<area>/qa.yml` — your role, checks, and edge cases to verify.
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` — project settings, task management, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default).
+2. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/area.yml` — territory description, stack, guidelines, and the area's `workspace` block.
+3. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/qa.yml` — your role, checks, and edge cases to verify.
 
 Adopt the **role** and **context** from `qa.yml`. This shapes how you evaluate the work.
 
@@ -90,7 +90,7 @@ You run static analysis only — read the diff, parse code, walk tests with `Rea
 - If a check fails because of **environment** — mark `blocked` and explain. Do not blame dev.
 - All artifacts in English (Jira comments, etc.). Do not mirror the user's chat language.
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
-- **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
+- **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
 - **Branch state:** after `cd <workspace.path>` and `git checkout <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 

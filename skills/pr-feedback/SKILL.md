@@ -16,7 +16,7 @@ Status references in this skill are semantic keys (e.g. `awaiting_merge`, `done`
 
 ## Steps
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/config.yml` → `tasks.provider`, `tasks.workflow.statuses` (semantic-key → display-name map; resolve every `statuses.<key>` reference below through this map), and — for the jira provider only — `tasks.jira.transitions` (semantic-key → numeric transition id map).
+1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks.provider`, `tasks.workflow.statuses` (semantic-key → display-name map; resolve every `statuses.<key>` reference below through this map), and — for the jira provider only — `tasks.jira.transitions` (semantic-key → numeric transition id map).
 2. Follow the section for your provider.
 
 ---

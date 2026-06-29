@@ -27,15 +27,15 @@ DEFER = "defer"  # exit 0, no decision -> normal permission flow
 # (name, file_path, expected)
 CASES = [
     ("absolute config in main repo",
-     "/home/claude/apps/books/.claude/config.yml", ALLOW),
-    ("relative config", ".claude/config.yml", ALLOW),
-    ("dot-relative config", "./.claude/config.yml", ALLOW),
-    ("area overlay", "/home/claude/apps/books/.claude/areas/api/dev.yml", ALLOW),
+     "/home/claude/apps/books/.claude/dma/config.yml", ALLOW),
+    ("relative config", ".claude/dma/config.yml", ALLOW),
+    ("dot-relative config", "./.claude/dma/config.yml", ALLOW),
+    ("area overlay", "/home/claude/apps/books/.claude/dma/areas/api/dev.yml", ALLOW),
     ("sentinel procedures dir", "/home/claude/apps/books/.claude/sentinel/full-audit.md", ALLOW),
     ("worktree path (non-root cwd)",
-     "/home/claude/apps/books/.worktrees/DMI-71/.claude/config.yml", ALLOW),
+     "/home/claude/apps/books/.worktrees/DMI-71/.claude/dma/config.yml", ALLOW),
     ("a foreign macOS project root",
-     "/Users/someone/projects/other-app/.claude/config.yml", ALLOW),
+     "/Users/someone/projects/other-app/.claude/dma/config.yml", ALLOW),
     ("arbitrary other project root",
      "/srv/other-project/.claude/arch.yml", ALLOW),
     # must NOT be widened:
