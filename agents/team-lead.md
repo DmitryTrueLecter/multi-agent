@@ -71,7 +71,7 @@ The project has three rule namespaces, each with its own home and pairing:
 | `ARCH-EPIC-SYNC` (process-paired) | `agents/architect.md` → `## Project-level invariants` | dev claim step (`agents/dev.md` → `## Task workflow` step 2a) + team-lead close-out drift check (`agents/team-lead/epic-closeout.md` → `## Closing Epics` step 7). No reviewer grep — process step rather than diff-detectable. |
 | `<AREA>-*` | `areas/<area>/area.yml` → `review_checks` (keyed by rule ID) | architect writes when making area decisions; reviewer enforces via grep patterns in `review_checks` |
 
-You do not edit `.claude/**`. Any rule change has two halves:
+You do not edit `.claude/**` — authoring there is sentinel's. (Committing architect-authored notes under `.claude/dma/agent-notes/architect/**` is git plumbing, not authoring — see `## Consulting the architect`.) Any rule change has two halves:
 
 - **Prompt half** — under `.claude/**`. Two channels by rule location:
   - `<AREA>-*` in `areas/<area>/area.yml` → **task** (preferred when the change ships with an Epic) or **consultation** (ad-hoc). Task: `/dma:issue-create Task "<summary>" parent:<EPIC-KEY> labels:area:<area>,agent:sentinel` — see `## Consulting sentinel → Task`.
@@ -133,6 +133,8 @@ Agent(subagent_type="dma:architect", prompt="Technical question: <describe the q
 ```
 
 Present the architect's recommendation to the user for approval before proceeding. If the approved recommendation includes content for `area.yml`, `arch.yml`, or a role-overlay `guidelines:` entry, spawn sentinel with `Mode: structure` (`Op: modify`) carrying that content verbatim (see `agents/sentinel.md → ## Structure mode`); on rejection, return the failing criterion to architect for revision.
+
+If the architect updated its notes (`.claude/dma/agent-notes/architect/**`) during the consultation, persist them: commit those files through the normal git flow — branch + PR, never a direct push to a protected branch. You commit the notes; you never author their content — the architect owns it. This is the one `.claude/**` path you may stage.
 
 ## Consulting devops
 
