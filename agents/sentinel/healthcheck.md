@@ -37,6 +37,7 @@ Under `Fix: true`, sentinel may run these classes of action without per-action c
 3. **Apply config-declared git identity** — when `config.yml → git.identity.email` AND `git.identity.name` are both set, copy them into a workspace's local git config via `git -C <workspace> config user.email <config.git.identity.email> && git -C <workspace> config user.name <config.git.identity.name>`. Only when both target keys are unset on the workspace — never overwrites. When `git.identity` is absent from config, no auto-fix is attempted: sentinel does not invent identity values. Requires `settings.json` to whitelist `Bash(git -C * config user.email *)` and `Bash(git -C * config user.name *)`; on permission denial, falls through to the standard auto-fix-failure line.
 4. **Flag migration** — for each leftover file under `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`, create the equivalent flag issue in the Sentinel queue and delete the file (HC-MIG-001). This is the lone tracker-mutating auto-fix: each issue is a mechanical 1:1 projection of an existing flag file, not user-authored content. Runs only when the tracker responds and the `sentinel_inbox` status is transition-ready.
 5. **Seed `settings.local.json` `env.PATH`** — when a `worktree.setup_commands` binary is unresolved (HC-WT-004) but found in a fixed set of standard executable directories, prepend that directory to `${CLAUDE_PROJECT_DIR}/.claude/settings.local.json` → `env.PATH`. The value is the detected directory of an existing executable, not user-authored, and the file is per-machine and gitignored. Creates the `env` block if absent, seeding `PATH` from the current environment so system directories survive; idempotent; never removes an entry. No match in the standard set → no auto-fix. Used by HC-WT-004.
+6. **Layout migration** — when project-local dma state sits at the legacy `.claude/` root instead of `.claude/dma/` (HC-FS-002), relocate each legacy path (`config.yml`, `arch.yml`, `areas/`, `devops/`, `scripts/`, `Justfile`) into `.claude/dma/` with `git mv` (tracked) or `mv` (untracked), and rewrite the moved `Justfile`'s `.claude/scripts/claude-resume.sh` resume path to `.claude/dma/scripts/claude-resume.sh`. Skip any path whose `.claude/dma/<name>` counterpart already exists — never overwrites. Every write stays within `.claude/`; the one coupled edit outside it — the project-root `Justfile`'s `import '.claude/Justfile'` line — is reported as a manual follow-up, not auto-applied. Deterministic relocation with no user-choice content. Used by HC-FS-002.
 
 Everything else — config edits other than `settings.local.json` → `env.PATH`, tracker mutations other than the one-time flag migration (HC-MIG-001), area-schema fields — stays a manual finding even in fix mode. The boundary: deterministic mechanical action with no user-choice content. Display names, area paths, label semantics are user choices; sentinel does not invent them. `settings.local.json` → `env.PATH` is the only auto-fixable config edit precisely because its value is detected, not authored.
 
@@ -52,10 +53,17 @@ When an auto-fix runs successfully, the check line uses `↻ FIXED — <command>
   - Auto-fix: none. Project not bootstrapped at all.
   - Manual fix: bootstrap the project — beyond healthcheck scope.
 
+- **HC-FS-002** — Project-local dma state is consolidated under `.claude/dma/`; nothing dma-owned is left at the legacy `.claude/` root.
+  - Severity: CRITICAL. Agents read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` and `.../dma/areas/<area>/`; a project still on the old flat layout boots no agent.
+  - Detection: none of `config.yml`, `arch.yml`, `areas/`, `devops/`, `scripts/`, `Justfile` exists directly under `${CLAUDE_PROJECT_DIR}/.claude/` — each belongs under `.claude/dma/`. PASS when the legacy root is clean (a migrated project, or a fresh install scaffolded straight into `dma/`). FAIL listing each legacy path still present.
+  - Auto-fix: per the layout-migration class in the auto-fix contract — `mkdir -p ${CLAUDE_PROJECT_DIR}/.claude/dma`, then `git mv`/`mv` each legacy path into `.claude/dma/` and rewrite the moved `Justfile` resume path. A legacy path whose `.claude/dma/<name>` counterpart already exists is a conflict: skip it and report it manual (both copies present — the user picks which wins). After the moves, emit the project-root `Justfile` import rewrite to `import '.claude/dma/Justfile'` as a manual follow-up line.
+  - Manual fix: move each listed path into `.claude/dma/` with `git mv`, rewrite the project-root `Justfile` import to `import '.claude/dma/Justfile'` and the moved `Justfile`'s resume path to `.claude/dma/scripts/claude-resume.sh`, then re-run.
+
 - **HC-FS-005** — `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` parses as YAML.
   - Severity: CRITICAL.
   - Detection: read file; YAML parser returns without error.
   - Auto-fix: none. Parser errors require human-readable resolution.
+  - SKIPPED when HC-FS-002 failed and this run applied no migration (diagnose mode) — the config still sits at the legacy `.claude/config.yml`; re-run with `Fix: true` to migrate first.
   - Manual fix: address the parse error at the cited line.
 
 - **HC-FS-007** — If `config.yml → devops_paths` is declared OR the tracker has an `area:devops` label: `${CLAUDE_PROJECT_DIR}/.claude/dma/devops/environments.md` exists.
@@ -217,6 +225,7 @@ Persistent per-task worktrees created by `/dma:run → ## Worktree bootstrap` ne
 
 ### Stage 1 — Filesystem & config files
 ✓ HC-FS-001 — .claude/ present
+↻ HC-FS-002 — legacy layout migrated to .claude/dma/ (config.yml, areas/, devops/, scripts/) — manual: update root Justfile import to '.claude/dma/Justfile'
 ↻ HC-FS-007 — devops/environments.md missing — FIXED via template copy
 ✗ HC-FS-005 — config.yml parse error at line 12
   Manual fix: address the parse error at the cited line

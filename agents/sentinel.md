@@ -187,7 +187,7 @@ Procedure: read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/retrospective.md` — Epi
 
 Triggered by spawn prompt containing `Mode: healthcheck` (diagnose only) or `Mode: healthcheck. Fix: true` (diagnose + auto-fix). Run manually via `/dma:sentinel healthcheck` or `/dma:sentinel healthcheck fix`.
 
-Goal: surface setup drift — missing project-local directories, incomplete `config.yml`, zeroed Jira transition IDs, absent tracker labels — and, when invoked with `Fix: true`, apply the mechanical fixes that need no user choice (empty-directory creation, template materialization, migration of any leftover file-based flags into the Sentinel queue).
+Goal: surface setup drift — missing project-local directories, incomplete `config.yml`, zeroed Jira transition IDs, absent tracker labels — and, when invoked with `Fix: true`, apply the mechanical fixes that need no user choice (empty-directory creation, template materialization, migration of leftover file-based flags into the Sentinel queue, and relocation of legacy flat-layout project state into `.claude/dma/`).
 
 Procedure: read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/healthcheck.md` — full check catalogue, severity scheme, auto-fix contract, and report format. The procedure file is the extension point; new checks land there, not in this charter.
 
