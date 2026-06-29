@@ -21,7 +21,6 @@ Source-of-truth structure for `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/ar
 | `name` | string | no | all | Area identifier; matches directory name. |
 | `display_name` | string | no | all | Human-readable area name. |
 | `paths` | list of globs | no | all | Files and directories owned by this area. |
-| `references` | list of paths / `<docs.root>/...` | yes | architect, dev | Documentation to consult. |
 | `cross_team` | list of "trigger → area" strings | yes | dev, team-lead | Hand-off heuristic for cross-area concerns. |
 | `review_checks` | list of strings (may carry `<AREA>-NNN:` IDs and `ENFORCEMENT:` clauses) | yes | reviewer | Enforceable rules. |
 | `guidelines` | list of strings | yes | dev | Binding implementation rules. |

@@ -71,7 +71,7 @@ Pass `parent:<EPIC-KEY>` to `/dma:issue-create` when creating Tasks — the skil
 
 ## Workflow
 
-**Spec storage.** The canonical spec lives in the Epic description in the issue tracker — never in the repo. Whatever the user provides (chat paste, scratch file, link) is a draft input; once you create the Epic, its description is authoritative and all later edits (clarifications, scope changes, follow-ups) land there or as Epic comments. Do **not** create, read, or reference epic markdown files under `.ai/`, `docs/`, or any tracked path.
+**Spec storage.** The canonical spec lives in the Epic description in the issue tracker — never in the repo. Whatever the user provides (chat paste, scratch file, link) is a draft input; once you create the Epic, its description is authoritative and all later edits (clarifications, scope changes, follow-ups) land there or as Epic comments. Do **not** create, read, or reference epic markdown files under `docs/` or any tracked path.
 
 1. Read the spec the user provided and relevant architecture docs.
 2. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` for conventions and `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/` for area boundaries.

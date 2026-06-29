@@ -47,9 +47,6 @@ tasks:
       awaiting_ops: 0
       done: 0
 
-docs:
-  root: ai   # optional: path (relative to project root) to free-form human docs — read by team-lead for project context
-
 # Project-level path fence for the devops agent.
 # Globs are resolved relative to project root. Files matching any glob below
 # are devops's write scope; dev/qa/reviewer treat them as out-of-scope.

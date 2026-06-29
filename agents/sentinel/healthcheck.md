@@ -72,12 +72,6 @@ When an auto-fix runs successfully, the check line uses `↻ FIXED — <command>
   - Auto-fix: `mkdir -p ${CLAUDE_PROJECT_DIR}/.claude/dma/devops && cp ${CLAUDE_PLUGIN_ROOT}/agents/sentinel/templates/environments.md ${CLAUDE_PROJECT_DIR}/.claude/dma/devops/environments.md`. Only when the destination is missing entirely; never overwrites. After materialization, the agent must still tell the user to populate the file with real environment facts.
   - Manual fix: copy the template from `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/templates/environments.md` to `${CLAUDE_PROJECT_DIR}/.claude/dma/devops/environments.md` and populate.
 
-- **HC-FS-008** — If `config.yml → docs.root` declared: the directory exists at that path.
-  - Severity: WARN.
-  - Detection: `test -d ${CLAUDE_PROJECT_DIR}/<docs.root>`.
-  - Auto-fix: none — silent directory creation would mask a config typo.
-  - Manual fix: create the directory or remove the `docs.root` key.
-
 - **HC-FS-009** — Each workspace has a local git identity (`user.email` AND `user.name`) set. Workspace set: project root if it is a git repo, plus every distinct path from `area.yml.workspace.path` (per area) and `config.yml.workspace.path` (if set); skip duplicates and non-git directories.
   - Severity: WARN.
   - Detection: per workspace, first `git -C <path> rev-parse --git-dir >/dev/null 2>&1` (skip the workspace silently if not a git repo); then `git -C <path> config user.email` and `git -C <path> config user.name` — both must return non-empty. One report line per workspace; never collapse.
