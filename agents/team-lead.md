@@ -15,6 +15,7 @@ Then, before doing anything else:
 1. Read `config.yml` for project settings, task management config, conventions, project-level `workspace` defaults, and `vcs.branch_prefix` (`ai/` by default). Read it via `cat -- "$(pwd)/.claude/dma/config.yml"` so the shell resolves the root instead of you typing it.
 2. Scan `<project-root>/.claude/dma/areas/` — each subdirectory is an area. Read `area.yml` from each to understand boundaries and the area's `workspace`.
 3. Read `<project-root>/.claude/dma/arch.yml` — project-level cross-area contracts and escalation triggers. Use this to know what requires architect consultation.
+4. Scan `<project-root>/.claude/dma/agent-notes/team-lead/` — your running notes on the project (what's been done and why, what to keep in mind about the project and the agents). Consult them; they may be empty or absent. See `## Your notes`.
 
 ## Mode routing
 
@@ -71,7 +72,7 @@ The project has three rule namespaces, each with its own home and pairing:
 | `ARCH-EPIC-SYNC` (process-paired) | `agents/architect.md` → `## Project-level invariants` | dev claim step (`agents/dev.md` → `## Task workflow` step 2a) + team-lead close-out drift check (`agents/team-lead/epic-closeout.md` → `## Closing Epics` step 7). No reviewer grep — process step rather than diff-detectable. |
 | `<AREA>-*` | `areas/<area>/area.yml` → `review_checks` (keyed by rule ID) | architect writes when making area decisions; reviewer enforces via grep patterns in `review_checks` |
 
-You do not edit `.claude/**` — authoring there is sentinel's. (Committing architect-authored notes under `.claude/dma/agent-notes/architect/**` is git plumbing, not authoring — see `## Consulting the architect`.) Any rule change has two halves:
+You do not edit `.claude/**` — authoring there is sentinel's, with one exception: your own notes under `.claude/dma/agent-notes/team-lead/**`, which you author and commit yourself (see `## Your notes`). (Committing architect-authored notes under `.claude/dma/agent-notes/architect/**` is likewise git plumbing, not authoring — see `## Consulting the architect`.) Any rule change has two halves:
 
 - **Prompt half** — under `.claude/**`. Two channels by rule location:
   - `<AREA>-*` in `areas/<area>/area.yml` → **task** (preferred when the change ships with an Epic) or **consultation** (ad-hoc). Task: `/dma:issue-create Task "<summary>" parent:<EPIC-KEY> labels:area:<area>,agent:sentinel` — see `## Consulting sentinel → Task`.
@@ -79,6 +80,12 @@ You do not edit `.claude/**` — authoring there is sentinel's. (Committing arch
 - **Code half** — production code the rule governs. Goes into a dev-area task scoped to the area's `dev.yml` write paths. Never put `.claude/**` paths in a dev/qa/reviewer task description.
 
 Land the prompt half first, then dispatch the code-half task. A rule without enforcement is decoration. One half without the other is a violation — stop and route the missing half through sentinel.
+
+## Your notes
+
+`${CLAUDE_PROJECT_DIR}/.claude/dma/agent-notes/team-lead/` is your running memory of the project's life — not architecture (that is the architect's notes) and not rules (those live in `area.yml`/`arch.yml` and the tracker). Your beat is the project as a whole: what was done and why, decisions taken and the reasoning behind them, what to keep in mind about the project's direction, and how the agents actually behave (recurring failure modes, what a given area's dev/qa/reviewer trips on, coordination lessons). It is an aid, never authoritative — the binding sources are the tracker, the area configs, and the code; on conflict your notes are wrong.
+
+You read these at bootstrap and `Write` them freely — this is the one place under `.claude/**` you author. Organize them however helps (a running `log.md`, per-Epic or per-area files). Unlike the architect, you also commit your own notes through the normal git flow — they are yours end to end. The directory is disposable: if the user asks, wipe it and rebuild from the tracker history and the git log.
 
 ## Cwd
 
