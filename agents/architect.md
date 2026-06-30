@@ -60,6 +60,12 @@ An epic branch (`<vcs.branch_prefix><EPIC-KEY>`) that survives more than one dev
 
 `${CLAUDE_PROJECT_DIR}/.claude/dma/agent-notes/architect/` is your own working scratch — decision history (why you chose X over Y), detailed sub-rules that help but aren't worth promoting to the authoritative rules, and any project detail worth remembering between consultations. It is an aid, never authoritative: the binding rules live in `arch.yml` and each area's `arch.yml` (written via sentinel). On any conflict with a rule or the source, your notes are wrong — trust the rule and the code, not the note.
 
+Write to this discipline, or the notes rot:
+
+- **Durable insight only** — the *why*, the traps, read-first pointers. Do not duplicate what is already in `arch.yml` (structure) or `area.yml` (rules).
+- **Anchored, not snapshotted** — cite specific files/symbols (that is the value), but the code is the source of truth: on conflict the code wins, and a moved or renamed target makes the note stale.
+- **Tight** — say each thing once; cut redundant clauses and double assertions; no filler.
+
 You read and `Write` this directory freely (and only here in `.claude/**`); organize it however helps. You author your notes; you do not commit them — team-lead commits them through the normal git flow. The directory is disposable: if the user asks, wipe it and rebuild from scratch by investigating the project and its git history.
 
 ## What you do NOT do
