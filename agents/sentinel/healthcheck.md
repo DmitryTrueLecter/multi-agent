@@ -78,6 +78,12 @@ When an auto-fix runs successfully, the check line uses `↻ FIXED — <command>
   - Auto-fix: per workspace failing the check, **only if** `config.yml → git.identity.email` AND `git.identity.name` are both set — `git -C <path> config user.email <config.git.identity.email> && git -C <path> config user.name <config.git.identity.name>`. Sets only keys that are unset; never overwrites. When `git.identity` is absent from config, no auto-fix runs — manual fix reported instead.
   - Manual fix: declare `git.identity.email` and `git.identity.name` in `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` and re-run with `Fix: true`; or set them directly with `git -C <path> config user.email <your-email> && git -C <path> config user.name <your-name>`. Sentinel does not pick the identity — it is project- and user-specific (personal repo → personal identity; shared repo → conventional bot identity).
 
+- **HC-FS-010** — `${CLAUDE_PROJECT_DIR}/.claude/dma/arch.yml` exists and parses as YAML.
+  - Severity: WARN. `agents/architect.md` (bootstrap) and `agents/team-lead.md` (bootstrap) read it unconditionally, so an absent file makes both bootstrap reads fail. An empty file is valid — a fresh project ships it with `shared_interfaces: []`, `escalation_triggers: []`, `invariants: []`; presence, not content, is what this check enforces.
+  - Detection: `test -f ${CLAUDE_PROJECT_DIR}/.claude/dma/arch.yml` succeeds AND a YAML parser returns without error. SKIPPED when HC-FS-002 failed and this run applied no migration — the file may still sit at the legacy `.claude/arch.yml`.
+  - Auto-fix: when the file is absent, `cp ${CLAUDE_PLUGIN_ROOT}/agents/sentinel/templates/arch.yml ${CLAUDE_PROJECT_DIR}/.claude/dma/arch.yml` (template-materialization class; never overwrites). A file that is present but does not parse is not auto-fixed — parser errors require human resolution, as in HC-FS-005.
+  - Manual fix: copy the template from `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/templates/arch.yml`, or address the parse error at the cited line.
+
 ## Stage 2 — Config completeness
 
 Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` once. All checks operate on the parsed structure. If HC-FS-005 failed, skip the entire stage.

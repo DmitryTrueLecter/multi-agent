@@ -26,6 +26,7 @@ copy_if_missing() {
 }
 
 copy_if_missing "$ROOT/config.example.yml"       "$DEST/config.yml"
+copy_if_missing "$ROOT/agents/sentinel/templates/arch.yml" "$DEST/arch.yml"
 copy_if_missing "$ROOT/Justfile"                 "$DEST/Justfile"
 copy_if_missing "$ROOT/scripts/claude-resume.sh" "$DEST/scripts/claude-resume.sh"
 chmod +x "$DEST/scripts/claude-resume.sh" 2>/dev/null || true

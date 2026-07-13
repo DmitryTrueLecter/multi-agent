@@ -1,0 +1,23 @@
+# Project-level architecture — authoritative, written via sentinel (Mode: structure).
+# The over-area layer: how the layers fit together, the contracts that cross area
+# boundaries, and what forces architect review. Per-area architecture lives in
+# areas/<area>/arch.yml; this file is the trunk.
+#
+# A fresh project ships this file with every section empty — that is normal. The
+# architect fills each one as cross-area decisions are made.
+#
+# architecture: <over-area design narrative — add as decided with the user>
+
+# Contracts that cross area boundaries. A change to any of these ripples to every
+# listed consumer and requires architect review (see escalation_triggers).
+shared_interfaces: []
+
+# Changes that must route through architect before a dev task is created.
+escalation_triggers: []
+
+# Project-specific cross-area invariants — ARCH-* rules that only make sense for
+# this project. The generic ARCH-* namespace lives in the shared-plugin architect
+# prompt (agents/architect.md -> ## Project-level invariants). area.yml
+# review_checks cite these by id and carry the area-side ENFORCEMENT; this section
+# is their source-of-truth definition.
+invariants: []

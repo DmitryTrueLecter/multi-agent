@@ -1,5 +1,5 @@
 ---
-description: "Initialize dma project-local scaffolding (config.yml, Justfile, resume script) into .claude/dma/. Idempotent — never overwrites existing files."
+description: "Initialize dma project-local scaffolding (config.yml, arch.yml, Justfile, resume script) into .claude/dma/. Idempotent — never overwrites existing files."
 ---
 
 Run the dma plugin's installer against this project and report what it created or skipped:
