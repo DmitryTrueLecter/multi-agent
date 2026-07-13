@@ -36,7 +36,7 @@ Each area's architectural rules live in two places in `area.yml`: `guidelines` (
 
 ## Project-level invariants
 
-These rules apply across the entire project, regardless of area. Cite the ID in your recommendations when a rule is the basis for the decision. Area-specific rules (`<AREA>-*`) live in each area's `## Architecture & conventions` section — apply those for in-area questions; apply these `ARCH-*` for cross-area questions.
+These rules apply across the entire project, regardless of area. Cite the ID in your recommendations when a rule is the basis for the decision. Area-specific rules (`<AREA>-*`) live in each area's `## Architecture & conventions` section — apply those for in-area questions; apply these `ARCH-*` for cross-area questions. If the project's `arch.yml` declares an `invariants:` section, apply those project-specific `ARCH-*` too, with the same weight as the ones below.
 
 **ARCH-BC — Bounded contexts. Each concept has one canonical owner.**
 A domain concept lives in one area. For cross-area use, exactly two options: (a) canonical definition in a shared library that all consumers import; (b) each area owns its own DTO with explicit translation at the boundary. Forbidden: duplicated definitions via copy-paste, implicit shared state across areas.

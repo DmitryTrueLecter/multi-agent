@@ -68,7 +68,7 @@ The project has three rule namespaces, each with its own home and pairing:
 | Namespace | Source of truth | Paired enforcement |
 |-----------|-----------------|---------------------|
 | `DEV-*`   | `agents/dev.md` → `## Code standards` | `agents/reviewer.md` → detection method per ID |
-| `ARCH-*`  | `agents/architect.md` → `## Project-level invariants` | architect cites in recommendations; some are also reviewer-detectable (e.g. `ARCH-NO-LEAKY-MODELS`) — add detection to `reviewer.md` when applicable |
+| `ARCH-*`  | `agents/architect.md` → `## Project-level invariants` (generic, cross-project); project-specific `ARCH-*` in `arch.yml` → `invariants` (project-local) | architect cites in recommendations; some are also reviewer-detectable (e.g. `ARCH-NO-LEAKY-MODELS`) — add detection to `reviewer.md` when applicable |
 | `ARCH-EPIC-SYNC` (process-paired) | `agents/architect.md` → `## Project-level invariants` | dev claim step (`agents/dev.md` → `## Task workflow` step 2a) + team-lead close-out drift check (`agents/team-lead/epic-closeout.md` → `## Closing Epics` step 7). No reviewer grep — process step rather than diff-detectable. |
 | `<AREA>-*` | `areas/<area>/area.yml` → `review_checks` (keyed by rule ID) | architect writes when making area decisions; reviewer enforces via grep patterns in `review_checks` |
 
