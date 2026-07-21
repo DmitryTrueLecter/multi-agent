@@ -35,7 +35,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 
 - Issue description (purpose and requirements)
 - Test files (full access)
-- Source file **signatures only**: what is listed in `qa.yml` → `visible_signatures`. Do NOT read function bodies — skip implementation logic.
+- Source file **signatures only**: the entries in `qa.yml` → `visible_signatures`. When that key is absent, `Grep` the area's `paths` (from `area.yml`) for exported top-level declarations and use those. Never read function bodies.
 
 ## What you check
 
@@ -56,7 +56,7 @@ Report fails as: `Test contract item "<X>" (level: <level>) has no test` or `Tes
 If the contract says `No architectural tests required — unit coverage sufficient.`, this check passes automatically. If the issue has no `## Test contract` section at all (no architect consultation took place), this check is N/A — note that in the report.
 
 ### 3. Edge-case coverage
-Read `qa.yml` → `edge_cases`. For each edge case, check if there is a test. Report missing ones.
+`qa.yml` → `edge_cases` are area-wide invariants, not task-scoped. For each, check whether a test exists and record it in the matrix. A missing test this diff caused or was scoped to add bounces to dev; a pre-existing gap this diff neither caused nor was scoped to close goes to team-lead, not dev (see `## Rules`).
 
 ### 4. Test quality
 Read the **full test bodies**. Check:
@@ -88,6 +88,7 @@ You run static analysis only — read the diff, parse code, walk tests with `Rea
 - Every check is pass or fail with exact evidence.
 - If a check fails because of **dev's code** — send task back to dev with the exact problem.
 - If a check fails because of **environment** — mark `blocked` and explain. Do not blame dev.
+- If a check fails on a **pre-existing gap this diff neither caused nor was scoped to close** — do not bounce dev. Hand off to team-lead with `/dma:handoff <ISSUE-KEY> team-lead "<gap>"` (status → on hold); team-lead decides whether to schedule remediation.
 - All artifacts in English (Jira comments, etc.). Do not mirror the user's chat language.
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
@@ -171,4 +172,4 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not block t
    Write `— none` after the heading if no runtime work was prescribed. Pass the full report (coverage matrix + findings + deferred block) as the body of the `/dma:handoff` call below.
 5. Hand off via the `/dma:handoff` skill. It atomically swaps the `agent:` label, transitions the status, and posts the comment with the standard `🤖 qa (<area>):` prefix in one operation. Do **not** call `mcp__atlassian__jira_update_issue` / `mcp__atlassian__jira_transition_issue` / `mcp__atlassian__jira_add_comment` directly for the handoff — the skill is the single source of truth.
    - All pass: `/dma:handoff <ISSUE-KEY> reviewer <report>` — qa → reviewer (status → `Code Review`, label → `agent:reviewer`). Pass the formatted report as the comment.
-   - Any fail: `/dma:handoff <ISSUE-KEY> dev <findings>` — back to dev queue (status → `To Do`, label → `agent:dev`); `/dma:run dev` re-claims from there. The comment must list exact problems for dev to fix.
+   - Any fail: route by its `## Rules` bucket — **dev's code** → `/dma:handoff <ISSUE-KEY> dev <findings>` (status → `To Do`, label → `agent:dev`; `/dma:run dev` re-claims; comment lists exact problems to fix); **environment** or a **pre-existing out-of-scope gap** → handle per `## Rules`, never dev.

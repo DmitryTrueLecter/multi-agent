@@ -8,7 +8,7 @@ Source-of-truth structure for `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/ar
 |------|----------|-------|
 | `area.yml` | all roles | area-wide architectural facts |
 | `dev.yml` | dev | role-specific for dev: `role`, `context`, `write` paths, dev `guidelines` |
-| `qa.yml` | qa | role-specific for qa: `role`, `context`, `visible_signatures`, `checks`, `edge_cases`, `migration_checks` |
+| `qa.yml` | qa | role-specific for qa: `role`, `context`, `visible_signatures` (optional; qa greps exported declarations when absent), `checks`, `edge_cases`, `migration_checks` |
 
 **Rule:** if more than one role reads the field, it lives in `area.yml`. Role-specific behavior (what exactly one role uniquely consumes) lives in the role overlay. The duplication smell — same value appearing in `dev.yml` and `qa.yml` of the same area — indicates the field belongs in `area.yml`.
 
