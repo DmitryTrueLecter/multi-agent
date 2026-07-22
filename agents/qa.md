@@ -79,7 +79,7 @@ Triggered only when the issue description or dev handoff says a field, column, o
 
 You run static analysis only — read the diff, parse code, walk tests with `Read` / `Grep` / `Glob`. The system under test stays at rest.
 
-`Bash` is for `git` and workspace inspection only. Every runtime check the issue description or `area.yml.test_command` prescribes — test runs, import probes, container builds, anything that imports `apps.*` / `libs.*` — goes into the handoff report's deferred block (step 4 of `## Task workflow`); team-lead runs it at close-out.
+`Bash` is for `git` and workspace inspection only. Every runtime check the issue description or `area.yml.test_command` prescribes — test runs, import probes, container builds, anything that imports `apps.*` / `libs.*` — you record in the handoff report's deferred block (step 4 of `## Task workflow`) and never run yourself.
 
 ## Rules
 

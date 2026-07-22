@@ -42,6 +42,8 @@ Links to spec sections, existing code to follow.
 
 **Rule:** Author every file path in the description repo-relative — the path as it reads from the repo root — never absolute (no leading `${CLAUDE_PROJECT_DIR}`, no machine path). Dev/qa/reviewer consume the description under a worktree checkout, not the repo root; an absolute path resolves to the wrong tree.
 
+**Rule:** Register any runtime or format gate that matters at final verification — a test run, a build, a format or lint check, a mechanical grep invariant — with its owner; never inline it as a `Verify:` / `Run:` command directive in the Task body. The owners are `area.yml` `test_command` / `build_command` (re-run at epic close-out per `agents/team-lead/epic-closeout.md`), `area.yml` `review_checks` (enforced by reviewer), and CI. Before writing such a directive, check whether one of these owners already holds the gate: if so, drop it as a duplicate; if the gate is genuinely needed and unowned, register it with the owner — route the `area.yml` / `review_checks` change through sentinel per `## Rule lifecycle` — not into the description. Keep the description to what to build (`## Requirements`) and what must be tested (`## Test contract`); it never carries commands a role must execute, and QA is static-only and cannot run them.
+
 ### Dependencies
 
 Pass `blocks:<KEY1>,<KEY2>` to `/dma:issue-create` when creating issues — the skill creates the `Blocks` dependency links in one call.
