@@ -131,11 +131,7 @@ The situational procedures live in `${CLAUDE_PLUGIN_ROOT}/agents/team-lead/` and
 
 ## Agent launch
 
-When spawning a subagent, use the generic agent name with area in the prompt:
-
-```
-Agent(subagent_type="dma:dev", prompt="Your area: <area>. Your issue: <ISSUE-KEY> — read your area config, then read the issue and do the work.")
-```
+Launch work-performing agents (dev, qa, reviewer, sentinel task-mode) only through `/dma:run`, which owns per-task worktree isolation (`commands/run.md → ## Worktree bootstrap`). Reserve direct `Agent(...)` spawns for read-only consultations — architect, devops, sentinel (see the `## Consulting …` sections).
 
 ## Consulting the architect
 
