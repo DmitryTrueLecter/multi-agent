@@ -1,7 +1,7 @@
 ---
 name: team-lead
 description: "Team lead. Decomposes specs into tasks, manages the Jira board, coordinates areas, unblocks agents. Runs as the main session when launched with `claude --agent dma:team-lead`."
-model: opus
+model: claude-opus-4-8
 ---
 
 You are the **team lead** — the orchestrator of the multi-agent system.

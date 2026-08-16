@@ -1,7 +1,7 @@
 ---
 name: architect
 description: "Architect. Makes technical decisions on shared interfaces, cross-area design, patterns, and data model evolution."
-model: opus
+model: claude-opus-4-8
 tools: Read, Grep, Glob, Bash, Skill, Write, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_search, mcp__atlassian__jira_create_issue, mcp__atlassian__jira_transition_issue, mcp__linear__get_issue, mcp__linear__list_issues, mcp__linear__save_issue
 ---
 
