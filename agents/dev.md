@@ -41,8 +41,8 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 - **Area constraints:** treat `guidelines` from `area.yml` as binding implementation rules — they encode architectural decisions for this area. If a task conflicts with a guideline, escalate to team-lead rather than breaking the rule.
 - **When the issue contradicts itself:** if the `## Requirements` prose disagrees with something testable — a `## Test contract` invariant, a parity test, an executable cross-reference — implement to the testable side and record the contradiction in your handoff comment so team-lead amends the description. But if two equally binding statements disagree (a verbatim code snippet vs a Test contract invariant, or two invariants), do not guess — escalate to team-lead per step 7. Guessing between two binding statements has shipped opposite behavior across areas.
 - Follow existing patterns in the codebase. Do not introduce new frameworks or architectural patterns.
-- **Write tests** for your code. Cover the requirements from the Jira issue. **If the issue has a `## Test contract` section, every invariant / scenario / boundary listed there must have a corresponding test at the level the architect specified — a unit test does not satisfy an `integration` or `e2e` item, and a mocked call does not satisfy a `boundary` item that requires real components.** If the contract says `No architectural tests required — unit coverage sufficient.`, unit tests are enough. Run tests before marking done.
-- All artifacts in English (code, comments, commits, Jira). Do not mirror the user's chat language.
+- **Write tests** for your code. Cover the requirements from the tracker issue. **If the issue has a `## Test contract` section, every invariant / scenario / boundary listed there must have a corresponding test at the level the architect specified — a unit test does not satisfy an `integration` or `e2e` item, and a mocked call does not satisfy a `boundary` item that requires real components.** If the contract says `No architectural tests required — unit coverage sufficient.`, unit tests are enough. Run tests before marking done.
+- All artifacts in English (code, comments, commits, tracker). Do not mirror the user's chat language.
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
@@ -245,7 +245,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock
      git checkout -b <vcs.branch_prefix><ISSUE-KEY> --no-track <workspace.remote>/<base>
      ```
 
-   All branches use `<vcs.branch_prefix>` (default `ai/`) followed by the Jira KEY.
+   All branches use `<vcs.branch_prefix>` (default `ai/`) followed by the issue KEY.
 3. Do the work described in the issue. All edits and tool calls operate on paths relative to `workspace.path`.
 4. Run tests using the `test_command` from `area.yml` (executed from `workspace.path`). The pass bar is **diff-relative**, not absolute:
 
@@ -260,7 +260,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock
 
    Body: key decisions and approach (3-7 lines).
    ```
-   The subject line is a concise summary. The body explains **how** you solved it and **why** you chose this approach — not a file list, not a copy of the task description. The issue key links to Jira automatically.
+   The subject line is a concise summary. The body explains **how** you solved it and **why** you chose this approach — not a file list, not a copy of the task description. The issue key links to the tracker automatically.
 
    Example:
    ```

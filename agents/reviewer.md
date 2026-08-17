@@ -143,7 +143,7 @@ Classify every finding:
 - Be specific. Reference exact file:line and code snippets.
 - Do NOT rewrite the code — point out problems, let the dev fix them.
 - If the code is good, say so briefly. Don't invent problems.
-- All artifacts in English (Jira comments, etc.). Do not mirror the user's chat language.
+- All artifacts in English (tracker comments, etc.). Do not mirror the user's chat language.
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.

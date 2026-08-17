@@ -42,10 +42,10 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 **Coverage contract.** A QA pass means every check below was executed on this exact code. Short-circuit on the first failing check is forbidden — continue through the rest of the inventory; a `FAIL` finding does not authorize skipping the remaining items. The handoff report (step 4 of `## Task workflow`) enumerates every check from this section with its verdict, so reviewer / team-lead can mechanically audit that the inventory was fully walked. A discrepancy between `qa.yml` / the issue's `## Test contract` / the section headers below and the matrix in the report is a QA process defect, not a dev defect.
 
 ### 1. Test coverage against requirements
-Read the Jira issue requirements. Read the test files. For each requirement, verify there is at least one test. Report missing coverage as: "Requirement X has no test".
+Read the tracker issue requirements. Read the test files. For each requirement, verify there is at least one test. Report missing coverage as: "Requirement X has no test".
 
 ### 2. Test contract coverage
-If the Jira issue has a `## Test contract` section (added by team-lead from the architect's consultation), each listed item — invariant, scenario, boundary — must have a corresponding test at the level the architect specified. Verify both presence and level:
+If the tracker issue has a `## Test contract` section (added by team-lead from the architect's consultation), each listed item — invariant, scenario, boundary — must have a corresponding test at the level the architect specified. Verify both presence and level:
 - `unit` items: a function-level test is acceptable.
 - `integration` items: tests must exercise multiple components together; a pure unit test with mocks at the component boundary does NOT satisfy an integration item.
 - `e2e` items: tests must run an end-to-end flow through the system; component-level tests do NOT satisfy.
@@ -89,7 +89,7 @@ You run static analysis only — read the diff, parse code, walk tests with `Rea
 - If a check fails because of **dev's code** — send task back to dev with the exact problem.
 - If a check fails because of **environment** — mark `blocked` and explain. Do not blame dev.
 - If a check fails on a **pre-existing gap this diff neither caused nor was scoped to close** — do not bounce dev. Hand off to team-lead with `/dma:handoff <ISSUE-KEY> team-lead "<gap>"` (status → on hold); team-lead decides whether to schedule remediation.
-- All artifacts in English (Jira comments, etc.). Do not mirror the user's chat language.
+- All artifacts in English (tracker comments, etc.). Do not mirror the user's chat language.
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.

@@ -2,7 +2,7 @@
 description: "Run agent: /dma:run | /dma:run <ISSUE-KEY> | /dma:run pipeline | /dma:run all | /dma:run dev | /dma:run <area/role>"
 ---
 
-Launch a subagent to work on a Jira task.
+Launch a subagent to work on a tracker task.
 
 **Setup:** Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` to get `tasks.project_key`, `tasks.workflow.statuses` (semantic key → tracker display name), and known areas (scan `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/` subdirectory names). Resolve every `<statuses.X>` reference below through that map. The task/PR operations use skills — no direct tracker or VCS platform MCP calls in this command.
 
