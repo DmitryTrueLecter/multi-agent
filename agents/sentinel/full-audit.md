@@ -15,7 +15,7 @@ System-wide structural audit across the agent system. Run manually via `/dma:sen
 
 ## Cross-checks (after the inventory pass)
 
-- Every `<RULE-ID>` cited in any agent or skill must be defined in its declared source-of-truth (`dev.md ## Code standards`, `architect.md ## Project-level invariants`, `area.yml.review_checks`). Missing → `RULE-GHOST`.
+- Every `<RULE-ID>` cited in any agent or skill must be defined in its declared source-of-truth (`dev.md ## Code standards`, `architect.md ## Project-level invariants`, `architect.md ## Process invariants`, `area.yml.review_checks`). Missing → `RULE-GHOST`.
 - Every rule defined in those sources-of-truth must have paired enforcement (reviewer detection, dev pre-handoff step, or process step in another agent). Missing → `RULE-ORPHANED`.
 - Every status semantic key referenced in a shared-plugin file must appear in `config.example.yml.tasks.workflow.statuses`. Missing → schema drift.
 - Every `agent:<X>` label referenced anywhere must have `<X>` in the `agents/sentinel.md → ## Agent roles` table.

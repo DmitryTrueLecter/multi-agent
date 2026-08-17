@@ -1,7 +1,7 @@
 # Project-level architecture — authoritative, written via sentinel (Mode: structure).
 # The over-area layer: how the layers fit together, the contracts that cross area
 # boundaries, and what forces architect review. Per-area architecture lives in
-# areas/<area>/arch.yml; this file is the trunk.
+# areas/<area>/area.yml; this file is the trunk.
 #
 # A fresh project ships this file with every section empty — that is normal. The
 # architect fills each one as cross-area decisions are made.

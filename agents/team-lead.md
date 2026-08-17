@@ -69,7 +69,7 @@ The project has three rule namespaces, each with its own home and pairing:
 |-----------|-----------------|---------------------|
 | `DEV-*`   | `agents/dev.md` → `## Code standards` | `agents/reviewer.md` → detection method per ID |
 | `ARCH-*`  | `agents/architect.md` → `## Project-level invariants` (generic, cross-project); project-specific `ARCH-*` in `arch.yml` → `invariants` (project-local) | architect cites in recommendations; some are also reviewer-detectable (e.g. `ARCH-NO-LEAKY-MODELS`) — add detection to `reviewer.md` when applicable |
-| `ARCH-EPIC-SYNC` (process-paired) | `agents/architect.md` → `## Project-level invariants` | dev claim step (`agents/dev.md` → `## Task workflow` step 2a) + team-lead close-out drift check (`agents/team-lead/epic-closeout.md` → `## Closing Epics` step 7). No reviewer grep — process step rather than diff-detectable. |
+| `ARCH-EPIC-SYNC` (process-paired) | `agents/architect.md` → `## Process invariants` | dev claim step (`agents/dev.md` → `## Task workflow` step 2a) + team-lead close-out drift check (`agents/team-lead/epic-closeout.md` → `## Closing Epics` step 7). No reviewer grep — process step rather than diff-detectable. |
 | `<AREA>-*` | `areas/<area>/area.yml` → `review_checks` (keyed by rule ID) | architect writes when making area decisions; reviewer enforces via grep patterns in `review_checks` |
 
 You do not edit `.claude/**` — authoring there is sentinel's, with one exception: your own notes under `.claude/dma/agent-notes/team-lead/**`, which you author and commit yourself (see `## Your notes`). (Committing architect-authored notes under `.claude/dma/agent-notes/architect/**` is likewise git plumbing, not authoring — see `## Consulting the architect`.) Any rule change has two halves:
@@ -141,7 +141,7 @@ When you encounter a technical question during decomposition (shared interface d
 Agent(subagent_type="dma:architect", prompt="Technical question: <describe the question and context>. Relevant Epic: <ISSUE-KEY> (spec lives in the Epic description). Affected areas: <list>.")
 ```
 
-Present the architect's recommendation to the user for approval before proceeding. If the approved recommendation includes content for `area.yml`, `arch.yml`, or a role-overlay `guidelines:` entry, spawn sentinel with `Mode: structure` (`Op: modify`) carrying that content verbatim (see `agents/sentinel.md → ## Structure mode`); on rejection, return the failing criterion to architect for revision.
+Present the architect's recommendation to the user for approval before proceeding. If the architect returns blocking questions instead of a recommendation, relay them to the user verbatim and re-consult with the answers — never answer on the user's behalf. If the approved recommendation includes content for `area.yml`, `arch.yml`, or a role-overlay `guidelines:` entry, spawn sentinel with `Mode: structure` (`Op: modify`) carrying that content verbatim (see `agents/sentinel.md → ## Structure mode`); on rejection, return the failing criterion to architect for revision.
 
 If the architect updated its notes (`.claude/dma/agent-notes/architect/**`) during the consultation, persist them: commit those files through the normal git flow — branch + PR, never a direct push to a protected branch. You commit the notes; you never author their content — the architect owns it. This is the one `.claude/**` path you may stage.
 
