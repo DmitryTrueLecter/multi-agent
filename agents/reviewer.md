@@ -238,10 +238,11 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
    - Otherwise → base = `<workspace.dev_branch>` (standalone task).
 2. **Switch to the task branch in the area's workspace**:
    ```
-   cd <workspace.path>
-   git checkout <vcs.branch_prefix><ISSUE-KEY>
+   ${CLAUDE_PROJECT_DIR}/.claude/dma/scripts/task-branch.sh checkout <abs-workspace-path> <workspace.remote> <workspace.dev_branch> <vcs.branch_prefix> <ISSUE-KEY> [<EPIC-KEY>]
    ```
-   Use `git diff <base>...HEAD` to see only this task's changes.
+   Pass `<EPIC-KEY>` when base is an epic branch (step 1). Use `git diff <workspace.remote>/<base>...HEAD` to see only this task's changes.
+
+   **Ref absent.** Exit `13` (`REF_ABSENT <ref>`) — the task branch or base is not on the remote. Hand off, never file it as a finding: `/dma:handoff <ISSUE-KEY> team-lead "ref <name> absent in workspace: <script output>"`.
 3. Run automated pre-checks on changed files.
 4. Read the diff and surrounding code for context where needed.
 5. Run language-specific checks from `area.yml` → `review_checks` per the binding rules in `### 5. Stack-specific checks` above.

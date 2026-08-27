@@ -46,7 +46,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
-- **Branch state:** after `cd <workspace.path>` and `git checkout -b <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
+- **Branch state:** after `task-branch.sh dev-start` puts you on `<vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
 ## Long-running commands                                                                                                                                                              
                                                                                                                                                                                         
@@ -176,74 +176,16 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock
    **Determine the base branch** from the issue's `parent` field:
    - If `parent` is present AND `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>` (the epic branch).
    - Otherwise (no `parent`, or `parent` is not an Epic) → base = `<workspace.dev_branch>` (this is a standalone task).
-2. **Resolve the task branch** in your area's workspace. The branch is `<vcs.branch_prefix><ISSUE-KEY>`. **Two cases**, decided by whether the branch already exists on the remote (it will exist whenever this is a re-run after a user/reviewer/qa rejection). On a **fresh** epic-parented task, an additional **epic-branch verification** step (2a) runs first; only on success does the sync (2b) proceed. The verification closes the silent fallback-to-dev drift that the pre-2026-05 prompt allowed when the team-lead-created epic branch was missing on remote:
-
+2. **Resolve the task branch** — one call:
    ```
-   cd <workspace.path>
-   git fetch <workspace.remote>
+   ${CLAUDE_PROJECT_DIR}/.claude/dma/scripts/task-branch.sh dev-start <abs-workspace-path> <workspace.remote> <workspace.dev_branch> <vcs.branch_prefix> <ISSUE-KEY> [<EPIC-KEY>]
    ```
+   Pass `<EPIC-KEY>` only when base is an epic branch (step 1). The script: re-run if the branch exists on the remote (checkout + pull, prints `MODE=rerun` and the prior commits — fix on top of them, do not rewrite); otherwise fresh — verifies the epic branch, merges `<dev_branch>` into it and pushes (`ARCH-EPIC-SYNC`), cuts `<vcs.branch_prefix><ISSUE-KEY>` from the remote base (`MODE=fresh`).
 
-   - **Re-run (branch exists on remote — `git ls-remote --exit-code <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>` returns 0).** Continue from the prior state — do NOT recreate the branch and do NOT lose previous commits:
-     ```
-     git checkout <vcs.branch_prefix><ISSUE-KEY>   # or `git switch` if local copy already exists
-     git pull <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>
-     ```
-     Your starting tree is the previous attempt. Inspect what changed: `git log <base>..HEAD --oneline` and `git diff <base>...HEAD --stat`. The rejection feedback from step 1 tells you what to add/fix on top of this — not what to rewrite.
-   - **Fresh task (branch does not exist on remote).** Cut a new branch from base:
-
-     **2a. Verify the epic branch exists on remote — only when base is an epic branch** (i.e. issue's `parent.type == "group"`). Skip when `base == <workspace.dev_branch>` (standalone task — base is always available).
-
-     ```
-     git ls-remote --exit-code <workspace.remote> <vcs.branch_prefix><EPIC-KEY>
-     ```
-
-     - **Exit 0 (epic branch present)** → continue to 2b.
-     - **Exit 2 (epic branch missing on remote)** → team-lead's epic-branch creation did not run or did not complete for this workspace. Do NOT silently fall back to `<workspace.dev_branch>`: that drops the epic's integration contract and produces the `ARCH-EPIC-SYNC` drift that step 2b exists to prevent. Do this and stop:
-
-       1. Run `/dma:handoff <ISSUE-KEY> team-lead` with the comment body:
-          ```
-          Epic branch missing on remote.
-          Expected: <vcs.branch_prefix><EPIC-KEY> on <workspace.remote>
-          Workspace: <workspace.path>
-          Team-lead to create the epic branch, then return this task to To Do + agent:dev.
-          ```
-          The skill will prefix the comment with `🤖 dev (<area>): handoff → team-lead`, set label `agent:team-lead` + `needs-decision`, and transition to `On Hold`.
-       2. Stop. Do not cut the task branch. Do not invent a fallback base.
-
-     **2b. `ARCH-EPIC-SYNC` — only when base is an epic branch.** Skip when `base == <workspace.dev_branch>` (standalone task — nothing to sync into).
-
-     ```
-     git checkout <base>                                              # base = <vcs.branch_prefix><EPIC-KEY>
-     git pull <workspace.remote> <base>
-     git merge --no-edit <workspace.remote>/<workspace.dev_branch>
-     ```
-
-     - **Clean merge** → push the updated epic branch and continue to 2d:
-       ```
-       git push <workspace.remote> <base>
-       ```
-     - **Conflict** → fail out per 2c below. Do NOT resolve.
-
-     **2c. On conflict during `ARCH-EPIC-SYNC` — fail out, do not resolve.**
-     Reconciling architectural rewrites that landed independently on `<workspace.dev_branch>` is out of dev scope (`ARCH-EPIC-SYNC`). Do this and stop:
-
-     1. `git merge --abort` in `<workspace.path>`. Confirm `git status` is clean. Do **not** push the epic branch.
-     2. Run `/dma:handoff <ISSUE-KEY> team-lead` with the comment body:
-        ```
-        ARCH-EPIC-SYNC drift detected.
-        Epic branch: <vcs.branch_prefix><EPIC-KEY>
-        dev_branch SHA tried: <SHA>
-        Conflicted files:
-        <file paths from git status, one per line>
-        Dev is not resolving — team-lead to schedule a merge-resolution task. This task resumes after the resolution lands on the epic branch.
-        ```
-        The skill will prefix the comment with `🤖 dev (<area>): handoff → team-lead`, set label `agent:team-lead` + `needs-decision`, and transition to `On Hold`.
-     3. Stop. Do not cut the task branch.
-
-     **2d. Cut the task branch from the remote base ref.**
-     ```
-     git checkout -b <vcs.branch_prefix><ISSUE-KEY> --no-track <workspace.remote>/<base>
-     ```
+   On non-zero exit do **not** cut a branch by hand, do not fall back to `<dev_branch>`, do not resolve conflicts — run `/dma:handoff <ISSUE-KEY> team-lead` and stop:
+   - exit `10` `EPIC_MISSING` — comment: `Epic branch missing on remote. Expected: <vcs.branch_prefix><EPIC-KEY> on <workspace.remote>. Workspace: <workspace.path>. Team-lead to create the epic branch, then return this task to To Do + agent:dev.`
+   - exit `11` `SYNC_CONFLICT` (merge already aborted, tree clean) — comment: `ARCH-EPIC-SYNC drift detected. Epic branch: <base>. dev_branch SHA tried: <dev_sha from output>. Conflicted files: <list from output>. Dev is not resolving — team-lead to schedule a merge-resolution task. This task resumes after the resolution lands on the epic branch.`
+   - exit `1` — quote the git error.
 
    All branches use `<vcs.branch_prefix>` (default `ai/`) followed by the issue KEY.
 3. Do the work described in the issue. All edits and tool calls operate on paths relative to `workspace.path`.

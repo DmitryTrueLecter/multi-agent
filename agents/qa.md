@@ -93,7 +93,7 @@ You run static analysis only — read the diff, parse code, walk tests with `Rea
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
-- **Branch state:** after `cd <workspace.path>` and `git checkout <vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
+- **Branch state:** after `task-branch.sh checkout` puts you on `<vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
 ## Source-of-truth hierarchy
 
@@ -138,12 +138,11 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not block t
    - Otherwise → base = `<workspace.dev_branch>` (standalone task).
 2. **Switch to the task branch in the area's workspace**:
    ```
-   cd <workspace.path>
-   git checkout <vcs.branch_prefix><ISSUE-KEY>
+   ${CLAUDE_PROJECT_DIR}/.claude/dma/scripts/task-branch.sh checkout <abs-workspace-path> <workspace.remote> <workspace.dev_branch> <vcs.branch_prefix> <ISSUE-KEY> [<EPIC-KEY>]
    ```
-   Use `git diff <base>...HEAD` to see only this task's changes.
+   Pass `<EPIC-KEY>` when base is an epic branch (step 1). Use `git diff <workspace.remote>/<base>...HEAD` to see only this task's changes.
 
-   **Ref absent.** If `git checkout <vcs.branch_prefix><ISSUE-KEY>` or `<base>` fails to resolve, verify with `git rev-parse --verify <ref>` (base: `git ls-remote --exit-code origin <base>`) before reporting. On a genuine miss, hand off — never file it as a QA finding: `/dma:handoff <ISSUE-KEY> team-lead "ref <name> absent in workspace: <git output>"`.
+   **Ref absent.** Exit `13` (`REF_ABSENT <ref>`) — the task branch or base is not on the remote. Hand off, never file it as a finding: `/dma:handoff <ISSUE-KEY> team-lead "ref <name> absent in workspace: <script output>"`.
 3. Run the checks described above.
 4. Format your check report. Required sections, in order:
 

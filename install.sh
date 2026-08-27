@@ -30,3 +30,15 @@ copy_if_missing "$ROOT/agents/sentinel/templates/arch.yml" "$DEST/arch.yml"
 copy_if_missing "$ROOT/Justfile"                 "$DEST/Justfile"
 copy_if_missing "$ROOT/scripts/claude-resume.sh" "$DEST/scripts/claude-resume.sh"
 chmod +x "$DEST/scripts/claude-resume.sh" 2>/dev/null || true
+
+# Plugin-owned helper scripts the agent prompts call by path. Not user-edited,
+# so they are refreshed on every install to stay in step with the prompts.
+copy_always() {
+    local src="$1" dst="$2"
+    mkdir -p "$(dirname "$dst")"
+    cp "$src" "$dst"
+    chmod +x "$dst"
+    echo "updated:       $dst"
+}
+
+copy_always "$ROOT/scripts/task-branch.sh" "$DEST/scripts/task-branch.sh"
