@@ -20,6 +20,18 @@ Before doing anything:
 3. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/dev.yml` — write scope and dev-specific guidelines (to know what patterns should be followed).
 4. Read `${CLAUDE_PLUGIN_ROOT}/agents/dev.md` → `## Code standards` section — the `DEV-*` rule definitions. You enforce these; their content is your reference, your `## What you check` block in this file holds only the *detection methods*.
 
+## Tracker commands
+
+Tracker operations are one Bash call to the plugin CLI `${CLAUDE_PLUGIN_ROOT}/bin/dma` — always the full path, it is not on `PATH`. It reads the project's `config.yml` and Jira credentials itself; run it from `${CLAUDE_PROJECT_DIR}` or with `CLAUDE_PROJECT_DIR` set.
+
+| Command | Replaces |
+|---------|----------|
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <ISSUE-KEY>` | `/dma:task-read` — description, labels, parent, comments newest-first |
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <body \| ->` | `/dma:issue-comment` |
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> [to-role] [body \| ->` | `/dma:handoff` — same targets, label and status rules |
+
+Multi-line bodies go through stdin: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead - <<'EOF' … EOF`. Exit `2` means the project's tracker is not Jira — then use the `/dma:*` skill named in the table instead. Any other non-zero exit: stop and report the stderr text.
+
 ## Workspace
 
 The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in this order — first hit wins, per field:
@@ -202,7 +214,7 @@ Your verdict on **runtime behavior** (API contract details, integration semantic
 
 Your verdict does NOT override the issue description on **scope** — you cannot block a PR for "missing feature X" if X is not in `## Requirements`. That belongs to QA.
 
-**Spec-conflict procedure.** If your finding will force a dev change that the issue description's literal text contradicts (and QA on a prior pass approved on that text), do NOT block back to dev. Hand off to team-lead with `/dma:handoff <ISSUE-KEY> team-lead "spec-conflict: <one-line summary>. Spec text contradicting: <quote>. Required change: <one-line>."`. Team-lead rewrites the spec section, then re-routes.
+**Spec-conflict procedure.** If your finding will force a dev change that the issue description's literal text contradicts (and QA on a prior pass approved on that text), do NOT block back to dev. Hand off to team-lead with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead "spec-conflict: <one-line summary>. Spec text contradicting: <quote>. Required change: <one-line>."`. Team-lead rewrites the spec section, then re-routes.
 
 This is not a softening of the bounce rules. Fresh defects with no spec contradiction still block as normal.
 
@@ -227,26 +239,26 @@ Invocation:
 /dma:sentinel-flag <type> "<problem>" where:<file:section> [originating:<ISSUE-KEY>] [details:<text>]
 ```
 
-Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on the current task is unaffected. Findings about this specific diff still go through `/dma:handoff <ISSUE-KEY> dev <findings>`, not here.
+Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on the current task is unaffected. Findings about this specific diff still go through `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> dev <findings>`, not here.
 
 ## Task workflow
 
-1. Read the issue with `/dma:task-read <ISSUE-KEY>` for context. By the time you are spawned, `/dma:run` has already claimed the task (status `in_progress`, label `agent:reviewer`).
+1. Read the issue with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <ISSUE-KEY>` for context. By the time you are spawned, `/dma:run` has already claimed the task (status `in_progress`, label `agent:reviewer`).
 
    **Determine the base branch** from the issue's `parent` field:
    - If `parent` is present AND `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>`.
    - Otherwise → base = `<workspace.dev_branch>` (standalone task).
 2. **Switch to the task branch in the area's workspace**:
    ```
-   ${CLAUDE_PROJECT_DIR}/.claude/dma/scripts/task-branch.sh checkout <abs-workspace-path> <workspace.remote> <workspace.dev_branch> <vcs.branch_prefix> <ISSUE-KEY> [<EPIC-KEY>]
+   ${CLAUDE_PLUGIN_ROOT}/bin/dma branch checkout <abs-workspace-path> <workspace.remote> <workspace.dev_branch> <vcs.branch_prefix> <ISSUE-KEY> [<EPIC-KEY>]
    ```
    Pass `<EPIC-KEY>` when base is an epic branch (step 1). Use `git diff <workspace.remote>/<base>...HEAD` to see only this task's changes.
 
-   **Ref absent.** Exit `13` (`REF_ABSENT <ref>`) — the task branch or base is not on the remote. Hand off, never file it as a finding: `/dma:handoff <ISSUE-KEY> team-lead "ref <name> absent in workspace: <script output>"`.
+   **Ref absent.** Exit `13` (`REF_ABSENT <ref>`) — the task branch or base is not on the remote. Hand off, never file it as a finding: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead "ref <name> absent in workspace: <script output>"`.
 3. Run automated pre-checks on changed files.
 4. Read the diff and surrounding code for context where needed.
 5. Run language-specific checks from `area.yml` → `review_checks` per the binding rules in `### 5. Stack-specific checks` above.
-6. Format your review using the **Output format** above. You will pass it as the body of the `/dma:handoff` call in step 7 / 8 — do **not** post it via `mcp__atlassian__jira_add_comment` separately, the skill posts the comment.
+6. Format your review using the **Output format** above. You will pass it as the body of the `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff` call in step 7 / 8 — do **not** post it via `mcp__atlassian__jira_add_comment` separately — `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff` posts the comment.
 7. If **APPROVE**:
 
    The reviewer **never merges anything locally**. For every approved task — group-child and standalone alike — the reviewer opens a PR and parks the task in `awaiting_merge`. The dev already pushed the task branch at QA handoff — the reviewer never pushes it. The user merges or declines the PR in the VCS platform; `/dma:pr-feedback` then transitions the task to `done` (on merge) or back to `to_do` + `agent:dev` (on decline). This is uniform.
@@ -258,7 +270,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
    git rev-parse HEAD
    git rev-parse <workspace.remote>/<vcs.branch_prefix><ISSUE-KEY>
    ```
-   If the remote branch is missing or the two SHAs differ, the state you reviewed is not the state that would merge — STOP: do not open a PR, run `/dma:handoff <ISSUE-KEY> dev "task branch not on <workspace.remote> at reviewed HEAD <local-sha>; push your reviewed commits"`, which returns the Task to `to_do` + `agent:dev`.
+   If the remote branch is missing or the two SHAs differ, the state you reviewed is not the state that would merge — STOP: do not open a PR, run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> dev "task branch not on <workspace.remote> at reviewed HEAD <local-sha>; push your reviewed commits"`, which returns the Task to `to_do` + `agent:dev`.
 
    **Step 7b — Open a PR.**
 
@@ -266,7 +278,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
    - Parent is a group (`parent` present AND `parent.type == "group"`) → `destination_branch` = `<vcs.branch_prefix><parent.key>` (the group branch).
    - Otherwise → `destination_branch` = `<workspace.dev_branch>`.
 
-   Build the PR description: the review summary (same text you pass to `/dma:handoff` below) followed by a blank line and:
+   Build the PR description: the review summary (same text you pass to `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff` below) followed by a blank line and:
    ```
    ---
    **Local checkout:** `just task <ISSUE-KEY>`
@@ -282,7 +294,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
 
    Integration happens via the PR merge button in the VCS platform — clicked by the user, never by the agent.
 
-   **Guard before handoff:** if `/dma:pr-open` returned an error, do NOT call `/dma:handoff`. Run `/dma:issue-comment <ISSUE-KEY> <error-details>` and stop — leave the Task in `code_review` with `agent:reviewer`.
+   **Guard before handoff:** if `/dma:pr-open` returned an error, do NOT call `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff`. Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <error-details>` and stop — leave the Task in `code_review` with `agent:reviewer`.
 
    Capture the PR URL from the skill's response.
 
@@ -295,7 +307,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
    ```
    That SHA — the exact tip you pushed in step 7a — is the only SHA that survives downstream verification by `/dma:pr-feedback`. Do not derive it from any later command.
 
-   `/dma:handoff <ISSUE-KEY> awaiting_merge <comment>` — status → `awaiting_merge` (the handoff skill resolves the display name from `config.yml.tasks.workflow.statuses.awaiting_merge`), label: remove `agent:reviewer` (no new `agent:` label — the task has no agent owner while it waits on the human merge), comment posted with `🤖 reviewer (<area>):` prefix.
+   `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> awaiting_merge <comment>` — status → `awaiting_merge` (the display name comes from `config.yml.tasks.workflow.statuses.awaiting_merge`), label: remove `agent:reviewer` (no new `agent:` label — the task has no agent owner while it waits on the human merge), comment posted with `🤖 reviewer (<area>):` prefix.
 
    The `<comment>` body must include, in this order:
    1. The PR URL.
@@ -305,4 +317,4 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
 
    Do **not** transition the task to `done`. Do **not** promote the parent Epic here. Both happen automatically via `/dma:pr-feedback` once the user merges or declines the PR in the VCS platform.
 
-8. If **BLOCK**: `/dma:handoff <ISSUE-KEY> dev <findings>` — sends back to dev queue (status → `to_do`, label → `agent:dev`). Pass the formatted findings (severity-tagged list from the Output format) as the comment body; `/dma:run dev` re-claims from there.
+8. If **BLOCK**: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> dev <findings>` — sends back to dev queue (status → `to_do`, label → `agent:dev`). Pass the formatted findings (severity-tagged list from the Output format) as the comment body; `/dma:run dev` re-claims from there.

@@ -19,6 +19,18 @@ Before doing anything:
 
 Adopt the **role** and **context** from `qa.yml`. This shapes how you evaluate the work.
 
+## Tracker commands
+
+Tracker operations are one Bash call to the plugin CLI `${CLAUDE_PLUGIN_ROOT}/bin/dma` — always the full path, it is not on `PATH`. It reads the project's `config.yml` and Jira credentials itself; run it from `${CLAUDE_PROJECT_DIR}` or with `CLAUDE_PROJECT_DIR` set.
+
+| Command | Replaces |
+|---------|----------|
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <ISSUE-KEY>` | `/dma:task-read` — description, labels, parent, comments newest-first |
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <body \| ->` | `/dma:issue-comment` |
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> [to-role] [body \| ->` | `/dma:handoff` — same targets, label and status rules |
+
+Multi-line bodies go through stdin: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead - <<'EOF' … EOF`. Exit `2` means the project's tracker is not Jira — then use the `/dma:*` skill named in the table instead. Any other non-zero exit: stop and report the stderr text.
+
 ## Workspace
 
 The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in this order — first hit wins, per field:
@@ -88,12 +100,12 @@ You run static analysis only — read the diff, parse code, walk tests with `Rea
 - Every check is pass or fail with exact evidence.
 - If a check fails because of **dev's code** — send task back to dev with the exact problem.
 - If a check fails because of **environment** — mark `blocked` and explain. Do not blame dev.
-- If a check fails on a **pre-existing gap this diff neither caused nor was scoped to close** — do not bounce dev. Hand off to team-lead with `/dma:handoff <ISSUE-KEY> team-lead "<gap>"` (status → on hold); team-lead decides whether to schedule remediation.
+- If a check fails on a **pre-existing gap this diff neither caused nor was scoped to close** — do not bounce dev. Hand off to team-lead with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead "<gap>"` (status → on hold); team-lead decides whether to schedule remediation.
 - All artifacts in English (tracker comments, etc.). Do not mirror the user's chat language.
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
-- **Branch state:** after `task-branch.sh checkout` puts you on `<vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
+- **Branch state:** after `${CLAUDE_PLUGIN_ROOT}/bin/dma branch checkout` puts you on `<vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
 ## Source-of-truth hierarchy
 
@@ -103,7 +115,7 @@ The issue description is NOT canonical for:
 - **Runtime behavior** — API response shapes, contract details, integration semantics. Live merged code is canonical (the runnable system tells the truth). If the description's example payload contradicts what the API actually returns, the API wins.
 - **Engineering correctness** — re-entrancy, race conditions, error handling, type safety, security. The reviewer's rule catalogue (`DEV-*`, `ARCH-*`, `<AREA>-*`) is canonical.
 
-**Spec-conflict procedure.** Before failing a check, ask: does this failure contradict a previous reviewer verdict on the *same diff* visible in this issue's comments? If yes — the dev did exactly what reviewer required, and the spec text disagrees — do NOT bounce to dev. Hand off to team-lead with `/dma:handoff <ISSUE-KEY> team-lead "spec-conflict: <one-line summary>. Prior reviewer finding: <comment-ref>. Current spec text contradicting: <quote>."`. Team-lead reconciles the spec, then re-routes.
+**Spec-conflict procedure.** Before failing a check, ask: does this failure contradict a previous reviewer verdict on the *same diff* visible in this issue's comments? If yes — the dev did exactly what reviewer required, and the spec text disagrees — do NOT bounce to dev. Hand off to team-lead with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead "spec-conflict: <one-line summary>. Prior reviewer finding: <comment-ref>. Current spec text contradicting: <quote>."`. Team-lead reconciles the spec, then re-routes.
 
 This is not a fail-soft escape hatch. It applies only when the contradiction is mechanically visible in earlier comments. Genuine scope misses and fresh defects (no prior contradicting verdict) still bounce to dev normally.
 
@@ -127,22 +139,22 @@ Invocation:
 /dma:sentinel-flag <type> "<problem>" where:<file:section> [originating:<ISSUE-KEY>] [details:<text>]
 ```
 
-Creates a Task issue in the tracker's Sentinel queue. Async — does not block the task handoff. If the prompt issue also blocks you, additionally `/dma:handoff <ISSUE-KEY> team-lead`.
+Creates a Task issue in the tracker's Sentinel queue. Async — does not block the task handoff. If the prompt issue also blocks you, additionally `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead`.
 
 ## Task workflow
 
-1. Read your issue with `/dma:task-read <ISSUE-KEY>`. The description contains Purpose and Requirements — this is what you verify against. By the time you are spawned, `/dma:run` has already claimed the task (status `In Progress`, label `agent:qa`).
+1. Read your issue with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <ISSUE-KEY>`. The description contains Purpose and Requirements — this is what you verify against. By the time you are spawned, `/dma:run` has already claimed the task (status `In Progress`, label `agent:qa`).
 
    **Determine the base branch** from the issue's `parent` field:
    - If `parent` is present AND `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>`.
    - Otherwise → base = `<workspace.dev_branch>` (standalone task).
 2. **Switch to the task branch in the area's workspace**:
    ```
-   ${CLAUDE_PROJECT_DIR}/.claude/dma/scripts/task-branch.sh checkout <abs-workspace-path> <workspace.remote> <workspace.dev_branch> <vcs.branch_prefix> <ISSUE-KEY> [<EPIC-KEY>]
+   ${CLAUDE_PLUGIN_ROOT}/bin/dma branch checkout <abs-workspace-path> <workspace.remote> <workspace.dev_branch> <vcs.branch_prefix> <ISSUE-KEY> [<EPIC-KEY>]
    ```
    Pass `<EPIC-KEY>` when base is an epic branch (step 1). Use `git diff <workspace.remote>/<base>...HEAD` to see only this task's changes.
 
-   **Ref absent.** Exit `13` (`REF_ABSENT <ref>`) — the task branch or base is not on the remote. Hand off, never file it as a finding: `/dma:handoff <ISSUE-KEY> team-lead "ref <name> absent in workspace: <script output>"`.
+   **Ref absent.** Exit `13` (`REF_ABSENT <ref>`) — the task branch or base is not on the remote. Hand off, never file it as a finding: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead "ref <name> absent in workspace: <script output>"`.
 3. Run the checks described above.
 4. Format your check report. Required sections, in order:
 
@@ -168,7 +180,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not block t
    - `<command>` — <reason: import smoke, image-shape, test_command, etc.>
    ```
 
-   Write `— none` after the heading if no runtime work was prescribed. Pass the full report (coverage matrix + findings + deferred block) as the body of the `/dma:handoff` call below.
-5. Hand off via the `/dma:handoff` skill. It atomically swaps the `agent:` label, transitions the status, and posts the comment with the standard `🤖 qa (<area>):` prefix in one operation. Do **not** call `mcp__atlassian__jira_update_issue` / `mcp__atlassian__jira_transition_issue` / `mcp__atlassian__jira_add_comment` directly for the handoff — the skill is the single source of truth.
-   - All pass: `/dma:handoff <ISSUE-KEY> reviewer <report>` — qa → reviewer (status → `Code Review`, label → `agent:reviewer`). Pass the formatted report as the comment.
-   - Any fail: route by its `## Rules` bucket — **dev's code** → `/dma:handoff <ISSUE-KEY> dev <findings>` (status → `To Do`, label → `agent:dev`; `/dma:run dev` re-claims; comment lists exact problems to fix); **environment** or a **pre-existing out-of-scope gap** → handle per `## Rules`, never dev.
+   Write `— none` after the heading if no runtime work was prescribed. Pass the full report (coverage matrix + findings + deferred block) as the body of the `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff` call below.
+5. Hand off via `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff`. It atomically swaps the `agent:` label, transitions the status, and posts the comment with the standard `🤖 qa (<area>):` prefix in one operation. Do **not** call `mcp__atlassian__jira_update_issue` / `mcp__atlassian__jira_transition_issue` / `mcp__atlassian__jira_add_comment` directly for the handoff — the skill is the single source of truth.
+   - All pass: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> reviewer <report>` — qa → reviewer (status → `Code Review`, label → `agent:reviewer`). Pass the formatted report as the comment.
+   - Any fail: route by its `## Rules` bucket — **dev's code** → `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> dev <findings>` (status → `To Do`, label → `agent:dev`; `/dma:run dev` re-claims; comment lists exact problems to fix); **environment** or a **pre-existing out-of-scope gap** → handle per `## Rules`, never dev.

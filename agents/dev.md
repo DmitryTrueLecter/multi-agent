@@ -18,6 +18,18 @@ Before doing anything:
 
 Adopt the **role** and **context** from `dev.yml`. This shapes how you think about problems.
 
+## Tracker commands
+
+Tracker operations are one Bash call to the plugin CLI `${CLAUDE_PLUGIN_ROOT}/bin/dma` — always the full path, it is not on `PATH`. It reads the project's `config.yml` and Jira credentials itself; run it from `${CLAUDE_PROJECT_DIR}` or with `CLAUDE_PROJECT_DIR` set.
+
+| Command | Replaces |
+|---------|----------|
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <ISSUE-KEY>` | `/dma:task-read` — description, labels, parent, comments newest-first |
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <body \| ->` | `/dma:issue-comment` |
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> [to-role] [body \| ->` | `/dma:handoff` — same targets, label and status rules |
+
+Multi-line bodies go through stdin: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead - <<'EOF' … EOF`. Exit `2` means the project's tracker is not Jira — then use the `/dma:*` skill named in the table instead. Any other non-zero exit: stop and report the stderr text.
+
 ## Workspace
 
 The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in this order — first hit wins, per field:
@@ -34,7 +46,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 
 - **Write access:** only paths listed in `dev.yml` → `write`, resolved relative to `workspace.path`.
 - **Read access:** any file for context.
-- **Devops paths are out of scope.** Files matching any glob in `config.yml → devops_paths` are devops's territory, never dev's, even if they also appear under `dev.yml → write`. Touching them in a dev task is grounds for a reviewer block. If an application-area change genuinely needs to co-evolve an infra file, stop and run `/dma:handoff <ISSUE-KEY> team-lead` — team-lead either narrows the dev scope or schedules a paired devops task.
+- **Devops paths are out of scope.** Files matching any glob in `config.yml → devops_paths` are devops's territory, never dev's, even if they also appear under `dev.yml → write`. Touching them in a dev task is grounds for a reviewer block. If an application-area change genuinely needs to co-evolve an infra file, stop and run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead` — team-lead either narrows the dev scope or schedules a paired devops task.
 
 ## General guidelines
 
@@ -46,7 +58,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
-- **Branch state:** after `task-branch.sh dev-start` puts you on `<vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
+- **Branch state:** after `${CLAUDE_PLUGIN_ROOT}/bin/dma branch dev-start` puts you on `<vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
 ## Long-running commands                                                                                                                                                              
                                                                                                                                                                                         
@@ -159,11 +171,11 @@ Invocation:
 /dma:sentinel-flag <type> "<problem>" where:<file:section> [originating:<ISSUE-KEY>] [details:<text>]
 ```
 
-Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock the task. If the prompt issue also blocks you, additionally `/dma:handoff <ISSUE-KEY> team-lead`.
+Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock the task. If the prompt issue also blocks you, additionally `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead`.
 
 ## Task workflow
 
-1. Read your issue with `/dma:task-read <ISSUE-KEY>`. The description contains Purpose, Requirements, References. By the time you are spawned, `/dma:run` has already claimed the task (status `In Progress`, label `agent:dev`).
+1. Read your issue with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <ISSUE-KEY>`. The description contains Purpose, Requirements, References. By the time you are spawned, `/dma:run` has already claimed the task (status `In Progress`, label `agent:dev`).
 
    **Also read the issue's comments** — not only the description. The comments are where rejection feedback lives, and on a re-run that feedback is what you must address. Specifically, scan the **most recent** comments (newest first) for any of these prefixes and **stop scanning at the first one you hit** — it is your current target:
 
@@ -178,11 +190,11 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock
    - Otherwise (no `parent`, or `parent` is not an Epic) → base = `<workspace.dev_branch>` (this is a standalone task).
 2. **Resolve the task branch** — one call:
    ```
-   ${CLAUDE_PROJECT_DIR}/.claude/dma/scripts/task-branch.sh dev-start <abs-workspace-path> <workspace.remote> <workspace.dev_branch> <vcs.branch_prefix> <ISSUE-KEY> [<EPIC-KEY>]
+   ${CLAUDE_PLUGIN_ROOT}/bin/dma branch dev-start <abs-workspace-path> <workspace.remote> <workspace.dev_branch> <vcs.branch_prefix> <ISSUE-KEY> [<EPIC-KEY>]
    ```
    Pass `<EPIC-KEY>` only when base is an epic branch (step 1). The script: re-run if the branch exists on the remote (checkout + pull, prints `MODE=rerun` and the prior commits — fix on top of them, do not rewrite); otherwise fresh — verifies the epic branch, merges `<dev_branch>` into it and pushes (`ARCH-EPIC-SYNC`), cuts `<vcs.branch_prefix><ISSUE-KEY>` from the remote base (`MODE=fresh`).
 
-   On non-zero exit do **not** cut a branch by hand, do not fall back to `<dev_branch>`, do not resolve conflicts — run `/dma:handoff <ISSUE-KEY> team-lead` and stop:
+   On non-zero exit do **not** cut a branch by hand, do not fall back to `<dev_branch>`, do not resolve conflicts — run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead` and stop:
    - exit `10` `EPIC_MISSING` — comment: `Epic branch missing on remote. Expected: <vcs.branch_prefix><EPIC-KEY> on <workspace.remote>. Workspace: <workspace.path>. Team-lead to create the epic branch, then return this task to To Do + agent:dev.`
    - exit `11` `SYNC_CONFLICT` (merge already aborted, tree clean) — comment: `ARCH-EPIC-SYNC drift detected. Epic branch: <base>. dev_branch SHA tried: <dev_sha from output>. Conflicted files: <list from output>. Dev is not resolving — team-lead to schedule a merge-resolution task. This task resumes after the resolution lands on the epic branch.`
    - exit `1` — quote the git error.
@@ -196,7 +208,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock
      - **Failure on HEAD but not on base** — your diff caused it. Fix and re-run, regardless of which file the test lives in.
      - **Failure on both HEAD and base** — pre-existing rot. Stop, escalate via step 7 with the failing test IDs and the base SHA. Do not modify those tests yourself.
    - Whenever you state a test outcome — in a comment, a handoff, or the rot escalation above — paste the runner's verbatim summary line (e.g. `Tests: 997 passed, 1 skipped, 0 failed`), not a paraphrased count. A pre-existing-rot escalation also pastes the raw failing-test list and the base SHA from both runs.
-5. **Confirm the task branch is checked out, then commit and push.** Before the first commit, run `git rev-parse --abbrev-ref HEAD` in `<workspace.path>`: it must print `<vcs.branch_prefix><ISSUE-KEY>`. If it prints `HEAD` (detached) or another branch name, stop — do not commit. Run `/dma:handoff <ISSUE-KEY> team-lead` reporting that the worktree is not on the task branch, and let team-lead reconcile. On a match, commit your changes, then push the task branch to `<workspace.remote>`. Do not open a PR — the reviewer opens it (`reviewer.md` step 7b) after QA passes, so PR creation stays coupled to review approval. Commit message format:
+5. **Confirm the task branch is checked out, then commit and push.** Before the first commit, run `git rev-parse --abbrev-ref HEAD` in `<workspace.path>`: it must print `<vcs.branch_prefix><ISSUE-KEY>`. If it prints `HEAD` (detached) or another branch name, stop — do not commit. Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead` reporting that the worktree is not on the task branch, and let team-lead reconcile. On a match, commit your changes, then push the task branch to `<workspace.remote>`. Do not open a PR — the reviewer opens it (`reviewer.md` step 7b) after QA passes, so PR creation stays coupled to review approval. Commit message format:
    ```
    ISSUE-KEY subject line
 
@@ -214,11 +226,11 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock
    Touches <files/areas>. Edge case <case> handled by <strategy>;
    errors in <path> are logged without stopping the batch.
    ```
-6. Add a progress comment via `/dma:issue-comment <ISSUE-KEY> <body>`. **Start every comment with `🤖 dev (<area>):`** so it's clear which agent wrote it. Include: what you did, files created/modified, whether requirements are met, and the actual branch name (`<vcs.branch_prefix><ISSUE-KEY>`).
+6. Add a progress comment via `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <body>`. **Start every comment with `🤖 dev (<area>):`** so it's clear which agent wrote it. Include: what you did, files created/modified, whether requirements are met, and the actual branch name (`<vcs.branch_prefix><ISSUE-KEY>`).
 7. **If there are gaps, missing prerequisites, or decisions needed from team lead/other areas:**
    - Do NOT move to QA.
-   - Run `/dma:handoff <ISSUE-KEY> team-lead <comment>` — the comment must clearly describe what's missing and what decision is needed. The skill sets labels `agent:team-lead` + `needs-decision` and transitions to `On Hold`.
+   - Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead <comment>` — the comment must clearly describe what's missing and what decision is needed. It sets labels `agent:team-lead` + `needs-decision` and transitions to `On Hold`.
    - This applies when Requirements quote a function/class shape that violates `DEV-*` rules (e.g., signature with >4 domain params and no value-type grouping, or a boolean flag argument). Do not silently implement the violating shape; escalate so team-lead either rewrites the Requirements or re-routes to architect.
 8. **If work is complete with no gaps:**
    - Run the `## Pre-handoff self-review` checklist. Fix anything it surfaces.
-   - Run `/dma:handoff <ISSUE-KEY> qa` — the skill sets label `agent:qa` and transitions to `QA`.
+   - Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> qa` — it sets label `agent:qa` and transitions to `QA`.

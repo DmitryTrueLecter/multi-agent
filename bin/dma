@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Entry point for the dma plugin CLI. Uses the plugin's own venv (created by
+# hooks/ensure_venv.sh on SessionStart; created here too if it is missing).
+set -euo pipefail
+ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+[ -x "$ROOT/.venv/bin/python" ] || "$ROOT/hooks/ensure_venv.sh"
+exec "$ROOT/.venv/bin/python" "$ROOT/scripts/dma.py" "$@"
