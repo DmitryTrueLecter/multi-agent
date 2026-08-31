@@ -24,15 +24,7 @@ Files matching `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/**` for the area 
    - `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>` (the Epic branch).
    - Otherwise → base = `<workspace.dev_branch>` (standalone Task).
 
-3. **Resolve the task branch** in the area's worktree. The spawn prompt's `Workspace: <abs-workspace-path>` value is the pre-created git worktree (`<area-repo>/.worktrees/<ISSUE-KEY>/`); `cd` there first. `<workspace.remote>` and `<workspace.dev_branch>` are resolved from `area.yml` per the normal rule. The branch is `<vcs.branch_prefix><ISSUE-KEY>`. Two cases:
-
-   ```
-   cd <abs-workspace-path>
-   git fetch <workspace.remote>
-   ```
-
-   - **Re-run** (`git ls-remote --exit-code <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>` returns 0): `git checkout <vcs.branch_prefix><ISSUE-KEY>` + `git pull`. Continue from prior state — the user declined a previous PR; read the most recent `🤖 user (decline) via PR <URL>:` comment for what objections to address.
-   - **Fresh task**: `git checkout <base>` → `git pull` → `git checkout -b <vcs.branch_prefix><ISSUE-KEY>`.
+3. **You are already on the task branch.** `/dma:run` prepared the work area before spawning you: the spawn prompt's `Workspace: <abs-workspace-path>` is a worktree checked out on `<vcs.branch_prefix><ISSUE-KEY>`, cut from the base resolved above. Do not create or switch branches.
 
    `ARCH-EPIC-SYNC` does not apply to sentinel tasks — prompt-deliverable changes touch `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` paths only and do not collide with the cross-area code drift that rule exists to prevent.
 

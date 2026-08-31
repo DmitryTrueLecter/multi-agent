@@ -20,7 +20,7 @@ import sys
 import urllib.parse
 
 import issue
-import pr_feedback
+import board
 
 FIXTURES = os.path.join(os.path.dirname(os.path.realpath(__file__)), "fixtures")
 
@@ -88,21 +88,21 @@ def main():
     prefix = config["vcs"]["branch_prefix"]
     project_key = config["tasks"]["project_key"]
     jira = issue.Jira(*issue.load_credentials())
-    bb = pr_feedback.Bitbucket(*pr_feedback.load_bitbucket_credentials())
+    bb = board.Bitbucket(*board.load_bitbucket_credentials())
     remote = ((config.get("workspace") or {}) or {}).get("remote", "origin")
-    workspace, repo = pr_feedback.derive_coords(pr_feedback.git_remote_url(remote))
+    workspace, repo = board.derive_coords(board.git_remote_url(remote))
 
     # A merged PR produced by this system, with a real merge commit.
     merged = None
     for pr in bb.list_pull_requests(workspace, repo, "MERGED"):
-        if pr_feedback.is_managed(pr, f"{prefix}{project_key}-") and (pr.get("merge_commit") or {}).get("hash"):
+        if board.is_managed(pr, f"{prefix}{project_key}-") and (pr.get("merge_commit") or {}).get("hash"):
             merged = pr
             break
     if not merged:
         print("no managed merged PR to record from", file=sys.stderr)
         return 1
 
-    key = pr_feedback.key_from_branch(merged["source"]["branch"]["name"], prefix)
+    key = board.key_from_branch(merged["source"]["branch"]["name"], prefix)
     issue_payload = jira.get_issue(key)
     parent = (issue_payload["fields"].get("parent") or {}).get("key")
     commit = bb.get_commit(workspace, repo, merged["merge_commit"]["hash"])

@@ -1,7 +1,7 @@
 """Tracker operations for agents — one process call instead of a Skill round-trip.
 
     dma issue read    <KEY>                          skills/task-read
-    dma issue claim   <KEY>                          skills/issue-claim
+    dma issue claim   <KEY> | --role <r> | --any     skills/issue-claim
     dma issue comment <KEY> <body | ->               skills/issue-comment   ('-' = body from stdin)
     dma issue handoff <KEY> [to-role] [body | ->     skills/handoff
 
@@ -14,6 +14,7 @@ Only provider "jira" is implemented. For "linear" the command exits 2 and the
 agent falls back to the /dma:* skills.
 
 Exit codes: 0 ok · 1 error · 2 provider not supported · 3 claim rejected (already claimed)
+            4 nothing to claim (queue addressing only)
 """
 
 import base64
@@ -44,6 +45,23 @@ HANDOFF_TARGETS = {
     "done":             ("done",           None),
 }
 DEFAULT_FORWARD = {"dev": "qa", "qa": "reviewer", "reviewer": "awaiting_merge", "devops": "awaiting_ops"}
+
+# Queue priority for `claim --role` / `claim --any`, in the order commands/run.md
+# walks them: (role, status key, issue type). `to_do` entries for reviewer/qa exist
+# because the stuck-task pre-flight can roll a claimed task back to `to_do`.
+QUEUES = [
+    ("team-lead", "on_hold",     "task"),
+    ("team-lead", "to_do",       "task"),
+    ("sentinel",  "to_do",       "task"),
+    ("team-lead", "code_review", "group"),
+    ("reviewer",  "code_review", "task"),
+    ("reviewer",  "to_do",       "task"),
+    ("qa",        "qa",          "task"),
+    ("qa",        "to_do",       "task"),
+    ("dev",       "to_do",       "task"),
+    ("devops",    "to_do",       "task"),
+]
+BLOCKED_BY = "is blocked by"
 
 
 def die(message, code=1):
@@ -94,7 +112,9 @@ class Jira:
         return json.loads(raw) if raw else None
 
     def get_issue(self, key):
-        return self.call("GET", f"issue/{key}?fields=summary,status,labels,parent,description,comment,issuetype")
+        return self.call(
+            "GET",
+            f"issue/{key}?fields=summary,status,labels,parent,description,comment,issuetype,issuelinks")
 
     def transition(self, key, transition_id):
         self.call("POST", f"issue/{key}/transitions", {"transition": {"id": str(transition_id)}})
@@ -128,6 +148,17 @@ class JiraError(Exception):
 
 # ----------------------------------------------------------------- output (same shape as skills/task-read)
 
+def open_blockers(data, done_status):
+    """Keys of the issues this one is blocked by that are not done yet."""
+    blocked = []
+    for link in data["fields"].get("issuelinks") or []:
+        inward = link.get("inwardIssue")
+        if inward and (link.get("type") or {}).get("inward") == BLOCKED_BY:
+            if inward["fields"]["status"]["name"] != done_status:
+                blocked.append(f"{inward['key']} ({inward['fields']['status']['name']})")
+    return blocked
+
+
 def print_issue(issue):
     fields = issue["fields"]
     parent = fields.get("parent")
@@ -140,6 +171,10 @@ def print_issue(issue):
         print(f"parent: {parent['key']} ({parent_type}) — {parent['fields'].get('summary', '')}")
     else:
         print("parent: null")
+    blockers = [f"{l['inwardIssue']['key']} ({l['inwardIssue']['fields']['status']['name']})"
+                for l in fields.get("issuelinks") or []
+                if l.get("inwardIssue") and (l.get("type") or {}).get("inward") == BLOCKED_BY]
+    print(f"blocked by: {', '.join(blockers) if blockers else '-'}")
     print()
     print("## description")
     print(fields.get("description") or "(empty)")
@@ -172,16 +207,77 @@ def cmd_read(jira, config, key):
 
 
 def cmd_claim(jira, config, key):
-    # skills/issue-claim: transition to in_progress is the atomic claim; a rejected
-    # transition means another runner got there first. No retry.
+    """Claim a named issue. The transition to in_progress is the atomic claim: the
+    tracker refuses the second runner, and that refusal is not retried."""
     try:
         jira.transition(key, transition_id(config, "in_progress"))
     except JiraError as e:
         print(f"CLAIM_FAILED {key}: {e}")
         sys.exit(3)
+    data = jira.get_issue(key)
     print(f"CLAIMED {key}")
+    print_role_and_area(data)
     print()
-    print_issue(jira.get_issue(key))
+    print_issue(data)
+
+
+def print_role_and_area(data):
+    labels = data["fields"].get("labels") or []
+    role = next((l[len("agent:"):] for l in labels if l.startswith("agent:")), "-")
+    area = next((l[len("area:"):] for l in labels if l.startswith("area:")), "-")
+    print(f"role: {role}")
+    print(f"area: {area}")
+
+
+def cmd_claim_from_queue(jira, config, role_filter):
+    """Claim the next available issue instead of a named one: walk the queues in
+    priority order, skip what is blocked, and move on when another runner wins the
+    race. `role_filter` is None (any queue), a role, or `<area>/<role>`."""
+    area = None
+    if role_filter and "/" in role_filter:
+        area, role_filter = role_filter.split("/", 1)
+    if role_filter and role_filter not in {role for role, _, _ in QUEUES}:
+        die(f"unknown role '{role_filter}'; one of: {', '.join(sorted({r for r, _, _ in QUEUES}))}")
+
+    project = config["tasks"]["project_key"]
+    statuses = config["tasks"]["workflow"]["statuses"]
+    done = statuses["done"]
+    contended, blocked = [], []
+
+    for role, status_key, kind in QUEUES:
+        if role_filter and role != role_filter:
+            continue
+        clauses = [f"project = {project}", f'status = "{statuses[status_key]}"', f'labels = "agent:{role}"',
+                   f"issuetype {'=' if kind == 'group' else '!='} Epic"]
+        if area:
+            clauses.append(f'labels = "area:{area}"')
+        for row in jira.search(" AND ".join(clauses) + " ORDER BY created ASC", fields="summary"):
+            key = row["key"]
+            data = jira.get_issue(key)
+            if status_key == "to_do":
+                open_ = open_blockers(data, done)
+                if open_:
+                    blocked.append(f"{key} blocked by {', '.join(open_)}")
+                    continue
+            try:
+                jira.transition(key, transition_id(config, "in_progress"))
+            except JiraError:
+                contended.append(key)          # another runner claimed it first
+                continue
+            print(f"CLAIMED {key}")
+            print(f"queue: {role} / {statuses[status_key]}")
+            print_role_and_area(jira.get_issue(key))
+            print()
+            print_issue(data)
+            return
+
+    for line in blocked:
+        print(f"skipped: {line}")
+    if contended:
+        print(f"board contended, nothing else to take (lost the race on {', '.join(contended)})")
+    else:
+        print(f"nothing to claim in {role_filter or 'any'} queue" + (f" for area {area}" if area else ""))
+    sys.exit(4)
 
 
 def cmd_comment(jira, config, key, body):
@@ -232,15 +328,10 @@ def cmd_handoff(jira, config, key, to_role, body):
 
 
 def remove_worktrees(key):
-    # skills/handoff → "Worktree cleanup": best effort, never fails the handoff.
-    path = os.path.join(PROJECT_DIR, ".worktrees", key)
-    if not os.path.isdir(path):
-        return
-    result = subprocess.run(["git", "-C", PROJECT_DIR, "worktree", "remove", path], capture_output=True, text=True)
-    if result.returncode == 0:
-        print(f"worktree removed: {path}")
-    else:
-        print(f"WARNING worktree not removed (uncommitted changes?): {path}\n{result.stderr.strip()}")
+    """A closed task gives its work area back."""
+    import workspace
+
+    workspace.remove(key)
 
 
 # ----------------------------------------------------------------- main
@@ -263,7 +354,10 @@ def main(argv):
         if command == "read":
             cmd_read(jira, config, key)
         elif command == "claim":
-            cmd_claim(jira, config, key)
+            if key in ("--any", "--role"):
+                cmd_claim_from_queue(jira, config, rest[0] if key == "--role" and rest else None)
+            else:
+                cmd_claim(jira, config, key)
         elif command == "comment":
             if len(rest) != 1:
                 die("usage: dma issue comment <KEY> <body | ->")

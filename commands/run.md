@@ -4,7 +4,7 @@ description: "Run agent: /dma:run | /dma:run <ISSUE-KEY> | /dma:run pipeline | /
 
 Launch a subagent to work on a tracker task.
 
-**Setup:** Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` to get `tasks.project_key`, `tasks.workflow.statuses` (semantic key → tracker display name), and known areas (scan `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/` subdirectory names). Resolve every `<statuses.X>` reference below through that map. The task/PR operations use skills — no direct tracker or VCS platform MCP calls in this command.
+**Setup:** Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` to get `tasks.project_key`, `tasks.workflow.statuses` (semantic key → tracker display name), and known areas (scan `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/` subdirectory names). Resolve every `<statuses.X>` reference below through that map. Tracker and VCS operations go through the plugin CLI `${CLAUDE_PLUGIN_ROOT}/bin/dma` (always the full path, it is not on `PATH`); the remaining `/dma:*` skills are the fallback when the CLI reports the provider is unsupported (exit `2`). No direct tracker or VCS MCP calls in this command.
 
 **Usage patterns:**
 
@@ -39,7 +39,7 @@ Launch a subagent to work on a tracker task.
 
 The `agent:` label disambiguates queues that share a status: `code_review` splits into `agent:reviewer` (Task) vs `agent:team-lead` (Epic); `to_do` splits into `agent:team-lead` (coordination), `agent:sentinel` (prompt-deliverable), `agent:dev` (application), and `agent:devops` (infra).
 
-**Claim model.** Pickup = `mcp__atlassian__jira_transition_issue` → status name `statuses.in_progress`. This is the atomic claim — Jira rejects the second runner because the workflow disallows transition from `in_progress` to `in_progress`. Every queue JQL filters by pre-claim status (`to_do` / `qa` / `code_review` / `on_hold`), so a claimed task disappears from every queue automatically.
+**Claim model.** Pickup = `${CLAUDE_PLUGIN_ROOT}/bin/dma issue claim <KEY>`, which transitions the task to `statuses.in_progress`. That transition is the atomic claim — the tracker rejects the second runner because the workflow disallows `in_progress` → `in_progress`, and the command exits `3` (`CLAIM_FAILED`) without retrying. Every queue JQL filters by pre-claim status (`to_do` / `qa` / `code_review` / `on_hold`), so a claimed task disappears from every queue automatically.
 
 ## PR feedback reconciliation (pre-flight, runs first in every mode)
 
@@ -47,20 +47,18 @@ Reviewer-approved tasks sit in `statuses.awaiting_merge` until the user merges o
 
 **When to run.** As the very first step of every `/dma:run` invocation — auto-mode, pipeline mode, all mode, single-issue mode, role-only shortcut. On `/dma:run all`, re-runs before each iteration's task pickup.
 
-Run `${CLAUDE_PLUGIN_ROOT}/bin/dma pr-feedback` — one Bash call. It finds the tasks sitting in `<statuses.awaiting_merge>`, matches each to the newest pull request on its branch, and applies the decision (declined → `agent:dev` + `to_do`; merged → `done`, with the stale-tip guard and group close-out). It reads `config.yml` and the credentials itself. Exit `2` means the tracker/VCS pair is not Jira + Bitbucket — then fall back to the `/dma:pr-feedback` skill; any other non-zero exit: stop and report the stderr. Single-PR failures are logged and skipped, and the next pre-flight retries them.
+Run `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` — one Bash call. It finds the tasks sitting in `<statuses.awaiting_merge>`, matches each to the newest pull request on its branch, and applies the decision (declined → `agent:dev` + `to_do`; merged → `done`, with the stale-tip guard and group close-out). It reads `config.yml` and the credentials itself. Exit `2` means the tracker/VCS pair is not Jira + Bitbucket — then fall back to the `/dma:pr-feedback` skill; any other non-zero exit: stop and report the stderr. Single-PR failures are logged and skipped, and the next pre-flight retries them.
 
 ## Stuck task pre-flight (runs after PR feedback reconciliation, before queue search)
 
 A task in `<statuses.in_progress>` with an `agent:<role>` label is either being worked on right now (this session or another) or was abandoned mid-flight by an externally-terminated subagent (usage limit, sandbox kill, OOM). The tracker alone cannot tell the two apart, and this session's `TaskList` only sees its own subagents. This pre-flight surfaces ambiguous tasks and asks the user — it never rolls back automatically.
 
-**When to run.** Once per `/dma:run` invocation, immediately after `/dma:pr-feedback`, before the first queue search. Runs in every mode (`/dma:run`, `/dma:run pipeline`, `/dma:run all`, `/dma:run <KEY>`, role-only shortcut). On `/dma:run all`, does **not** re-run before each iteration — within a single invocation, the only new in-progress tasks are ones this session just spawned.
+**When to run.** Once per `/dma:run` invocation, immediately after the PR-feedback pre-flight, before the first queue search. Runs in every mode (`/dma:run`, `/dma:run pipeline`, `/dma:run all`, `/dma:run <KEY>`, role-only shortcut). On `/dma:run all`, does **not** re-run before each iteration — within a single invocation, the only new in-progress tasks are ones this session just spawned.
 
-1. **List in-progress tasks** across roles:
-   - `/dma:issue-search status:<statuses.in_progress> label:agent:dev`
-   - `/dma:issue-search status:<statuses.in_progress> label:agent:qa`
-   - `/dma:issue-search status:<statuses.in_progress> label:agent:reviewer`
-   - `/dma:issue-search status:<statuses.in_progress> label:agent:team-lead`
-   - `/dma:issue-search status:<statuses.in_progress> label:agent:devops`
+1. **List in-progress tasks** — one call, the `agent:<role>` label is in the output:
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <statuses.in_progress>
+   ```
 
 2. **Cross-reference with this session's live subagents** via `TaskList`. Every spawn prompt from "Steps" contains the issue key (`Issue: <KEY>`, `Coordination task: <KEY>`, `On Hold task: <KEY>`, `Group close-out: <KEY>`). A task is **active in this session** when some live `TaskList` entry's prompt mentions its key.
 
@@ -81,55 +79,50 @@ A task in `<statuses.in_progress>` with an `agent:<role>` label is either being 
 
 6. **Recency hint.** Tasks claimed within the last few minutes are almost certainly running in another session; tasks claimed hours or days ago are almost certainly stuck. Show the duration so the user has the signal — do not act on it automatically.
 
-## Worktree bootstrap (called by step 7)
+## Work area (called by step 7)
 
-Every agent that operates on a specific branch's state — dev, qa, reviewer, devops, sentinel Mode: task, team-lead at epic close-out — runs inside a persistent git worktree under `.worktrees/<KEY>`. This isolates the working tree per task / epic so parallel agents on different keys do not collide.
+Every agent that operates on a specific branch's state — dev, qa, reviewer, devops, sentinel Mode: task, team-lead at epic close-out — works in a git worktree of its own under `.worktrees/<KEY>`, checked out on the task branch. That isolates the working tree per task / epic so parallel agents on different keys do not collide.
 
-**When called.** Step 7 invokes this procedure once per agent the current `/dma:run` invocation is about to spawn. For task-scoped agents the key is the task `ISSUE-KEY`; for team-lead epic close-out the key is the `EPIC-KEY` and the procedure runs once per area-repo touched by the epic (see "Multi-repo team-lead epic close-out" below).
+**When called.** Step 7 prepares the area once per agent about to be spawned, **before** the spawn: the spawn prompt has to carry the path. For task-scoped agents the key is the task `ISSUE-KEY`; for team-lead epic close-out it is the `EPIC-KEY`, once per area-repo touched by the epic (see below).
 
-**Inputs.** `${CLAUDE_PROJECT_DIR}` (orchestrator's cwd), `<workspace.path>` resolved per the agent's role (per step 7), the issue/epic key.
+```
+${CLAUDE_PLUGIN_ROOT}/bin/dma workspace prepare <ISSUE-KEY>
+```
 
-### Steps
+One argument. The command reads the issue once and takes the rest from it: the `area:` label gives the checkout to work from, `parent` gives the base branch (an epic branch when the parent is a group), and the `agent:` label gives the role — dev, devops and sentinel may cut the task branch; for qa and reviewer a branch dev never pushed stops here instead of handing them an empty one.
 
-1. Resolve the repo that owns the workspace: `<abs-repo-root>` = `(cd <workspace.path> && git rev-parse --show-toplevel)`. In a monorepo this equals `${CLAUDE_PROJECT_DIR}`. In a multi-repo project this equals the area-repo (e.g. `${CLAUDE_PROJECT_DIR}/<area>-backend`).
-2. Set `<abs-worktree-path>` = `<abs-repo-root>/.worktrees/<KEY>`.
-3. If `<abs-worktree-path>` does not exist, create it:
-   ```
-   git -C <abs-repo-root> worktree add --detach <abs-worktree-path> HEAD
-   ```
-   On git failure (typical cause: branch already checked out in another worktree), stop and report — the user closes the conflicting worktree first.
-4. No project-local state needs sharing into the worktree: flags go to the tracker's Sentinel queue, and the `dma` plugin loads globally, so subagents reach their prompts in every worktree without a per-worktree symlink.
-5. Link the gitignored artifacts the project declares for worktrees. For each entry in `config.yml` `worktree.link_paths` (unset or empty → skip): when `<abs-repo-root>/<entry>` exists and `<abs-worktree-path>/<entry>` does not, run `ln -snf <abs-repo-root>/<entry> <abs-worktree-path>/<entry>`. Use this only for self-contained artifacts that are safe to share by reference, costly to rebuild, and that no `setup_commands` step mutates — linking an artifact a later step rebuilds or reconciles makes parallel worktrees race on the one shared physical copy (last-writer-wins); provision those through `setup_commands` in the next step. Likewise do not link an install-managed dependency tree whose internal layout assumes a fixed location (e.g. `node_modules` under an isolated package manager). The list is project-local — the plugin stays stack-agnostic.
-6. Run the setup commands the project declares for worktrees. For each command in `config.yml` `worktree.setup_commands` (unset or empty → skip), run it from the worktree root: `( cd <abs-worktree-path> && <command> )`. Use this for per-worktree state that must be built rather than shared — installing an isolated dependency tree, generating code. Commands run in listed order; a non-zero exit aborts the bootstrap and surfaces the failing command. The list is project-local — the plugin stays stack-agnostic.
-7. Return `<abs-worktree-path>` to step 7 as the resolved workspace.
+One call, one outcome: the worktree is created (or reused as it stands — no reinstalling dependencies on a re-claim), the project's `worktree.link_paths` are linked and `worktree.setup_commands` run on a fresh one, the epic branch is synced when the task is fresh and epic-parented, and the task branch is cut or checked out. The last line is `workspace: <abs-path>` — pass it to the agent as `Workspace:`.
+
+Non-zero exit — nothing is ready, so **do not spawn**. Every case below also **records the block on the task**, so the board shows why it stalled instead of leaving it `in_progress` with nobody working on it:
+
+| Exit | Meaning | What to do |
+|------|---------|-----------|
+| `10` | the epic branch is not on the remote | create it — `${CLAUDE_PLUGIN_ROOT}/bin/dma branch create-epic --workspace <area checkout> --epic <EPIC-KEY>` — then re-run the prepare. If it cannot be created, park the task: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead "Epic branch missing on remote. Expected: <vcs.branch_prefix><EPIC-KEY>. <output>"` |
+| `11` | `ARCH-EPIC-SYNC` conflict; the merge is aborted, nothing was pushed | the epic branch and `<dev_branch>` have diverged and resolving it is not this task's job: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead "ARCH-EPIC-SYNC drift detected. <output>"`, then schedule a merge-resolution task |
+| `13` | the task branch or its base is missing on the remote | `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead "ref absent in workspace: <output>"` — the same route the agents used to take, because the cause may be a missing base branch rather than a dev who forgot to push |
+| `1` | git refused, or a `setup_commands` step failed | the output names it. A setup failure leaves the worktree unprovisioned and the next prepare finishes it, so fix the cause (network, missing binary) and re-run; a git refusal usually means the branch is checked out in another worktree and the user closes it |
 
 ### Multi-repo team-lead epic close-out
 
 When step 7 prepares a `team-lead` epic close-out spawn, the worktree is created in **every area-repo touched by the epic's children**, not just one.
 
-1. Collect the set of areas touched by the epic — call `/dma:issue-search parent:<EPIC-KEY>` and union the `area:<area>` labels of the children.
-2. For each area in that set, resolve `<workspace.path>` from `<area>/area.yml` and run "Steps" above with `<EPIC-KEY>` as the key. Each iteration produces one worktree under that area-repo's `.worktrees/<EPIC-KEY>/`. Team-lead checks out branch `<vcs.branch_prefix><EPIC-KEY>` inside each per its agent prompt.
+1. Collect the set of areas touched by the epic — call `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --parent <EPIC-KEY>` and union the `area:<area>` labels of the children.
+2. For each area in that set, run `${CLAUDE_PLUGIN_ROOT}/bin/dma workspace prepare <EPIC-KEY> --area <area>` — the epic itself carries no `area:` label, so name the area explicitly here. Each iteration produces one worktree under that area-repo's `.worktrees/<EPIC-KEY>/`. Team-lead checks out branch `<vcs.branch_prefix><EPIC-KEY>` inside each per its agent prompt.
 3. Pass the full list to team-lead as `Workspaces: <area1>=<abs-worktree-path-1>;<area2>=<abs-worktree-path-2>;…` (see step 9 spawn shape).
 
 ### Cleanup
 
-The bootstrap creates the worktree; `/dma:handoff <KEY> done` removes it (see `skills/handoff/SKILL.md`). `/dma:run` does not clean up on its own. Orphaned worktrees (task closed via UI, `/dma:pr-feedback` skipped, etc.) surface in `/dma:sentinel healthcheck` (HC-WT-001).
+`${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <KEY> done` gives the work area back (it looks in every area's checkout). `/dma:run` does not clean up on its own. Orphaned work areas (task closed via UI, the PR-feedback pre-flight skipped, etc.) surface in `/dma:sentinel healthcheck` (HC-WT-001).
 
 ## Auto-mode (`/dma:run` without arguments)
 
-Search for the first available issue in priority order. Stop at the first match:
-
-0. **Run pre-flights** — `/dma:pr-feedback` (see "PR feedback reconciliation" above), then stuck-task scan (see "Stuck task pre-flight" above).
-1. **On hold** — `/dma:issue-search status:<statuses.on_hold> label:agent:team-lead`. Launch `team-lead` agent. (Tasks in `awaiting_merge` and `awaiting_ops` are skipped here — `awaiting_merge` is handled by `/dma:pr-feedback`, `awaiting_ops` is closed manually by the user.)
-2. **To Do (team-lead coordination)** — `/dma:issue-search status:<statuses.to_do> label:agent:team-lead` (filter out tasks whose blockers are not all `done`). Launch `team-lead` agent. Short lifecycle: `to_do` → team-lead acts → `done`, no dev/qa/reviewer cycle. Typical source: sentinel triage routing a finding that needs architect consultation followed by `Mode: structure` applies, or area scaffolding.
-3. **To Do (sentinel)** — `/dma:issue-search status:<statuses.to_do> label:agent:sentinel` (filter out tasks whose blockers are not all `done`). Launch `sentinel` agent in task-mode. Short lifecycle: `to_do` → sentinel works the area branch and opens a PR → `awaiting_merge`, no dev/qa/reviewer cycle. Typical source: prompt-deliverable Task created by team-lead per `agents/team-lead.md → ## Consulting sentinel → Task`. Flags carry `agent:sentinel` too, but they sit in `sentinel_inbox`, not `to_do`, so this bucket never picks them up — flags are triaged via `/dma:sentinel`, never auto-dispatched.
-4. **Code Review (group)** — `/dma:issue-search type:group status:<statuses.code_review> label:agent:team-lead`. Launch `team-lead` agent for group close-out.
-5. **Code Review (Task)** — `/dma:issue-search type:task status:<statuses.code_review> label:agent:reviewer`. Also accept `agent:reviewer` in `<statuses.to_do>` (a reviewer task the stuck-task pre-flight rolled back) — `agent:<role>` marks the owner, so a `to_do` task is dispatched to its agent just as `dev`/`devops`/`team-lead`/`sentinel` tasks are. Launch `reviewer` agent on the first match.
-6. **QA** — `/dma:issue-search status:<statuses.qa> label:agent:qa`. Also accept `agent:qa` in `<statuses.to_do>` (a qa task the stuck-task pre-flight rolled back). Launch `qa` agent on the first match.
-7. **To Do (dev)** — `/dma:issue-search status:<statuses.to_do> label:agent:dev` (filter out tasks whose blockers are not all `done`). Launch `dev` agent.
-8. **To Do (devops)** — `/dma:issue-search status:<statuses.to_do> label:agent:devops` (filter out tasks whose blockers are not all `done`). Launch `devops` agent.
-
-If nothing found at any level, report that the board is clear.
+0. **Run pre-flights** — `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` (see "PR feedback reconciliation" above), then the stuck-task scan (see "Stuck task pre-flight" above).
+1. **Claim the highest-priority task**:
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/bin/dma issue claim --any
+   ```
+   The command walks the queues in the priority order of the **Role → queue mapping** table, skips tasks whose blockers are not all `done`, claims the first it can, and prints `role:`, `area:` and the full issue. Exit `4` means nothing is claimable — it prints why (empty queues, or which tasks were skipped as blocked, or that another runner won every race). Report that and stop.
+2. Continue from step 7 of "Steps" below with the `role`, `area` and key the command printed.
 
 ## Pipeline mode (`/dma:run pipeline [ISSUE-KEY]`)
 
@@ -137,7 +130,7 @@ Run a single task through the **full lifecycle** until `done` (or until it gets 
 
 **Devops tasks are not eligible for pipeline mode** — they have no qa/reviewer cycle, and `awaiting_ops` requires human action that the agent loop cannot drive. Use `/dma:run <DEVOPS-KEY>` (single step) instead. If a key labelled `agent:devops` is passed to pipeline mode, stop and report: "devops tasks run as a single step — use /dma:run <KEY> instead."
 
-0. **Run pre-flights** before the first stage — `/dma:pr-feedback` (see "PR feedback reconciliation" above) and stuck-task scan (see "Stuck task pre-flight" above).
+0. **Run pre-flights** before the first stage — `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` (see "PR feedback reconciliation" above) and stuck-task scan (see "Stuck task pre-flight" above).
 
 1. **Find the task:**
    - If `ISSUE-KEY` given: use it.
@@ -161,7 +154,7 @@ Run a single task through the **full lifecycle** until `done` (or until it gets 
 
 Run tasks until the board is clear.
 
-1. **Run pre-flights** — `/dma:pr-feedback` (see "PR feedback reconciliation" above) runs before each iteration; the stuck-task scan (see "Stuck task pre-flight" above) runs only on the first iteration.
+1. **Run pre-flights** — `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` (see "PR feedback reconciliation" above) runs before each iteration; the stuck-task scan (see "Stuck task pre-flight" above) runs only on the first iteration.
 2. Use auto-mode priority to find a task.
 3. Run it through the **full pipeline** (same as pipeline mode).
 4. After the task reaches `done` (or `on_hold`), go back to step 1 (reconciliation runs again before the next iteration).
@@ -188,7 +181,7 @@ Subagents launched by `/dma:run` always run in **background mode** (see step 8 i
 
 ## Steps (for single-step modes)
 
-0. **Run pre-flights** before parsing arguments — `/dma:pr-feedback` (see "PR feedback reconciliation" above) and stuck-task scan (see "Stuck task pre-flight" above). Both apply even on `/dma:run <ISSUE-KEY>`, so a queued user-decline and any half-claimed in-progress task surface before this manual run picks anything up.
+0. **Run pre-flights** before parsing arguments — `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` (see "PR feedback reconciliation" above) and stuck-task scan (see "Stuck task pre-flight" above). Both apply even on `/dma:run <ISSUE-KEY>`, so a queued user-decline and any half-claimed in-progress task surface before this manual run picks anything up.
 
 1. Parse `$ARGUMENTS`:
    - If empty: auto-mode (see above).
@@ -199,33 +192,31 @@ Subagents launched by `/dma:run` always run in **background mode** (see step 8 i
    - Multiple issue keys: launch parallel agents.
 
 2. Find target task(s):
-   - If issue keys given: use `/dma:task-read <KEY>` on each — determine role from `agent:` label and area from `area:` label.
+   - If issue keys given: use `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <KEY>` on each — determine role from `agent:` label and area from `area:` label.
      - `agent:dev` → role is `dev`.
      - `agent:qa` → role is `qa`.
      - `agent:reviewer` → role is `reviewer`.
      - `agent:team-lead` → role is `team-lead`.
      - `agent:sentinel` → role is `sentinel`.
      - `agent:devops` → role is `devops`.
-   - If role-only: use `/dma:issue-search status:<statuses.[role-queue-key]> label:agent:<role>`, where the role-queue-key comes from the **Role → queue mapping** table above.
+   - If role-only (`dev`, `qa`, `reviewer`, `devops`, `sentinel`, `team-lead`, or `<area>/<role>`): `${CLAUDE_PLUGIN_ROOT}/bin/dma issue claim --role <role>`. It resolves the queue from the **Role → queue mapping** table, skips blocked tasks and claims the first available one — steps 5 and 6 below are already done; continue from step 7.
    - Take the **first** result only (unless multiple keys given).
 
 3. If no tasks found, report why and stop.
 
 4. Determine area from `area:` label on the issue (e.g. `area:ai` → area is `ai`).
 
-5. Verify blocked-by issues are all `done` (for dev tasks, using data already returned in step 2). If not, report and stop.
+5. Verify blocked-by issues are all `done` — the `blocked by:` line of the `issue read` output lists each blocker with its status. If any is unfinished, report and stop. (Queue addressing in step 2 has already applied this filter.)
 
-6. **Claim the task**: `/dma:issue-claim <KEY>` (for every role). On failure (another runner claimed it first), drop this task and pick the next one. If the queue is now empty, report "board contended, nothing else to take" and stop. On success, use the full task data returned by the skill — no separate `/dma:task-read` needed.
+6. **Claim the task**: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue claim <KEY>` (for every role). On exit `3` (another runner claimed it first), drop this task and pick the next one. If the queue is now empty, report "board contended, nothing else to take" and stop. On success, the command prints the full task data — no separate read needed.
 
-7. **Resolve absolute paths and bootstrap the worktree** (dev / qa / reviewer / devops / sentinel Mode: task / team-lead epic close-out).
-   - `${CLAUDE_PROJECT_DIR}` = `pwd` (your cwd).
-   - `<workspace.path>` resolution per agent role:
-     - dev / qa / reviewer / sentinel Mode: task: `area.yml.workspace.path` → `config.yml.workspace.path` → `.`.
-     - devops: `config.yml.workspace.path` → `.` (no area override).
-     - team-lead epic close-out: per-area; see "Multi-repo team-lead epic close-out" under "## Worktree bootstrap".
-   - Run **Worktree bootstrap** (see section above) with `<workspace.path>` and the issue / epic key. The procedure returns `<abs-worktree-path>`. Pass that as `Workspace:` to the agent. For team-lead epic close-out, the procedure returns the multi-area list passed as `Workspaces:`.
+7. **Prepare the work area** (dev / qa / reviewer / devops / sentinel Mode: task / team-lead epic close-out).
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/bin/dma workspace prepare <ISSUE-KEY>
+   ```
+   It prints `workspace: <abs-path>` — pass that as `Workspace:` to the agent. The agent arrives in a prepared worktree, already on `<vcs.branch_prefix><ISSUE-KEY>`; it does no branch setup of its own. On a non-zero exit do not spawn — see the table in **Work area** above. For team-lead epic close-out, repeat per area with `--area <area>` and pass the list as `Workspaces:`.
 
-8. **Cwd contract.** Don't let cwd drift between `Agent(...)` spawns. For workspace ops, use a subshell: `(cd <workspace.path> && <cmd>)`. Never bare `cd <ws> && <cmd>`.
+8. **Cwd contract.** Don't let cwd drift between `Agent(...)` spawns. Use a subshell for anything that needs another directory: `( cd <path> && <cmd> )`. Never bare `cd`.
 
 9. Launch **one Agent tool per task** in **background mode** (see "Stop semantics" below). Report `▶ <role> on <ISSUE-KEY> (<area>)`. Use `run_in_background=true`. Capture `agentId` for `TaskStop`.
 

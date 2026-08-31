@@ -27,9 +27,15 @@ Do not read area overlays (`areas/<area>/area.yml`, `dev.yml`, `qa.yml`) — tho
 
 ## Workspace
 
-Workspace resolution: `config.yml → workspace.<field>` → built-in defaults (`path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`). All git operations and edits happen inside `workspace.path`. Issue text and architect output may quote absolute paths (a leading repo root); drop the repo-root prefix and re-root the remainder onto `<abs-workspace-path>` before editing. A path under the repo root that lies outside `<abs-workspace-path>` is the wrong checkout — never edit it.
+`<abs-workspace-path>` comes in your prompt as `Workspace:`. It is a git worktree of this task's repository, created for this task and already checked out on `<vcs.branch_prefix><ISSUE-KEY>`. **Everything you do happens there**: git commands and edits. Paths in `config.yml` → `devops_paths` are relative to it — do not prepend anything.
 
-**Cwd:** workspace ops via subshell: `( cd <abs-workspace-path> && <cmd> )`. No bare `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
+`${CLAUDE_PROJECT_DIR}` is the project root. Read `.claude/*` config from it; never edit task files there. A task-tree path under `${CLAUDE_PROJECT_DIR}` that lies outside `<abs-workspace-path>` is the main checkout, shared with everything else — never `Edit`/`Write` it.
+
+Issue text and architect output may quote absolute paths (a leading `${CLAUDE_PROJECT_DIR}`); treat these as references, not targets — drop that prefix and re-root the remainder onto `<abs-workspace-path>`.
+
+Two config values appear in the git commands below. They are values, not directories: `<workspace.remote>` (`config.yml` → `origin`) and `<workspace.dev_branch>` (`config.yml` → `vcs.dev_branch`).
+
+**Cwd:** `( cd <abs-workspace-path> && <cmd> )`. No bare `cd`, no `git -C` (not in allowlist).
 
 ## Three modes
 
@@ -57,15 +63,7 @@ If both `Issue:` and `Mode: consultation` are present, treat as Mode A and put t
    - `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>` (the epic branch).
    - Otherwise → base = `<workspace.dev_branch>` (standalone task).
 
-2. **Resolve the task branch.** The branch is `<vcs.branch_prefix><ISSUE-KEY>`.
-
-   ```
-   cd <workspace.path>
-   git fetch <workspace.remote>
-   ```
-
-   - **Re-run** (`git ls-remote --exit-code <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>` returns 0): `git checkout <vcs.branch_prefix><ISSUE-KEY>` + `git pull`. Continue from prior state.
-   - **Fresh task**: `git checkout -b <vcs.branch_prefix><ISSUE-KEY> --no-track <workspace.remote>/<base>`. Cut straight from the remote base ref: `<base>` (dev_branch, or the epic branch) is checked out in the main repo, so `git checkout <base>` inside this worktree would fail.
+2. **You are already on the task branch.** `/dma:run` prepared the work area before spawning you: your `Workspace:` is a worktree checked out on `<vcs.branch_prefix><ISSUE-KEY>`, cut from the base resolved above. Do not create or switch branches. On a re-run the previous attempt is in the branch — `( cd <abs-workspace-path> && git log --oneline <workspace.remote>/<base>..HEAD )` shows it.
 
    `ARCH-EPIC-SYNC` does not apply to devops tasks — infra changes touch their own paths and the cross-area-drift mechanism is dev's concern.
 

@@ -99,6 +99,17 @@ def test_read_lists_comments_newest_first(dma):
     assert out.index("handoff → dev") < out.index("first comment")
 
 
+def test_read_lists_the_blockers_and_their_status(dma, jira):
+    """The orchestrator must not dispatch a task whose blockers are unfinished."""
+    jira.add_issue("T-7", "To Do", blocked_by=[("T-4", "QA"), ("T-3", "Done")])
+    out = dma("read", "T-7").stdout
+    assert "blocked by: T-4 (QA), T-3 (Done)" in out
+
+
+def test_read_of_an_unblocked_task_says_so(dma, jira):
+    assert "blocked by: -" in dma("read", "T-1").stdout
+
+
 def test_read_of_a_task_without_a_parent(dma, jira):
     jira.add_issue("T-7", "To Do")
     assert "parent: null" in dma("read", "T-7").stdout
@@ -216,3 +227,114 @@ def test_missing_config_names_the_path(dma, project):
     result = dma("read", "T-1")
     assert result.returncode == 1
     assert "config not found" in result.stderr
+
+
+# ------------------------------------------------------------------ claim from a queue
+
+def test_claim_by_role_takes_the_task_and_names_role_and_area(dma, jira):
+    jira.issues.clear()             # the queue tests start from an empty board
+    jira.add_issue("T-5", "To Do", labels=["area:backend", "agent:dev"])
+    result = dma("claim", "--role", "dev")
+    assert result.returncode == 0, result.stderr
+    assert jira.status_of("T-5") == "In Progress"
+    assert "CLAIMED T-5" in result.stdout
+    assert "role: dev" in result.stdout and "area: backend" in result.stdout
+
+
+def test_claim_by_role_skips_a_blocked_task(dma, jira):
+    jira.issues.clear()             # the queue tests start from an empty board
+    jira.add_issue("T-5", "To Do", labels=["agent:dev"], blocked_by=[("T-4", "In Progress")])
+    jira.add_issue("T-6", "To Do", labels=["agent:dev"])
+    result = dma("claim", "--role", "dev")
+    assert result.returncode == 0, result.stderr
+    assert jira.status_of("T-5") == "To Do", "a task with an unfinished blocker must not be claimed"
+    assert jira.status_of("T-6") == "In Progress"
+
+
+def test_claim_by_role_accepts_a_task_whose_blockers_are_done(dma, jira):
+    jira.issues.clear()             # the queue tests start from an empty board
+    jira.add_issue("T-5", "To Do", labels=["agent:dev"], blocked_by=[("T-4", "Done")])
+    result = dma("claim", "--role", "dev")
+    assert result.returncode == 0, result.stderr
+    assert jira.status_of("T-5") == "In Progress"
+
+
+def test_claim_any_respects_the_queue_priority(dma, jira):
+    jira.issues.clear()             # the queue tests start from an empty board
+    jira.add_issue("T-5", "To Do", labels=["agent:dev"])
+    jira.add_issue("T-6", "On Hold", labels=["agent:team-lead"])
+    result = dma("claim", "--any")
+    assert result.returncode == 0, result.stderr
+    assert jira.status_of("T-6") == "In Progress", "on_hold team-lead outranks a to_do dev task"
+    assert jira.status_of("T-5") == "To Do"
+
+
+def test_claim_by_role_moves_on_when_another_runner_wins_the_race(dma, jira):
+    jira.issues.clear()             # the queue tests start from an empty board
+    jira.add_issue("T-5", "To Do", labels=["agent:dev"])
+    jira.add_issue("T-6", "To Do", labels=["agent:dev"])
+    original = jira.issue_payload
+    lost = {"done": False}
+
+    def steal(key):                     # the first candidate is claimed elsewhere mid-flight
+        if key == "T-5" and not lost["done"]:
+            lost["done"] = True
+            jira.reject_transitions.add("21")
+        elif key == "T-6":
+            jira.reject_transitions.discard("21")
+        return original(key)
+
+    jira.issue_payload = steal
+    result = dma("claim", "--role", "dev")
+    assert result.returncode == 0, result.stderr
+    assert jira.status_of("T-6") == "In Progress"
+
+
+def test_claim_by_role_filtered_to_one_area(dma, jira):
+    jira.issues.clear()             # the queue tests start from an empty board
+    jira.add_issue("T-5", "To Do", labels=["area:frontend", "agent:qa"])
+    jira.add_issue("T-6", "To Do", labels=["area:backend", "agent:qa"])
+    result = dma("claim", "--role", "backend/qa")
+    assert result.returncode == 0, result.stderr
+    assert jira.status_of("T-6") == "In Progress" and jira.status_of("T-5") == "To Do"
+
+
+def test_claim_of_a_group_queue_picks_the_epic(dma, jira):
+    jira.issues.clear()             # the queue tests start from an empty board
+    jira.add_issue("T-5", "Code Review", labels=["agent:team-lead"])          # Task, older
+    jira.add_issue("T-8", "Code Review", labels=["agent:team-lead"], kind="Epic")
+    result = dma("claim", "--role", "team-lead")
+    assert result.returncode == 0, result.stderr
+    assert jira.status_of("T-8") == "In Progress", "the group queue is issuetype = Epic"
+    assert jira.status_of("T-5") == "Code Review", "the Task in the same status belongs to reviewer"
+
+
+def test_claim_with_an_empty_queue_exits_4(dma, jira):
+    jira.issues.clear()
+    result = dma("claim", "--role", "devops")
+    assert result.returncode == 4
+    assert "nothing to claim" in result.stdout
+
+
+def test_claim_reports_the_blocked_task_it_skipped(dma, jira):
+    jira.issues.clear()             # the queue tests start from an empty board
+    jira.add_issue("T-5", "To Do", labels=["agent:dev"], blocked_by=[("T-4", "QA")])
+    result = dma("claim", "--role", "dev")
+    assert result.returncode == 4
+    assert "T-5 blocked by T-4" in result.stdout
+
+
+def test_claim_with_an_unknown_role_is_refused(dma, jira):
+    jira.issues.clear()
+    result = dma("claim", "--role", "designer")
+    assert result.returncode == 1
+    assert "unknown role" in result.stderr
+
+
+def test_reviewer_queue_never_picks_a_group(dma, jira):
+    """`code_review` is shared: Epics belong to team-lead, Tasks to the reviewer."""
+    jira.issues.clear()
+    jira.add_issue("T-8", "Code Review", labels=["agent:reviewer"], kind="Epic")
+    result = dma("claim", "--role", "reviewer")
+    assert result.returncode == 4
+    assert jira.status_of("T-8") == "Code Review"

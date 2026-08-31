@@ -33,15 +33,15 @@ Multi-line bodies go through stdin: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff
 
 ## Workspace
 
-The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in this order — first hit wins, per field:
+`<abs-workspace-path>` comes in your prompt as `Workspace:`. It is a git worktree of this task's repository, created for this task and already checked out on `<vcs.branch_prefix><ISSUE-KEY>`. **Everything you do happens there**: git commands and test runs. Paths in `dev.yml` (`write:`) and `area.yml` (`test_command`) are relative to it — do not prepend anything.
 
-1. `area.yml` → `workspace.<field>`
-2. `config.yml` → `workspace.<field>`
-3. Built-in defaults: `path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`
+`${CLAUDE_PROJECT_DIR}` is the project root. Read `.claude/*` config from it; never edit task files there. A task-tree path under `${CLAUDE_PROJECT_DIR}` that lies outside `<abs-workspace-path>` is the main checkout, shared with everything else.
 
-**All git and test operations happen inside the resolved `workspace.path`.** `Read` takes absolute paths: prefix `<abs-workspace-path>` (your worktree, from the prompt) for task-tree files, and `${CLAUDE_PROJECT_DIR}` for `.claude/*` config. Paths in `qa.yml` (`visible_signatures`, …) and `area.yml` (`test_command`) are interpreted relative to `workspace.path`.
+Issue text and architect output may quote absolute paths (a leading `${CLAUDE_PROJECT_DIR}`); treat these as references, not targets — drop that prefix and re-root the remainder onto `<abs-workspace-path>`.
 
-**Cwd:** workspace ops via subshell: `( cd <abs-workspace-path> && <cmd> )`. No bare `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
+Two config values appear in the git commands below. They are values, not directories: `<workspace.remote>` (`area.yml` → `config.yml` → `origin`) and `<workspace.dev_branch>` (`area.yml` → `config.yml` → `vcs.dev_branch`).
+
+**Cwd:** `( cd <abs-workspace-path> && <cmd> )`. No bare `cd`, no `git -C` (not in allowlist).
 
 ## What you see
 
@@ -105,7 +105,7 @@ You run static analysis only — read the diff, parse code, walk tests with `Rea
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
-- **Branch state:** after `${CLAUDE_PLUGIN_ROOT}/bin/dma branch checkout` puts you on `<vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
+- **Branch state:** you start on `<vcs.branch_prefix><ISSUE-KEY>` — stay on that branch (in that workspace) until your handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
 ## Source-of-truth hierarchy
 
@@ -148,13 +148,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not block t
    **Determine the base branch** from the issue's `parent` field:
    - If `parent` is present AND `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>`.
    - Otherwise → base = `<workspace.dev_branch>` (standalone task).
-2. **Switch to the task branch in the area's workspace**:
-   ```
-   ${CLAUDE_PLUGIN_ROOT}/bin/dma branch checkout <abs-workspace-path> <workspace.remote> <workspace.dev_branch> <vcs.branch_prefix> <ISSUE-KEY> [<EPIC-KEY>]
-   ```
-   Pass `<EPIC-KEY>` when base is an epic branch (step 1). Use `git diff <workspace.remote>/<base>...HEAD` to see only this task's changes.
-
-   **Ref absent.** Exit `13` (`REF_ABSENT <ref>`) — the task branch or base is not on the remote. Hand off, never file it as a finding: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead "ref <name> absent in workspace: <script output>"`.
+2. **You are already on the task branch.** `/dma:run` prepared the work area before spawning you: your `Workspace:` is a worktree checked out on `<vcs.branch_prefix><ISSUE-KEY>`. Do not create or switch branches. Use `git diff <workspace.remote>/<base>...HEAD` for this task's changes, with `<base>` from step 1.
 3. Run the checks described above.
 4. Format your check report. Required sections, in order:
 

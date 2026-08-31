@@ -82,26 +82,18 @@ Pass `parent:<EPIC-KEY>` to `/dma:issue-create` when creating Tasks — the skil
 
    Resolve each affected area's workspace per the rule in the role docs (`area.yml.workspace` → `config.yml.workspace` → built-in defaults: `path=.`, `remote=origin`, `dev_branch=vcs.dev_branch`). Take the set of distinct `workspace.path` values. For each, use a **subshell** so cwd does not leak:
 
-   - **Create + push.** Per workspace:
+   - Per workspace:
      ```
-     ( cd <workspace.path> && \
-       git checkout <workspace.dev_branch> && \
-       git pull && \
-       git checkout -b <vcs.branch_prefix><EPIC-KEY> && \
-       git push -u <workspace.remote> <vcs.branch_prefix><EPIC-KEY> )
+     ${CLAUDE_PLUGIN_ROOT}/bin/dma branch create-epic --workspace <workspace.path> --epic <EPIC-KEY>
      ```
-   - **Verify on remote.** Immediately after each push:
-     ```
-     ( cd <workspace.path> && git ls-remote --exit-code <workspace.remote> <vcs.branch_prefix><EPIC-KEY> )
-     ```
-     Exit 0 → workspace done, proceed to the next. Non-zero → push did not land. Re-run the push once; if it still fails, stop the decomposition, post `/dma:issue-comment <EPIC-KEY> "🤖 team-lead: epic branch push to <workspace.remote> failed for <workspace.path> — <error>. Decomposition paused; child Tasks not created."`, and surface to the user. Do **not** create child Tasks against an unverified epic branch.
+     `CREATED` — the branch was cut from `<workspace.dev_branch>` and is on the remote (the command verifies it landed). `EXISTS` — it was already there and was left untouched, which is what makes the recovery below safe to re-run. Exit `12` `PUSH_NOT_LANDED` or exit `1` — stop the decomposition, post the output with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <EPIC-KEY> <output>`, and do not create child tasks: they would all fail on a missing epic branch.
 
    The branch name is derived from the Jira Epic KEY (e.g. `ai/AITSAI-50`) — same across all affected workspaces so any task references it unambiguously via its own `parent` field. Record the affected workspaces in the Epic description (the branch name itself is implicit from the KEY).
 
    **Recovery — Epic already decomposed without an epic branch.** Symptom: dev hands off a child with `🤖 dev (<area>): handoff → team-lead` citing "Epic branch missing on remote" (per `agents/dev.md` → `## Task workflow` step 2a). The Epic has live children but the branch this step was supposed to create never landed. Do this and only this — do **not** retroactively rebase already-merged children:
 
    1. Identify every affected `workspace.path` from the Epic's child Task labels (same resolution rule as the create step above).
-   2. For each workspace, run the **Create + push** + **Verify on remote** sub-steps above. Use `git checkout -b` if no local branch exists, or `git checkout` then `git push -u` if a stale local branch exists from an earlier attempt.
+   2. For each workspace, run the same `branch create-epic` call as in step 4 — an epic branch that already exists is reported as `EXISTS` and left untouched, so the recovery is safe to re-run.
    3. If any child Task was already merged to `<workspace.dev_branch>` while no epic branch existed (i.e. dev silently fell back to dev-branch base — the pre-2026-05 prompt allowed this), post `/dma:issue-comment <EPIC-KEY> "🤖 team-lead: epic branch <vcs.branch_prefix><EPIC-KEY> created retroactively after N child(ren) already merged to <dev_branch>. ARCH-EPIC-SYNC contract was not enforced for those children — the close-out integration-drift check in `agents/team-lead/epic-closeout.md → ## Closing Epics` step 7 will catch any resulting drift."`. List the merged child keys in the comment.
    4. Return each on-hold child citing the missing epic branch to `To Do` + `agent:dev` via `/dma:handoff <CHILD-KEY> dev "Epic branch <vcs.branch_prefix><EPIC-KEY> now present on <workspace.remote>. Re-run task workflow step 2."`.
 

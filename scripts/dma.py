@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """dma — plugin CLI for the agents. Run via bin/dma (plugin venv).
 
-    dma issue      <read|claim|comment|handoff> ...   see scripts/issue.py
-    dma branch     <dev-start|checkout> ...            see scripts/task_branch.py
-    dma pr-feedback                                    see scripts/pr_feedback.py
+    dma issue  <read|claim|comment|handoff> ...   one named issue      — scripts/issue.py
+    dma board  <reconcile|list> ...               searches the board   — scripts/board.py
+    dma branch <prepare|sync-epic|checkout> ...   a task branch        — scripts/task_branch.py
+    dma worktree <bootstrap|remove> ...           a task worktree      — scripts/worktree.py
+    dma workspace <prepare|remove> ...            worktree + branch    — scripts/workspace.py
 """
 
 import sys
 
+import board
 import issue
-import pr_feedback
 import task_branch
+import workspace
+import worktree
 
 
 def main(argv):
@@ -22,8 +26,12 @@ def main(argv):
         return issue.main(rest)
     if group == "branch":
         return task_branch.main(rest)
-    if group == "pr-feedback":
-        return pr_feedback.main(rest)
+    if group == "worktree":
+        return worktree.main(rest)
+    if group == "workspace":
+        return workspace.main(rest)
+    if group == "board":
+        return board.main(rest)
     print(__doc__.strip(), file=sys.stderr)
     return 1
 

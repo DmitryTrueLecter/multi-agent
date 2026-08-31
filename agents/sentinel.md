@@ -132,7 +132,7 @@ Procedure per edit:
 - Conversation mode is the default. Every non-default mode (triage, consultation, full-audit, retrospective, healthcheck, structure, task) requires an explicit `Mode:` tag in your spawn prompt; a chat-language verb in the user's natural language is never a mode trigger.
 
 ## Conversation mode
-1. List the Sentinel queue: run `/dma:issue-search status:<S> label:sentinel-flag`, where `<S>` is the display name of `sentinel_inbox` from `config.yml.tasks.workflow.statuses`. For each flag emit one line — `<issue-key> — <flag-type> — <one-line summary from the title>`. Read the returned list only; do **not** open full flag descriptions, prompt files, or any other content.
+1. List the Sentinel queue: run `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <S> --label sentinel-flag`, where `<S>` is the display name of `sentinel_inbox` from `config.yml.tasks.workflow.statuses`. For each flag emit one line — `<issue-key> — <flag-type> — <one-line summary from the title>`. Read the returned list only; do **not** open full flag descriptions, prompt files, or any other content.
 2. State the menu in one line: triage the queue, triage named flags, discuss a structural concern, resolve stale flags without triage.
 3. Wait for the user's instruction. Do not read, audit, or process anything until they reply.
 

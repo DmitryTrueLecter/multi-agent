@@ -32,15 +32,22 @@ JQL_CLAUSE = re.compile(r'(\w+)\s*(!=|=)\s*"?([^"]+?)"?(?:\s+AND\s+|$)', re.IGNO
 
 
 def jql_matches(clauses, key, record):
-    """Evaluate the handful of JQL shapes the code emits: project/status/parent/key
-    compared with = or !=, joined by AND."""
+    """Evaluate the JQL shapes the code emits: project / status / parent / key /
+    issuetype compared with = or !=, `labels = "x"` as membership, joined by AND."""
     for field, op, value in clauses:
+        field = field.lower()
+        if field == "labels":
+            present = value in record["labels"]
+            if (op == "=") != present:
+                return False
+            continue
         actual = {
             "project": key.split("-")[0],
             "status": record["status"],
             "parent": (record["parent"] or (None,))[0],
             "key": key,
-        }.get(field.lower())
+            "issuetype": record["kind"],
+        }.get(field)
         if op == "=" and actual != value:
             return False
         if op == "!=" and actual == value:
@@ -122,13 +129,17 @@ class FakeJira:
         self._clock += 1
         return f"2026-08-17T19:{self._clock:02d}:00.000+0800"
 
-    def add_issue(self, key, status, labels=None, parent=None, comments=None):
-        """comments: bodies, oldest first (the order Jira stores them in)."""
+    def add_issue(self, key, status, labels=None, parent=None, comments=None,
+                  kind="Task", blocked_by=None):
+        """comments: bodies, oldest first (the order Jira stores them in).
+        blocked_by: [(key, status)] rendered as "is blocked by" issue links."""
         self.issues[key] = {
             "status": status,
             "labels": list(labels or []),
             "parent": parent,               # (parent_key, issuetype) or None
             "comments": [{"body": b, "created": self.next_timestamp()} for b in (comments or [])],
+            "kind": kind,
+            "blocked_by": list(blocked_by or []),
         }
 
     def labels_of(self, key):
@@ -157,6 +168,12 @@ class FakeJira:
         fields["labels"] = list(record["labels"])
         fields["comment"]["comments"] = self._comment_objects(record)
         fields["comment"]["total"] = len(record["comments"])
+        fields["issuetype"] = dict(fields.get("issuetype") or {}, name=record["kind"])
+        fields["issuelinks"] = [
+            {"type": {"name": "Blocks", "inward": "is blocked by", "outward": "blocks"},
+             "inwardIssue": {"key": blocker, "fields": {"status": {"name": status}}}}
+            for blocker, status in record["blocked_by"]
+        ]
         if record["parent"]:
             parent_key, issue_type = record["parent"]
             template_parent = copy.deepcopy(self.issue_template["fields"].get("parent") or {
@@ -184,10 +201,13 @@ class FakeJira:
         return {"comments": list(reversed(objects)), "maxResults": 50, "startAt": 0, "total": len(objects)}
 
     def search_payload(self, jql):
-        clauses = JQL_CLAUSE.findall(jql)
+        clauses = JQL_CLAUSE.findall(jql.split(" ORDER BY ")[0])
         payload = copy.deepcopy(self.search_template)
         payload["issues"] = [
-            {"key": key, "fields": {"status": {"name": record["status"]}}}
+            {"key": key, "fields": {"status": {"name": record["status"]},
+                                    "labels": list(record["labels"]),
+                                    "summary": f"summary of {key}",
+                                    "parent": {"key": record["parent"][0]} if record["parent"] else None}}
             for key, record in self.issues.items()
             if jql_matches(clauses, key, record)
         ]

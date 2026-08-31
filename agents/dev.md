@@ -32,19 +32,19 @@ Multi-line bodies go through stdin: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff
 
 ## Workspace
 
-The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in this order — first hit wins, per field:
+`<abs-workspace-path>` comes in your prompt as `Workspace:`. It is a git worktree of this task's repository, created for this task and already checked out on `<vcs.branch_prefix><ISSUE-KEY>`. **Everything you do happens there**: git commands, test runs, edits. Paths in `dev.yml` (`write:`) and `area.yml` (`test_command`) are relative to it — do not prepend anything.
 
-1. `area.yml` → `workspace.<field>`
-2. `config.yml` → `workspace.<field>`
-3. Built-in defaults: `path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`
+`${CLAUDE_PROJECT_DIR}` is the project root. Read `.claude/*` config from it; never edit task files there. A task-tree path under `${CLAUDE_PROJECT_DIR}` that lies outside `<abs-workspace-path>` is the main checkout, shared with everything else — never `Edit`/`Write` it.
 
-**All git, test, and edit operations for your task happen inside the resolved `workspace.path`.** `Read`, `Edit`, and `Write` take absolute paths: prefix `<abs-workspace-path>` (your worktree, from the prompt) for task-tree files, and `${CLAUDE_PROJECT_DIR}` for `.claude/*` config. Branches you create (`<vcs.branch_prefix><ISSUE-KEY>`) live in that workspace and are pushed to its `remote`. Paths in `dev.yml` (`write:`) and `area.yml` (`test_command`) are interpreted **relative to `workspace.path`** — do not prepend it. Issue text and architect output may quote absolute paths (a leading `${CLAUDE_PROJECT_DIR}`); treat these as references, not edit targets — drop the `${CLAUDE_PROJECT_DIR}` prefix and re-root the remainder onto `<abs-workspace-path>`. A task-tree path under `${CLAUDE_PROJECT_DIR}` that lies outside `<abs-workspace-path>` is the wrong checkout — never `Edit`/`Write` it.
+Issue text and architect output may quote absolute paths (a leading `${CLAUDE_PROJECT_DIR}`); treat these as references, not targets — drop that prefix and re-root the remainder onto `<abs-workspace-path>`.
 
-**Cwd:** workspace ops via subshell: `( cd <abs-workspace-path> && <cmd> )`. No bare `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
+Two config values appear in the git commands below. They are values, not directories: `<workspace.remote>` (`area.yml` → `config.yml` → `origin`) and `<workspace.dev_branch>` (`area.yml` → `config.yml` → `vcs.dev_branch`).
+
+**Cwd:** `( cd <abs-workspace-path> && <cmd> )`. No bare `cd`, no `git -C` (not in allowlist).
 
 ## Your scope
 
-- **Write access:** only paths listed in `dev.yml` → `write`, resolved relative to `workspace.path`.
+- **Write access:** only paths listed in `dev.yml` → `write`, resolved relative to `<abs-workspace-path>`.
 - **Read access:** any file for context.
 - **Devops paths are out of scope.** Files matching any glob in `config.yml → devops_paths` are devops's territory, never dev's, even if they also appear under `dev.yml → write`. Touching them in a dev task is grounds for a reviewer block. If an application-area change genuinely needs to co-evolve an infra file, stop and run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead` — team-lead either narrows the dev scope or schedules a paired devops task.
 
@@ -58,7 +58,7 @@ The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in 
 - **Paths:** in `Bash`, use paths relative to `<abs-workspace-path>` (cd there first, per **Workspace**). Absolute-path tools follow the prefix rule in **Workspace**.
 - **Runtime:** use binary paths from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `runtime:`. No `source ... activate &&`, no `bash -lc '...'` (both blocked by hook).
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
-- **Branch state:** after `${CLAUDE_PLUGIN_ROOT}/bin/dma branch dev-start` puts you on `<vcs.branch_prefix><ISSUE-KEY>`, stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
+- **Branch state:** you start on `<vcs.branch_prefix><ISSUE-KEY>` — stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
 ## Long-running commands                                                                                                                                                              
                                                                                                                                                                                         
@@ -188,27 +188,22 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock
    **Determine the base branch** from the issue's `parent` field:
    - If `parent` is present AND `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>` (the epic branch).
    - Otherwise (no `parent`, or `parent` is not an Epic) → base = `<workspace.dev_branch>` (this is a standalone task).
-2. **Resolve the task branch** — one call:
-   ```
-   ${CLAUDE_PLUGIN_ROOT}/bin/dma branch dev-start <abs-workspace-path> <workspace.remote> <workspace.dev_branch> <vcs.branch_prefix> <ISSUE-KEY> [<EPIC-KEY>]
-   ```
-   Pass `<EPIC-KEY>` only when base is an epic branch (step 1). The script: re-run if the branch exists on the remote (checkout + pull, prints `MODE=rerun` and the prior commits — fix on top of them, do not rewrite); otherwise fresh — verifies the epic branch, merges `<dev_branch>` into it and pushes (`ARCH-EPIC-SYNC`), cuts `<vcs.branch_prefix><ISSUE-KEY>` from the remote base (`MODE=fresh`).
+2. **You are already on the task branch.** `/dma:run` prepared the work area before spawning you: your `Workspace:` is a worktree checked out on `<vcs.branch_prefix><ISSUE-KEY>`, cut from the base resolved in step 1. Do not create, switch or re-cut branches.
 
-   On non-zero exit do **not** cut a branch by hand, do not fall back to `<dev_branch>`, do not resolve conflicts — run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead` and stop:
-   - exit `10` `EPIC_MISSING` — comment: `Epic branch missing on remote. Expected: <vcs.branch_prefix><EPIC-KEY> on <workspace.remote>. Workspace: <workspace.path>. Team-lead to create the epic branch, then return this task to To Do + agent:dev.`
-   - exit `11` `SYNC_CONFLICT` (merge already aborted, tree clean) — comment: `ARCH-EPIC-SYNC drift detected. Epic branch: <base>. dev_branch SHA tried: <dev_sha from output>. Conflicted files: <list from output>. Dev is not resolving — team-lead to schedule a merge-resolution task. This task resumes after the resolution lands on the epic branch.`
-   - exit `1` — quote the git error.
-
-   All branches use `<vcs.branch_prefix>` (default `ai/`) followed by the issue KEY.
-3. Do the work described in the issue. All edits and tool calls operate on paths relative to `workspace.path`.
-4. Run tests using the `test_command` from `area.yml` (executed from `workspace.path`). The pass bar is **diff-relative**, not absolute:
+   Look at what is already there — on a re-run after a rejection the previous attempt is in the branch:
+   ```
+   ( cd <abs-workspace-path> && git log --oneline <workspace.remote>/<base>..HEAD )
+   ```
+   Commits listed → this is a re-run; the rejection feedback from step 1 says what to add on top of them, not what to rewrite. Nothing listed → fresh start.
+3. Do the work described in the issue. All edits and tool calls operate on paths relative to `<abs-workspace-path>`.
+4. Run tests using the `test_command` from `area.yml` (executed from `<abs-workspace-path>`). The pass bar is **diff-relative**, not absolute:
 
    - Suite green → proceed to step 5.
    - Suite red on HEAD → re-run `test_command` on the base resolved in step 1 (checkout the base, run, return to your task branch). Compare the failure sets:
      - **Failure on HEAD but not on base** — your diff caused it. Fix and re-run, regardless of which file the test lives in.
      - **Failure on both HEAD and base** — pre-existing rot. Stop, escalate via step 7 with the failing test IDs and the base SHA. Do not modify those tests yourself.
    - Whenever you state a test outcome — in a comment, a handoff, or the rot escalation above — paste the runner's verbatim summary line (e.g. `Tests: 997 passed, 1 skipped, 0 failed`), not a paraphrased count. A pre-existing-rot escalation also pastes the raw failing-test list and the base SHA from both runs.
-5. **Confirm the task branch is checked out, then commit and push.** Before the first commit, run `git rev-parse --abbrev-ref HEAD` in `<workspace.path>`: it must print `<vcs.branch_prefix><ISSUE-KEY>`. If it prints `HEAD` (detached) or another branch name, stop — do not commit. Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead` reporting that the worktree is not on the task branch, and let team-lead reconcile. On a match, commit your changes, then push the task branch to `<workspace.remote>`. Do not open a PR — the reviewer opens it (`reviewer.md` step 7b) after QA passes, so PR creation stays coupled to review approval. Commit message format:
+5. **Confirm the task branch is checked out, then commit and push.** Before the first commit, run `git rev-parse --abbrev-ref HEAD` in `<abs-workspace-path>`: it must print `<vcs.branch_prefix><ISSUE-KEY>`. If it prints `HEAD` (detached) or another branch name, stop — do not commit. Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead` reporting that the worktree is not on the task branch, and let team-lead reconcile. On a match, commit your changes, then push the task branch to `<workspace.remote>`. Do not open a PR — the reviewer opens it (`reviewer.md` step 7b) after QA passes, so PR creation stays coupled to review approval. Commit message format:
    ```
    ISSUE-KEY subject line
 

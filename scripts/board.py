@@ -1,8 +1,9 @@
-"""Reconcile Bitbucket PR merge/decline decisions into Jira — one process call.
+"""Board-wide operations: everything that searches the board instead of naming one issue.
 
-    dma pr-feedback
+    dma board reconcile          apply the user's merge/decline decisions to the tracker
+    dma board list [filters]     search the board (status / label / parent / type)
 
-Pre-flight step run before every agent dispatch.
+`reconcile` is the pre-flight run before every agent dispatch.
 
 Driven from the tracker, not from the pull-request history: the only tasks whose
 state can change are the ones sitting in `awaiting_merge`, so one JQL finds them
@@ -351,14 +352,59 @@ def close_out_parent(ctx, child_key, child):
 
 # ----------------------------------------------------------------- main
 
-def main(argv):
+def cmd_list(argv):
+    """dma board list [--status S] [--label L] [--parent KEY] [--type task|group]
+
+    The tracker-agnostic filters of skills/issue-search, as one call."""
+    filters, i = {}, 0
+    while i < len(argv):
+        flag = argv[i]
+        if flag not in ("--status", "--label", "--parent", "--type") or i + 1 >= len(argv):
+            issue.die("usage: dma board list [--status S] [--label L] [--parent KEY] [--type task|group]")
+        filters[flag[2:]] = argv[i + 1]
+        i += 2
+
+    config = issue.load_config()
+    provider = (config.get("tasks") or {}).get("provider")
+    if provider != "jira":
+        issue.die(f"provider '{provider}' is not supported by `dma board list` — use the /dma:issue-search skill", 2)
+
+    clauses = []
+    if "parent" in filters:
+        clauses.append(f'parent = "{filters["parent"]}"')
+    else:
+        clauses.append(f'project = {config["tasks"]["project_key"]}')
+    if "status" in filters:
+        clauses.append(f'status = "{filters["status"]}"')
+    if "label" in filters:
+        clauses.append(f'labels = "{filters["label"]}"')
+    if "type" in filters:
+        kind = {"group": "Epic", "task": "Task"}.get(filters["type"])
+        if not kind:
+            issue.die("--type must be task or group")
+        clauses.append(f"issuetype = {kind}")
+
+    jira = issue.Jira(*issue.load_credentials())
+    limit = 50
+    rows = jira.search(" AND ".join(clauses), fields="summary,status,labels,parent", max_results=limit)
+    truncated = " (truncated — narrow the filters)" if len(rows) == limit else ""
+    print(f"{len(rows)} issue(s){truncated}")
+    for row in rows:
+        fields = row["fields"]
+        labels = ",".join(fields.get("labels") or []) or "-"
+        parent = (fields.get("parent") or {}).get("key", "-")
+        print(f"{row['key']}\t{fields['status']['name']}\t{labels}\tparent={parent}\t{fields.get('summary', '')}")
+    return 0
+
+
+def cmd_reconcile(argv):
     if not os.path.exists(issue.CONFIG_PATH):
         issue.die(f"config not found: {issue.CONFIG_PATH} (set CLAUDE_PROJECT_DIR or run from the project root)")
 
     config = issue.load_config()
     provider = (config.get("tasks") or {}).get("provider")
     if provider != "jira":
-        issue.die(f"provider '{provider}' is not supported by `dma pr-feedback` — use the /dma:pr-feedback skill", 2)
+        issue.die(f"provider '{provider}' is not supported by `dma board reconcile` — use the /dma:pr-feedback skill", 2)
 
     project_key = config["tasks"]["project_key"]
     remote = ((config.get("workspace") or {}) or {}).get("remote", "origin")
@@ -371,7 +417,7 @@ def main(argv):
     except issue.JiraError as e:
         issue.die(str(e))
 
-    print(f"pr-feedback: {len(waiting)} task(s) in {ctx.awaiting}")
+    print(f"reconcile: {len(waiting)} task(s) in {ctx.awaiting}")
     for row in waiting:
         key = row["key"]
         try:
@@ -379,6 +425,13 @@ def main(argv):
         except Exception as e:                                   # one task never sinks the run
             print(f"WARNING {key} failed, skipped ({e}) — next pre-flight retries", file=sys.stderr)
     return 0
+
+
+def main(argv):
+    if not argv or argv[0] not in ("reconcile", "list"):
+        print(__doc__.strip(), file=sys.stderr)
+        return 1
+    return cmd_reconcile(argv[1:]) if argv[0] == "reconcile" else cmd_list(argv[1:])
 
 
 if __name__ == "__main__":

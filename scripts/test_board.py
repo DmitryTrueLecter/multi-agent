@@ -1,4 +1,4 @@
-"""Tests for `dma pr-feedback` (scripts/pr_feedback.py).
+"""Tests for `dma board` (scripts/board.py).
 
 Offline: the Jira and Bitbucket fakes serve payloads recorded off the real APIs
 (scripts/fakes.py, scripts/fixtures/). They check decision logic — which task is
@@ -90,7 +90,7 @@ def project(tmp_path, jira, bb):
 def dma(project):
     def run():
         env = {**os.environ, "CLAUDE_PROJECT_DIR": str(project)}
-        return subprocess.run([DMA, "pr-feedback"], capture_output=True, text=True, env=env)
+        return subprocess.run([DMA, "board", "reconcile"], capture_output=True, text=True, env=env)
     return run
 
 
@@ -384,3 +384,79 @@ def test_pagination_is_followed(dma, jira, bb):
     assert result.returncode == 0, result.stderr
     assert jira.status_of("T-1") == "Done"
     assert sum(1 for r in bb.requests if "pullrequests?" in r) >= 2, "second page must be fetched"
+
+
+# ------------------------------------------------------------------ list
+
+@pytest.fixture
+def board(jira):
+    jira.issues.clear()
+    return jira
+
+
+def dma_list(project, *args):
+    env = {**os.environ, "CLAUDE_PROJECT_DIR": str(project)}
+    return subprocess.run([DMA, "board", "list", *args], capture_output=True, text=True, env=env)
+
+
+def test_list_filters_by_status_and_label(project, board):
+    board.add_issue("T-1", "To Do", labels=["agent:dev", "area:api"])
+    board.add_issue("T-2", "To Do", labels=["agent:qa"])
+    board.add_issue("T-3", "Done", labels=["agent:dev"])
+
+    result = dma_list(project, "--status", "To Do", "--label", "agent:dev")
+    assert result.returncode == 0, result.stderr
+    assert "1 issue(s)" in result.stdout
+    assert "T-1" in result.stdout and "T-2" not in result.stdout and "T-3" not in result.stdout
+
+
+def test_list_shows_status_labels_and_summary(project, board):
+    board.add_issue("T-1", "QA", labels=["agent:qa", "area:api"])
+    out = dma_list(project, "--status", "QA").stdout
+    assert "T-1" in out and "QA" in out and "agent:qa" in out and "area:api" in out
+
+
+def test_list_by_type_group_returns_only_epics(project, board):
+    board.add_issue("T-1", "Code Review", labels=["agent:team-lead"], kind="Epic")
+    board.add_issue("T-2", "Code Review", labels=["agent:reviewer"])
+    result = dma_list(project, "--type", "group")
+    assert result.returncode == 0, result.stderr
+    assert "T-1" in result.stdout and "T-2" not in result.stdout
+
+
+def test_list_by_parent_returns_the_children(project, board):
+    board.add_issue("T-9", "In Progress", kind="Epic")
+    board.add_issue("T-1", "Done", parent=("T-9", "Epic"))
+    board.add_issue("T-2", "To Do")
+    result = dma_list(project, "--parent", "T-9")
+    assert result.returncode == 0, result.stderr
+    assert "T-1" in result.stdout and "T-2" not in result.stdout
+
+
+def test_list_of_an_empty_selection_says_so(project, board):
+    result = dma_list(project, "--status", "On Hold")
+    assert result.returncode == 0, result.stderr
+    assert "0 issue(s)" in result.stdout
+
+
+def test_list_rejects_an_unknown_filter(project, board):
+    result = dma_list(project, "--assignee", "me")
+    assert result.returncode == 1
+    assert "usage:" in result.stderr
+
+
+def test_list_on_a_linear_project_exits_2(project, board):
+    config = project / ".claude" / "dma" / "config.yml"
+    config.write_text(config.read_text().replace("provider: jira", "provider: linear"))
+    result = dma_list(project, "--status", "To Do")
+    assert result.returncode == 2
+    assert board.requests == []
+
+
+def test_list_says_when_the_result_is_truncated(project, board):
+    """A capped listing that looks complete would hide half the board."""
+    for n in range(50):
+        board.add_issue(f"T-{n}", "To Do")
+    result = dma_list(project, "--status", "To Do")
+    assert result.returncode == 0, result.stderr
+    assert "truncated" in result.stdout

@@ -6,24 +6,24 @@ Show the current state of the task board.
 
 **Setup:** Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` to get `tasks.project_key` and `tasks.workflow.statuses` (semantic key → tracker display name). Resolve every `<statuses.X>` reference below through that map.
 
-Make the following `/dma:issue-search` calls and present a summary:
+Make the following `${CLAUDE_PLUGIN_ROOT}/bin/dma board list` calls and present a summary:
 
 1. **Overview** — run these 7 queries in parallel and combine:
-   - `/dma:issue-search status:<statuses.in_progress>`
-   - `/dma:issue-search status:<statuses.on_hold>`
-   - `/dma:issue-search status:<statuses.qa>`
-   - `/dma:issue-search status:<statuses.code_review>`
-   - `/dma:issue-search status:<statuses.to_do>`
-   - `/dma:issue-search status:<statuses.awaiting_merge>`
-   - `/dma:issue-search status:<statuses.awaiting_ops>`
+   - `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <statuses.in_progress>`
+   - `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <statuses.on_hold>`
+   - `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <statuses.qa>`
+   - `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <statuses.code_review>`
+   - `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <statuses.to_do>`
+   - `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <statuses.awaiting_merge>`
+   - `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <statuses.awaiting_ops>`
 
    Report total counts per status. Include `awaiting_merge` and `awaiting_ops` even though tasks there carry no `agent:` label — the status is the queue signal.
 
 2. **On hold** — from the `on_hold` results: list tasks with `agent:team-lead` (key, summary, area/agent labels) — these need attention first!
 
-3. **Awaiting merge** — from the `awaiting_merge` results: list every task (key, summary, area). The user merges or declines the PR; `/dma:pr-feedback` reconciles the result on the next `/dma:run`.
+3. **Awaiting merge** — from the `awaiting_merge` results: list every task (key, summary, area). The user merges or declines the PR; `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` reconciles the result on the next `/dma:run`.
 
-4. **Awaiting ops** — from the `awaiting_ops` results: list every task (key, summary). The runbook is in the issue comments; the user executes it, then closes manually via `/dma:handoff <KEY> done`.
+4. **Awaiting ops** — from the `awaiting_ops` results: list every task (key, summary). The runbook is in the issue comments; the user executes it, then closes manually via `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <KEY> done`.
 
 5. **In progress** — from the `in_progress` results: group by `agent:` label (shows who is doing what right now).
 
@@ -31,6 +31,6 @@ Make the following `/dma:issue-search` calls and present a summary:
 
 7. **Next up** — from the `to_do` results: list tasks ready to launch (blocking links all `done`), grouped by agent — `agent:team-lead` (coordination — surface first), `agent:dev`, `agent:devops`.
 
-8. **Recently completed** — `/dma:issue-search status:<statuses.done>` — show last 3-5 tasks (sort by last-updated descending).
+8. **Recently completed** — `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <statuses.done>` — show last 3-5 tasks (sort by last-updated descending).
 
 Keep it concise. This is a status check, not a full board dump.

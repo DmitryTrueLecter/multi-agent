@@ -34,15 +34,15 @@ Multi-line bodies go through stdin: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff
 
 ## Workspace
 
-The area's effective workspace is `{ path, remote, dev_branch }`. Resolve it in this order — first hit wins, per field:
+`<abs-workspace-path>` comes in your prompt as `Workspace:`. It is a git worktree of this task's repository, created for this task and already checked out on `<vcs.branch_prefix><ISSUE-KEY>`. **Everything you do happens there**: git commands and reading the code under review. Paths in `dev.yml` (`write:`) and `area.yml` (`test_command`) are relative to it — do not prepend anything.
 
-1. `area.yml` → `workspace.<field>`
-2. `config.yml` → `workspace.<field>`
-3. Built-in defaults: `path = .`, `remote = origin`, `dev_branch = config.yml.vcs.dev_branch`
+`${CLAUDE_PROJECT_DIR}` is the project root. Read `.claude/*` config from it; never edit task files there. A task-tree path under `${CLAUDE_PROJECT_DIR}` that lies outside `<abs-workspace-path>` is the main checkout, shared with everything else.
 
-**All git operations and code reading happen inside the resolved `workspace.path`.** `Read` takes absolute paths: prefix `<abs-workspace-path>` (your worktree, from the prompt) for task-tree files, and `${CLAUDE_PROJECT_DIR}` for `.claude/*` config. Paths referenced in `area.yml` and `dev.yml` are interpreted relative to `workspace.path`.
+Issue text and architect output may quote absolute paths (a leading `${CLAUDE_PROJECT_DIR}`); treat these as references, not targets — drop that prefix and re-root the remainder onto `<abs-workspace-path>`.
 
-**Cwd:** workspace ops via subshell: `( cd <abs-workspace-path> && <cmd> )`. No bare `cd <ws> && <cmd>`, no `git -C` (not in allowlist).
+Two config values appear in the git commands below. They are values, not directories: `<workspace.remote>` (`area.yml` → `config.yml` → `origin`) and `<workspace.dev_branch>` (`area.yml` → `config.yml` → `vcs.dev_branch`).
+
+**Cwd:** `( cd <abs-workspace-path> && <cmd> )`. No bare `cd`, no `git -C` (not in allowlist).
 
 ## Automated pre-checks
 
@@ -248,13 +248,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
    **Determine the base branch** from the issue's `parent` field:
    - If `parent` is present AND `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>`.
    - Otherwise → base = `<workspace.dev_branch>` (standalone task).
-2. **Switch to the task branch in the area's workspace**:
-   ```
-   ${CLAUDE_PLUGIN_ROOT}/bin/dma branch checkout <abs-workspace-path> <workspace.remote> <workspace.dev_branch> <vcs.branch_prefix> <ISSUE-KEY> [<EPIC-KEY>]
-   ```
-   Pass `<EPIC-KEY>` when base is an epic branch (step 1). Use `git diff <workspace.remote>/<base>...HEAD` to see only this task's changes.
-
-   **Ref absent.** Exit `13` (`REF_ABSENT <ref>`) — the task branch or base is not on the remote. Hand off, never file it as a finding: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead "ref <name> absent in workspace: <script output>"`.
+2. **You are already on the task branch.** `/dma:run` prepared the work area before spawning you: your `Workspace:` is a worktree checked out on `<vcs.branch_prefix><ISSUE-KEY>`. Do not create or switch branches. Use `git diff <workspace.remote>/<base>...HEAD` for this task's changes, with `<base>` from step 1.
 3. Run automated pre-checks on changed files.
 4. Read the diff and surrounding code for context where needed.
 5. Run language-specific checks from `area.yml` → `review_checks` per the binding rules in `### 5. Stack-specific checks` above.
@@ -265,7 +259,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
 
    **Step 7a — Verify the task branch is on the remote at the reviewed HEAD.** The dev pushed it at QA handoff; you never push it yourself.
    ```
-   cd <workspace.path>
+   cd <abs-workspace-path>
    git fetch <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>
    git rev-parse HEAD
    git rev-parse <workspace.remote>/<vcs.branch_prefix><ISSUE-KEY>
@@ -302,7 +296,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
 
    Capture the source-tip SHA before handoff:
    ```
-   cd <workspace.path>
+   cd <abs-workspace-path>
    git rev-parse HEAD
    ```
    That SHA — the exact tip you pushed in step 7a — is the only SHA that survives downstream verification by `/dma:pr-feedback`. Do not derive it from any later command.

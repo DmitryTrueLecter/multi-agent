@@ -1,6 +1,6 @@
 """Contract tests: do the real Jira / Bitbucket APIs still answer what the code assumes?
 
-The fake-server tests in test_issue.py / test_pr_feedback.py check decision logic.
+The fake-server tests in test_issue.py / test_board.py check decision logic.
 They cannot catch an endpoint that was removed or a payload that changed shape —
 the fake was written from the same assumptions as the code. These tests call the
 real APIs through the real client classes. Read-only: GET requests only, no writes.
@@ -18,7 +18,7 @@ import re
 import pytest
 
 import issue
-import pr_feedback
+import board
 
 PROJECT = os.path.expanduser(os.environ.get("DMA_CONTRACT_PROJECT", ""))
 pytestmark = pytest.mark.skipif(not PROJECT, reason="set DMA_CONTRACT_PROJECT=<path to a live project>")
@@ -32,7 +32,7 @@ def project_dir():
     issue.PROJECT_DIR = PROJECT
     issue.CONFIG_PATH = os.path.join(PROJECT, ".claude", "dma", "config.yml")
     issue.MCP_PATH = os.path.join(PROJECT, ".mcp.json")
-    pr_feedback.issue = issue
+    board.issue = issue
 
 
 @pytest.fixture(scope="module")
@@ -47,13 +47,13 @@ def jira():
 
 @pytest.fixture(scope="module")
 def bitbucket():
-    return pr_feedback.Bitbucket(*pr_feedback.load_bitbucket_credentials())
+    return board.Bitbucket(*board.load_bitbucket_credentials())
 
 
 @pytest.fixture(scope="module")
 def coords(config):
     remote = ((config.get("workspace") or {}) or {}).get("remote", "origin")
-    return pr_feedback.derive_coords(pr_feedback.git_remote_url(remote))
+    return board.derive_coords(board.git_remote_url(remote))
 
 
 @pytest.fixture(scope="module")
@@ -62,7 +62,7 @@ def merged_pr(bitbucket, coords, config):
     workspace, repo = coords
     prefix = f"{config['vcs']['branch_prefix']}{config['tasks']['project_key']}-"
     for pr in bitbucket.list_pull_requests(workspace, repo, "MERGED"):
-        if pr_feedback.is_managed(pr, prefix) and (pr.get("merge_commit") or {}).get("hash"):
+        if board.is_managed(pr, prefix) and (pr.get("merge_commit") or {}).get("hash"):
             return pr
     pytest.skip("no managed merged PR in this repository")
 
@@ -70,7 +70,7 @@ def merged_pr(bitbucket, coords, config):
 # ------------------------------------------------------------------ jira
 
 def test_get_issue_returns_the_fields_the_code_reads(jira, merged_pr, config):
-    key = pr_feedback.key_from_branch(merged_pr["source"]["branch"]["name"], config["vcs"]["branch_prefix"])
+    key = board.key_from_branch(merged_pr["source"]["branch"]["name"], config["vcs"]["branch_prefix"])
     fields = jira.get_issue(key)["fields"]
     assert isinstance(fields["status"]["name"], str)
     assert isinstance(fields.get("labels"), list)
@@ -81,7 +81,7 @@ def test_get_issue_returns_the_fields_the_code_reads(jira, merged_pr, config):
 
 
 def test_comments_endpoint_supports_newest_first_ordering(jira, merged_pr, config):
-    key = pr_feedback.key_from_branch(merged_pr["source"]["branch"]["name"], config["vcs"]["branch_prefix"])
+    key = board.key_from_branch(merged_pr["source"]["branch"]["name"], config["vcs"]["branch_prefix"])
     comments = jira.get_comments(key)
     if len(comments) < 2:
         pytest.skip("issue has fewer than two comments")
@@ -100,7 +100,7 @@ def test_search_endpoint_is_reachable(jira):
 def test_pull_request_listing_carries_the_fields_the_code_reads(merged_pr):
     assert merged_pr["source"]["branch"]["name"]
     assert merged_pr["destination"]["branch"]["name"]
-    assert pr_feedback.pr_url(merged_pr).startswith("http"), "links.html.href"
+    assert board.pr_url(merged_pr).startswith("http"), "links.html.href"
     # rejection_text() reads the description straight off the listing payload
     assert "summary" in merged_pr or "description" in merged_pr
 
