@@ -138,32 +138,25 @@ For each subdirectory `<area>` under `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/`.
 
 Skip entirely if any of HC-FS-005, HC-CFG-003, HC-CFG-005 failed. No auto-fix in this stage except HC-MIG-001 (the one-time flag migration) — other tracker mutations require admin-only API and user-choice naming.
 
-- **HC-MCP-001** — `.mcp.json` exists at project root.
-  - Severity: CRITICAL. Without it every provider-bound skill (`/dma:issue-create`, `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read`, `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff`, `${CLAUDE_PLUGIN_ROOT}/bin/dma board list`, etc.) deadlocks — `ToolSearch` returns no matching deferred tool for the tracker MCP.
-  - Detection: `test -f ${CLAUDE_PROJECT_DIR}/.mcp.json`.
-  - Manual fix: copy `.mcp.json` from a sibling project's root, edit `mcpServers.<key>` to match `tasks.provider`, then restart Claude Code. MCP servers register only at session start — without a restart the file is inert.
+- **HC-CRED-001** — the tracker credentials the CLI needs are readable.
+  - Severity: CRITICAL. Every tracker command (`dma issue …`, `dma board …`) reads them and fails without them. The CLI talks to the tracker over HTTP itself — it does not go through MCP — so it reads `.mcp.json` purely as a credentials file, and a fresh edit takes effect on the next command with no restart.
+  - Detection: `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <statuses.to_do>` exits 0. Exit `1` naming `JIRA_URL` / `LINEAR_API_KEY` means the credentials are missing; exit `2` means `tasks.provider` names a tracker the CLI has no backend for.
+  - Manual fix: for `jira`, `mcpServers.atlassian.env` in `${CLAUDE_PROJECT_DIR}/.mcp.json` needs `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`; for `linear`, `mcpServers.linear.env.LINEAR_API_KEY` (or the `LINEAR_API_KEY` environment variable). The same file still registers the MCP servers the agents use for anything outside the CLI, and *that* part does need a Claude Code restart after an edit.
 
-- **HC-MCP-002** — Configured tracker MCP responds.
-  - Severity: CRITICAL. A non-responding tracker MCP blocks every automated tracker write — handoffs, status transitions, comment posting all fail mid-flow.
-  - Detection: one trivial read call —
-    - `linear` → `mcp__linear__list_teams`.
-    - `jira` → `mcp__atlassian__jira_search` with a result limit of 1.
-    A `tool not available` outcome (`ToolSearch` cannot load the deferred-tool schema) means the server is not registered for this session — usually `.mcp.json` was modified without a Claude Code restart.
-  - Manual fix: if `.mcp.json` was recently written or edited, restart Claude Code. Otherwise verify the MCP URL in `.mcp.json` and authenticate at the provider's auth flow.
+- **HC-CRED-002** — the VCS credentials the CLI needs are readable.
+  - Severity: CRITICAL. Without them `dma board reconcile` cannot see merge decisions and `dma pr open` cannot publish a branch, so approved work sits unreconciled.
+  - Detection: `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` exits 0 (it is safe to run — with nothing in `<statuses.awaiting_merge>` it only reads). Exit `2` means the git remote is on a host with no backend.
+  - Manual fix: Bitbucket needs `BITBUCKET_USERNAME` and `BITBUCKET_APP_PASSWORD` in `mcpServers.atlassian.env`; GitHub needs either the `gh` CLI authenticated on PATH or `GITHUB_TOKEN` in the environment.
 
 - **HC-BOARD-001** — For each value in `tasks.workflow.statuses`: the tracker exposes that status display name.
   - Severity: WARN per missing status.
-  - Detection:
-    - `linear` → `mcp__linear__list_issue_statuses` for the configured team; intersect.
-    - `jira` → `mcp__atlassian__jira_get_transitions` on a recent issue; union of `to_status` names is the live set.
+  - Detection: `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status "<display name>"` per configured status; exit `1` naming the status means the tracker does not have it. On `linear` the message lists the states the team does have.
   - Manual fix: create the missing status in the tracker, or correct the display name in `config.yml`.
 
 - **HC-BOARD-002** — Required labels exist in tracker: `agent:dev`, `agent:qa`, `agent:reviewer`, `agent:devops`, `agent:team-lead`, `needs-decision`.
   - Severity: WARN per missing label.
-  - Detection:
-    - `linear` → `mcp__linear__list_issue_labels` for the team; intersect.
-    - `jira` → trivial search per label (`label = "agent:dev"`). A `0 results` response with `200 OK` means label exists; an error indicates label is unknown.
-  - Manual fix: create the missing label.
+  - Detection: `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --label <label>` per label. Exit 0 means the tracker knows it, whatever the result count; a non-zero exit naming the label means it does not.
+  - Manual fix: create the missing label. On `linear` a label is created on first use by `dma issue create` / `dma issue handoff`, so a missing one there is only a warning about spelling.
 
 - **HC-BOARD-003** — For each `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/`: label `area:<area>` exists in tracker.
   - Severity: WARN. Detection: as HC-BOARD-002. Manual fix: create label.
@@ -173,13 +166,14 @@ Skip entirely if any of HC-FS-005, HC-CFG-003, HC-CFG-005 failed. No auto-fix in
 
 - **HC-BOARD-005** — If `provider: jira`: every transition ID in `tasks.jira.transitions` matches a real workflow transition.
   - Severity: WARN.
-  - Detection: `mcp__atlassian__jira_get_transitions` on any in-flight issue; cross-check IDs.
-  - Manual fix: run `/dma:sentinel-bootstrap-jira` — workflow has changed.
+  - Detection: `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <display name>` per configured status exits 0, and every id in `tasks.jira.transitions` is a non-zero integer. A wrong id surfaces the first time a handoff uses it, as `jira refused transition`.
+  - Manual fix: run `/dma:sentinel-bootstrap-jira` — the workflow has changed.
+  - Note: `linear` has no transition ids at all; the check is skipped there.
 
 - **HC-MIG-001** — No leftover file-based flags under `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`; any legacy flag is migrated to the Sentinel queue. Covers the file→tracker cutover; once clean it is a permanent no-op.
   - Severity: WARN per leftover flag.
   - Detection: `ls ${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/*.md 2>/dev/null` — each top-level match is an unmigrated flag. PASS when the directory is absent or holds no top-level `*.md`. SKIPPED when HC-MCP-002 failed, or (jira) `tasks.jira.transitions.sentinel_inbox` is `0` — migration cannot create issues.
-  - Auto-fix: per leftover file, parse its frontmatter (`type`, `reporter`, `where`, `originating_task`) and `## Problem` / `## Details` body, then create the flag issue as `/dma:sentinel-flag` would — `/dma:issue-create Task "[<TYPE>] <problem>" labels:sentinel-flag,flag-type:<type lowercased>,agent:sentinel state:sentinel_inbox description:<Where / Reporter / Originating / Details>`. On a created key, delete the file (`git rm` if tracked, else `rm`). Emit one `↻` line per migrated flag with its new key.
+  - Auto-fix: per leftover file, parse its frontmatter (`type`, `reporter`, `where`, `originating_task`) and `## Problem` / `## Details` body, then create the flag issue as `/dma:sentinel-flag` would — `${CLAUDE_PLUGIN_ROOT}/bin/dma issue create task "[<TYPE>] <problem>" --labels sentinel-flag,flag-type:<type --description -`. On a created key, delete the file (`git rm` if tracked, else `rm`). Emit one `↻` line per migrated flag with its new key.
   - Manual fix: re-file each via `/dma:sentinel-flag`, or run `/dma:sentinel healthcheck fix` once the tracker responds and (jira) the `sentinel_inbox` transition id is populated via `/dma:sentinel-bootstrap-jira`.
 
 ## Stage 5 — Hygiene

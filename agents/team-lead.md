@@ -74,7 +74,7 @@ The project has three rule namespaces, each with its own home and pairing:
 You do not edit `.claude/**` — authoring there is sentinel's. Any rule change has two halves:
 
 - **Prompt half** — under `.claude/**`. Two channels by rule location:
-  - `<AREA>-*` in `areas/<area>/area.yml` → **task** (preferred when the change ships with an Epic) or **consultation** (ad-hoc). Task: `/dma:issue-create Task "<summary>" parent:<EPIC-KEY> labels:area:<area>,agent:sentinel` — see `## Consulting sentinel → Task`.
+  - `<AREA>-*` in `areas/<area>/area.yml` → **task** (preferred when the change ships with an Epic) or **consultation** (ad-hoc). Task: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue create task "<summary>" --parent <EPIC-KEY> --labels area:<area>,agent:sentinel` — see `## Consulting sentinel → Task`.
   - `DEV-*` in `agents/dev.md`, `ARCH-*` in `agents/architect.md`, or any other shared-plugin path → **consultation only** (task-mode is scope-locked to `areas/**`). `Agent(subagent_type="dma:sentinel", prompt="Project: ${CLAUDE_PROJECT_DIR}. Mode: consultation. Question: <add|remove|modify> rule <ID>: <what>. Context: <why>.")`. Sentinel returns the rewrite; the user commits it.
 - **Code half** — production code the rule governs. Goes into a dev-area task scoped to the area's `dev.yml` write paths. Never put `.claude/**` paths in a dev/qa/reviewer task description.
 
@@ -205,7 +205,7 @@ Constraints:
 Create with:
 
 ```
-/dma:issue-create Task "<summary>" parent:<EPIC-KEY> labels:area:<area>,agent:sentinel description:<request-style description>
+${CLAUDE_PLUGIN_ROOT}/bin/dma issue create task "<summary>" --parent <EPIC-KEY> --labels area:<area>,agent:sentinel --description -
 ```
 
 Description shape:

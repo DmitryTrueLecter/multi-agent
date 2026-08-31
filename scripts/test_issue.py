@@ -363,3 +363,82 @@ def test_claim_by_area_looks_past_the_first_page_of_the_queue(dma, jira):
     result = dma("claim", "--role", "backend/dev")
     assert result.returncode == 0, result.stdout + result.stderr
     assert jira.status_of("T-999") == "In Progress"
+
+
+# ------------------------------------------------------------------ create
+
+def test_create_makes_a_task_in_the_starting_queue_of_its_role(dma, jira):
+    result = dma("create", "task", "Do the thing", "--labels", "area:api,agent:qa")
+    assert result.returncode == 0, result.stderr
+    key = result.stdout.split()[1]
+    assert jira.labels_of(key) == ["area:api", "agent:qa"]
+    assert jira.status_of(key) == "QA", "agent:qa starts in the qa queue, not to_do"
+
+
+def test_create_moves_the_issue_out_of_the_workflow_default(dma, jira):
+    """A project's create-time status is whatever its workflow says — this one
+    starts new issues in On Hold — so `to_do` still has to be applied."""
+    result = dma("create", "task", "Do the thing")
+    assert result.returncode == 0, result.stderr
+    assert jira.status_of(result.stdout.split()[1]) == "To Do"
+
+
+def test_create_takes_an_explicit_state_over_the_role_default(dma, jira):
+    result = dma("create", "task", "Blocked thing", "--labels", "agent:qa", "--state", "on_hold")
+    assert result.returncode == 0, result.stderr
+    assert jira.status_of(result.stdout.split()[1]) == "On Hold"
+
+
+def test_create_refuses_a_state_the_workflow_does_not_have(dma, jira):
+    result = dma("create", "task", "Thing", "--state", "shipped")
+    assert result.returncode == 1
+    assert "not in tasks.workflow.statuses" in result.stderr
+    assert jira.writes() == [], "nothing is created when the state is wrong"
+
+
+def test_create_links_a_task_to_its_group(dma, jira):
+    result = dma("create", "task", "Child", "--parent", "T-9")
+    assert result.returncode == 0, result.stderr
+    key = result.stdout.split()[1]
+    assert jira.issues[key]["parent"] == ("T-9", "Epic")
+
+
+def test_create_records_what_the_new_issue_blocks(dma, jira):
+    result = dma("create", "task", "First", "--blocks", "T-2,T-3")
+    assert result.returncode == 0, result.stderr
+    key = result.stdout.split()[1]
+    posted = [(l["type"]["name"], l["inwardIssue"]["key"], l["outwardIssue"]["key"]) for l in jira.links]
+    assert posted == [("Blocks", key, "T-2"), ("Blocks", key, "T-3")], \
+        "in a Blocks link the inward issue is the blocker — verified against a live tracker"
+
+
+def test_create_of_a_group_uses_the_group_issue_type(dma, jira):
+    result = dma("create", "group", "Big thing")
+    assert result.returncode == 0, result.stderr
+    assert jira.issues[result.stdout.split()[1]]["kind"] == "Epic"
+
+
+# ------------------------------------------------------------------ label
+
+def test_label_adds_and_removes_without_touching_status(dma, jira):
+    result = dma("label", "T-1", "--add", "blocked", "--remove", "needs-decision")
+    assert result.returncode == 0, result.stderr
+    assert jira.labels_of("T-1") == ["area:backend", "agent:dev", "blocked"]
+    assert jira.status_of("T-1") == "To Do", "labels only"
+
+
+def test_label_keeps_the_labels_it_was_not_asked_about(dma, jira):
+    dma("label", "T-1", "--add", "extra")
+    assert "area:backend" in jira.labels_of("T-1") and "agent:dev" in jira.labels_of("T-1")
+
+
+def test_label_adding_one_that_is_already_there_changes_nothing(dma, jira):
+    before = list(jira.labels_of("T-1"))
+    dma("label", "T-1", "--add", "agent:dev")
+    assert jira.labels_of("T-1") == before
+
+
+def test_label_with_no_arguments_is_refused(dma, jira):
+    result = dma("label", "T-1")
+    assert result.returncode == 1
+    assert jira.writes() == []

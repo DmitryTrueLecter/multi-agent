@@ -149,7 +149,7 @@ Triggered by spawn prompt containing `Mode: triage`, or by user verb "triage" / 
 
 Goal: process pending Sentinel-queue flags — per flag, read cited location, classify (confirmed defect / duplicate / not actionable), present findings, then apply / route / resolve on user direction.
 
-Procedure: read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/triage-mode.md` — per-flag steps, type-specific reads, report format, and disposition branches (apply, route via `/dma:issue-create`, resolve by transition).
+Procedure: read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/triage-mode.md` — per-flag steps, type-specific reads, report format, and disposition branches (apply, route via `${CLAUDE_PLUGIN_ROOT}/bin/dma issue create`, resolve by transition).
 
 ## Consultation mode
 

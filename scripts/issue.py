@@ -4,6 +4,8 @@
     dma issue claim   <KEY> | --role <r> | --any     take it, or take the next one in a queue
     dma issue comment <KEY> <body | ->               a comment ('-' = body from stdin)
     dma issue handoff <KEY> [to-role] [body | ->     label + status + comment, in one step
+    dma issue create  <task|group> <summary> ...     a new issue, optionally linked
+    dma issue label   <KEY> [--add a,b] [--remove c] labels only, status untouched
 
 Project root = $CLAUDE_PROJECT_DIR, else the current directory. Reads
 <project>/.claude/dma/config.yml (provider, status names, jira transition ids)
@@ -63,6 +65,12 @@ QUEUES = [
     ("devops",    "to_do",       "task"),
 ]
 BLOCKED_BY = "is blocked by"
+
+# Where a new issue starts when the caller does not say: the queue that role picks
+# from, per commands/run.md "Role → queue mapping". `on_hold` and `code_review` are
+# transition targets for team-lead, not create targets — ask for them with --state.
+ROLE_START = {"qa": "qa", "reviewer": "code_review", "team-lead": "to_do",
+              "dev": "to_do", "devops": "to_do", "sentinel": "to_do"}
 
 
 def die(message, code=1):
@@ -258,6 +266,70 @@ def cmd_claim_from_queue(tracker, config, role_filter):
     sys.exit(4)
 
 
+def cmd_create(tracker, config, argv):
+    """dma issue create <task|group> <summary> [--parent K] [--labels a,b]
+                        [--blocks K1,K2] [--description <text> | -] [--state <key>]"""
+    if len(argv) < 2 or argv[0] not in ("task", "group"):
+        die("usage: dma issue create <task|group> <summary> [--parent K] [--labels a,b] "
+            "[--blocks K1,K2] [--description <text> | -] [--state <key>]")
+    kind, summary, options, rest = argv[0], argv[1], {}, argv[2:]
+    while rest:
+        if rest[0] not in ("--parent", "--labels", "--blocks", "--description", "--state") or len(rest) < 2:
+            die("usage: dma issue create <task|group> <summary> [--parent K] [--labels a,b] "
+                "[--blocks K1,K2] [--description <text> | -] [--state <key>]")
+        options[rest[0][2:]] = rest[1]
+        rest = rest[2:]
+
+    labels = [l for l in (options.get("labels") or "").split(",") if l]
+    blocks = [b for b in (options.get("blocks") or "").split(",") if b]
+    description = read_body(options["description"]) if "description" in options else None
+
+    statuses = config["tasks"]["workflow"]["statuses"]
+    state_key = options.get("state")
+    if not state_key:
+        role = next((l[len("agent:"):] for l in labels if l.startswith("agent:")), None)
+        state_key = ROLE_START.get(role, "to_do")
+    if state_key not in statuses:
+        die(f"state key '{state_key}' not in tasks.workflow.statuses")
+    tracker.validate_status(state_key)          # before anything is created
+
+    key = tracker.create(kind, summary, description, labels, options.get("parent"), state_key)
+    print(f"CREATED {key}")
+    print(f"status: {statuses[state_key]}")
+    if labels:
+        print(f"labels: {', '.join(labels)}")
+    if options.get("parent"):
+        print(f"parent: {options['parent']}")
+    if blocks:
+        # after creation: a failure here leaves an issue the caller can still see
+        tracker.add_blocks(key, blocks)
+        print(f"blocks: {', '.join(blocks)}")
+
+
+def cmd_label(tracker, config, key, argv):
+    """dma issue label <KEY> [--add a,b] [--remove c,d] — labels only, no status."""
+    options, rest = {}, argv
+    while rest:
+        if rest[0] not in ("--add", "--remove") or len(rest) < 2:
+            die("usage: dma issue label <KEY> [--add a,b] [--remove c,d]")
+        options[rest[0][2:]] = rest[1]
+        rest = rest[2:]
+    if not options:
+        die("nothing to do: pass --add and/or --remove")
+
+    current = tracker.read(key)["labels"]
+    removed = [l for l in (options.get("remove") or "").split(",") if l]
+    added = [l for l in (options.get("add") or "").split(",") if l]
+    new = [l for l in current if l not in removed]
+    new += [l for l in added if l not in new]
+    tracker.set_labels(key, new)
+    print(f"LABELS {key}: {', '.join(new) if new else '(none)'}")
+    if removed:
+        print(f"removed: {', '.join(l for l in removed if l in current)}")
+    if added:
+        print(f"added: {', '.join(l for l in added if l not in current)}")
+
+
 def cmd_comment(tracker, config, key, body):
     tracker.add_comment(key, read_body(body))
     print(f"COMMENTED {key}")
@@ -338,6 +410,10 @@ def main(argv):
                 cmd_claim_from_queue(tracker, config, rest[0] if key == "--role" and rest else None)
             else:
                 cmd_claim(tracker, config, key)
+        elif command == "create":
+            cmd_create(tracker, config, [key] + rest)
+        elif command == "label":
+            cmd_label(tracker, config, key, rest)
         elif command == "comment":
             if len(rest) != 1:
                 die("usage: dma issue comment <KEY> <body | ->")

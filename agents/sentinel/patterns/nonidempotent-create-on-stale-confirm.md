@@ -16,6 +16,6 @@ When the same issue double-files on retry and one copy strands in the default st
 
 Other shapes likely to fit this pattern when they surface:
 
-- Any create-then-transition skill (`issue-create`, `handoff`) where a caller re-invokes after a slow status read instead of re-reading the returned key.
+- Any create-then-transition step (`dma issue create`, `dma issue handoff`) where a caller re-invokes after a slow status read instead of re-reading the returned key.
 - A PR-open or comment-post step re-run on a stale API read, producing a duplicate PR/comment.
 - Batch creators that re-run the whole batch on partial confirmation instead of resuming only the unconfirmed items.

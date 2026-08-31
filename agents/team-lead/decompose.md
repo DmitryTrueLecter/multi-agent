@@ -6,13 +6,21 @@ Read task provider settings from `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` 
 
 ### Creating issues
 
-Use `/dma:issue-create <type> <summary>` with the following arguments:
-- `<type>`: `Task` or `Epic`
+```
+${CLAUDE_PLUGIN_ROOT}/bin/dma issue create <task|group> "<summary>" \
+    --labels <area-label>,<agent-label> [--parent <EPIC-KEY>] [--blocks <KEY1>,<KEY2>] \
+    --description - <<'DESC'
+<Markdown with Purpose, Requirements, References sections>
+DESC
+```
+
 - `<summary>`: specific task name
-- `description:<text>`: Markdown with Purpose, Requirements, References sections
-- `labels:<area-label>,<agent-label>`: e.g. `area:ai,agent:dev`
-- `parent:<EPIC-KEY>`: (Task only) the parent Epic key
-- `blocks:<KEY1>,<KEY2>`: (optional) dependency links
+- `--labels`: e.g. `area:ai,agent:dev` — both are required on every task, see below
+- `--parent`: (task only) the group this task belongs to
+- `--blocks`: (optional) issues this one blocks
+- `--description -`: the body on stdin, so Markdown with tables and pipes survives
+- `--state <key>`: (optional) overrides where the issue starts; by default the
+  `agent:<role>` label decides (`agent:qa` → the qa queue) and anything else starts in `to_do`
 
 **Both labels are REQUIRED on every Task issue. Never skip any.**
 - `area:<area>` — permanent area label, never changes (e.g. `area:ai`, `area:core`, `area:api`)
@@ -46,11 +54,11 @@ Links to spec sections, existing code to follow.
 
 ### Dependencies
 
-Pass `blocks:<KEY1>,<KEY2>` to `/dma:issue-create` when creating issues — the skill creates the `Blocks` dependency links in one call.
+Pass `blocks:<KEY1>,<KEY2>` to `${CLAUDE_PLUGIN_ROOT}/bin/dma issue create` when creating issues — the skill creates the `Blocks` dependency links in one call.
 
 ### Linking to epic
 
-Pass `parent:<EPIC-KEY>` to `/dma:issue-create` when creating Tasks — the skill links the Task to the Epic.
+Pass `--parent <EPIC-KEY>` when creating Tasks — the command links the Task to the group.
 
 ## How to decompose
 
@@ -77,7 +85,7 @@ Pass `parent:<EPIC-KEY>` to `/dma:issue-create` when creating Tasks — the skil
 
 1. Read the spec the user provided and relevant architecture docs.
 2. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` for conventions and `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/` for area boundaries.
-3. Create an Epic in the issue tracker with `/dma:issue-create Epic "<summary>" description:<spec-text>` — copy/expand the user-provided spec into the Epic description (this becomes the canonical spec).
+3. Create an Epic in the issue tracker with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue create group "<summary>" --description -` — copy/expand the user-provided spec into the Epic description (this becomes the canonical spec).
 4. **Create the epic branch** `<vcs.branch_prefix><EPIC-KEY>` in each affected area's workspace, then **verify it landed on the remote before decomposing**. The verify step exists because the push can silently fail (auth, network, hook, protected-branch rule) and the failure surfaces only later as `🤖 dev (<area>): handoff → team-lead (epic branch missing on remote)` from every child task — a bounce per child Epic-wide. Catch it once, here.
 
    Resolve each affected area's workspace per the rule in the role docs (`area.yml.workspace` → `config.yml.workspace` → built-in defaults: `path=.`, `remote=origin`, `dev_branch=vcs.dev_branch`). Take the set of distinct `workspace.path` values. For each, use a **subshell** so cwd does not leak:
@@ -108,6 +116,6 @@ Pass `parent:<EPIC-KEY>` to `/dma:issue-create` when creating Tasks — the skil
 
    - **All green** → proceed to step 6.
    - **Failures exist** → classify each failing test (or group sharing a failure mode) into **fix** / **delete** / **temporarily disable** per the criteria in `agents/team-lead/on-hold.md → ## Handling On Hold tasks` step 4 (the test-rot bullet). File triage tasks against this Epic before any application Task — label `area:<area> agent:dev`, link each as `Blocks` for any application Task whose Requirements touch the rotted file's symbols. Triage tasks land first; application Tasks land after. Do not decompose application work over rotted tests.
-6. Create Task issues with `/dma:issue-create Task "<summary>" parent:<EPIC-KEY> labels:area:<area>,agent:dev description:<task-desc>`. The `parent:<EPIC-KEY>` argument is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace). Pass `blocks:<KEY>` for any dependency links.
+6. Create Task issues with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue create task "<summary>" --parent <EPIC-KEY> --labels area:<area>,agent:dev --description -`. The `parent:<EPIC-KEY>` argument is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace). Pass `blocks:<KEY>` for any dependency links.
 7. Present the decomposition to user for approval.
 8. User launches agents via `/dma:run`. You report progress.

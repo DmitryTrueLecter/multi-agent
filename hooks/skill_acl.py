@@ -47,7 +47,7 @@ ALLOWED: dict[str, set[str] | str] = {
     "reviewer":  {"sentinel-flag"},
     "devops":    {"sentinel-flag"},
     "architect": {"sentinel-flag"},
-    "sentinel":  {"issue-create", "issue-update-labels", "sentinel-flag", "sentinel"},
+    "sentinel":  {"sentinel-flag", "sentinel"},
 
     # Built-in research / utility agents — no ACL needed
     "general-purpose":    "*",

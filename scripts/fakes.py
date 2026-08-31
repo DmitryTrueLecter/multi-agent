@@ -66,6 +66,9 @@ class FakeJira:
         self.comments_template = fixture("jira_comments.json")
         self.search_template = fixture("jira_search.json")
         self.transition_status = {}       # transition id -> resulting status name
+        self.links = []                   # issue links, as posted
+        self.next_number = 900
+        self.default_create_status = "On Hold"   # a workflow default that is not to_do
         fake = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -100,6 +103,11 @@ class FakeJira:
                 body = self._read()
                 fake.requests.append(("POST", self.path, body))
                 path = urlparse(self.path).path
+                if path == "/rest/api/2/issue":
+                    return self._reply(201, fake.create_issue(body))
+                if path == "/rest/api/2/issueLink":
+                    fake.links.append(body)
+                    return self._reply(201)
                 key = path.split("/issue/")[1].split("/")[0]
                 if path.endswith("/transitions"):
                     tid = str(body["transition"]["id"])
@@ -143,6 +151,18 @@ class FakeJira:
             "kind": kind,
             "blocked_by": list(blocked_by or []),
         }
+
+    def create_issue(self, body):
+        fields = body["fields"]
+        key = f"{fields['project']['key']}-{self.next_number}"
+        self.next_number += 1
+        parent = fields.get("parent")
+        self.add_issue(key,
+                       status=self.default_create_status,
+                       labels=fields.get("labels") or [],
+                       parent=(parent["key"], "Epic") if parent else None,
+                       kind=fields["issuetype"]["name"])
+        return {"key": key, "id": key}
 
     def labels_of(self, key):
         return self.issues[key]["labels"]

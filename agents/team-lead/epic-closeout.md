@@ -24,7 +24,7 @@ For each such group issue:
    ```
    ${CLAUDE_PLUGIN_ROOT}/bin/dma board list --parent <EPIC-KEY>
    ```
-3. Verify every child Task is in `Done`. If any child is not Done, the reviewer made a mistake — run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <EPIC-KEY> <explanation>` to document the issue, then `/dma:issue-update-labels <EPIC-KEY> remove:agent:team-lead` to clear the team-lead marker (Epic stays in `Code Review` without an agent label — `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` will re-add `agent:team-lead` once all children are Done), and stop.
+3. Verify every child Task is in `Done`. If any child is not Done, the reviewer made a mistake — run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <EPIC-KEY> <explanation>` to document the issue, then `${CLAUDE_PLUGIN_ROOT}/bin/dma issue label <EPIC-KEY> --remove agent:team-lead` to clear the team-lead marker (Epic stays in `Code Review` without an agent label — `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` will re-add `agent:team-lead` once all children are Done), and stop.
 4. Re-read the Epic description and recent comments. Check for any open follow-ups, deferred items, or "out of scope" notes that should become new tasks before the Epic closes:
    - Search comments and descriptions for `TODO`, `follow-up`, `deferred`, `out of scope`, etc.
    - Cross-check with the spec — anything the spec required that isn't covered by an existing Done child?
@@ -70,6 +70,6 @@ For each such group issue:
    - Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <EPIC-KEY> done <closing-comment>` where the closing comment starts with `🤖 team-lead:`, summarizes what was delivered, and includes the PR URL(s). The skill removes `agent:team-lead`, transitions the Epic to `Done`, and posts the comment.
    - The PR(s) merge to `<workspace.dev_branch>` outside the agent flow (user / CI). `Done` here means "the agent loop is closed", not "shipped to dev".
 8. On hold (follow-ups required):
-   - Create the follow-up Tasks (linked to the Epic) per the normal task-creation flow using `/dma:issue-create`.
-   - Run `/dma:issue-update-labels <EPIC-KEY> remove:agent:team-lead` to remove the team-lead marker while leaving the Epic in `In Progress` (children are actively in their queues — the Epic is "in flight" again).
+   - Create the follow-up Tasks (linked to the Epic) per the normal task-creation flow using `${CLAUDE_PLUGIN_ROOT}/bin/dma issue create`.
+   - Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue label <EPIC-KEY> --remove agent:team-lead` to remove the team-lead marker while leaving the Epic in `In Progress` (children are actively in their queues — the Epic is "in flight" again).
    - The `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` pre-flight will re-promote the Epic to `Code Review` + `agent:team-lead` when the last follow-up child is merged.

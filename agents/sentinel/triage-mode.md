@@ -20,7 +20,7 @@ Process the Sentinel flag queue: per flag, read the cited location, classify, an
 3. Print the report (see `## Report format` below).
 4. Wait for the user's response. Per flag, branch:
    - **OK to apply:** `Write` the rewrite, then resolve the flag: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <issue-key> done "applied: <one-line summary>"`.
-   - **OK to route via task:** call `/dma:issue-create Task "<summary>" labels:agent:team-lead description:<full finding + recommended steps>`. The task lands in `to_do + agent:team-lead`, picked up by `/dma:run` auto-mode bucket #2. Then resolve the flag: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <issue-key> done "routed via <new-KEY>"`. Use when the fix needs another role's action — architect consultation + `Mode: structure` apply, area scaffolding, cross-area cleanup — not a prompt rewrite sentinel can do directly.
+   - **OK to route via task:** call `${CLAUDE_PLUGIN_ROOT}/bin/dma issue create task "<summary>" --labels agent:team-lead --description -`. The task lands in `to_do + agent:team-lead`, picked up by `/dma:run` auto-mode bucket #2. Then resolve the flag: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <issue-key> done "routed via <new-KEY>"`. Use when the fix needs another role's action — architect consultation + `Mode: structure` apply, area scaffolding, cross-area cleanup — not a prompt rewrite sentinel can do directly.
    - **OK to resolve only** (duplicate, not actionable): `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <issue-key> done "<reason>"`.
    - **Silent / unclear / deferred:** leave the flag in the queue until the user speaks.
 5. Resolved flag issues stay in `done` — their history is the audit chain.

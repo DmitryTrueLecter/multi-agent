@@ -124,6 +124,34 @@ class JiraTracker:
     def add_comment(self, key, body):
         self.api.add_comment(key, body)
 
+    def create(self, kind, summary, description=None, labels=None, parent=None, state_key=None):
+        fields = {"project": {"key": self.project},
+                  "summary": summary,
+                  "issuetype": {"name": "Epic" if kind == "group" else "Task"}}
+        if description:
+            fields["description"] = description
+        if labels:
+            fields["labels"] = list(labels)
+        if parent:
+            fields["parent"] = {"key": parent}
+        created = self.api.call("POST", "issue", {"fields": fields})
+        key = created["key"]
+        # The project's create-time status is whatever its workflow says — not
+        # necessarily to_do — so the requested one is applied unless it matched.
+        if state_key and self.read(key)["status"] != self.status_name(state_key):
+            self.set_status(key, state_key)
+        return key
+
+    def add_blocks(self, key, blocked_keys):
+        """`key` blocks each of `blocked_keys`. Verified against a live tracker:
+        in a Blocks link the *inward* issue is the blocker, so the new issue goes
+        there and the blocked one is outward."""
+        for blocked in blocked_keys:
+            self.api.call("POST", "issueLink", {
+                "type": {"name": "Blocks"},
+                "inwardIssue": {"key": key},
+                "outwardIssue": {"key": blocked}})
+
     def claim(self, key):
         """The transition to in_progress is the claim: the workflow refuses the
         second runner, and that refusal is not retried."""
@@ -215,6 +243,43 @@ class LinearTracker:
 
     def add_comment(self, key, body):
         self.api.add_comment(key, body)
+
+    def create(self, kind, summary, description=None, labels=None, parent=None, state_key=None):
+        # Linear has one issue type; `kind` only decides whether a parent is set.
+        payload = {"teamId": self.api.team_id(), "title": summary}
+        if description:
+            payload["description"] = description
+        if labels:
+            payload["labelIds"] = self.api.label_ids(list(labels))
+        if parent:
+            payload["parentId"] = self.api.issue(parent)["id"]
+        if state_key:
+            payload["stateId"] = self.api.state_id(self.status_name(state_key))
+        created = self.api.call(
+            "mutation Make($input: IssueCreateInput!) { issueCreate(input: $input)"
+            " { success issue { identifier state { name } } } }", {"input": payload})
+        issue = created["issueCreate"]["issue"]
+        key = issue["identifier"]
+        # Linear falls back to the team's default state when it will not take the
+        # one asked for; say so rather than leaving the caller to discover it.
+        if state_key and issue["state"]["name"].lower() != self.status_name(state_key).lower():
+            self.set_status(key, state_key)
+            actual = self.api.issue(key)["state"]["name"]
+            if actual.lower() != self.status_name(state_key).lower():
+                raise TrackerError(f"created {key}, but it is in '{actual}' and not "
+                                   f"'{self.status_name(state_key)}'")
+        return key
+
+    def add_blocks(self, key, blocked_keys):
+        """`key` blocks each of `blocked_keys` — the relation is stored from the
+        blocking issue, which is how `dma issue read` finds it on the other side."""
+        issue_id = self.api.issue(key)["id"]
+        for blocked in blocked_keys:
+            self.api.call(
+                "mutation Relate($input: IssueRelationCreateInput!) {"
+                " issueRelationCreate(input: $input) { success } }",
+                {"input": {"issueId": issue_id, "relatedIssueId": self.api.issue(blocked)["id"],
+                           "type": "blocks"}})
 
     def claim(self, key):
         """Linear has no transition the workflow can refuse, so the claim is a
