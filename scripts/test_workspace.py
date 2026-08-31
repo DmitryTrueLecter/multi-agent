@@ -220,3 +220,76 @@ def test_the_role_decides_whether_the_branch_may_be_cut(project):
 
     assert "dev" in workspace.BRANCH_AUTHORS and "devops" in workspace.BRANCH_AUTHORS
     assert "qa" not in workspace.BRANCH_AUTHORS and "reviewer" not in workspace.BRANCH_AUTHORS
+
+
+# ------------------------------------------------------------------ the one-argument form
+
+@pytest.fixture
+def jira_project(tmp_path, monkeypatch):
+    """A project wired to a fake tracker: this is the form the prompts use —
+    `dma workspace prepare <KEY>` and nothing else."""
+    import json
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, "scripts"))
+    import fakes
+
+    bare = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
+    checkout = tmp_path / "project"
+    subprocess.run(["git", "clone", "-q", str(bare), str(checkout)], check=True, capture_output=True)
+    (checkout / ".claude" / "dma").mkdir(parents=True)
+    (checkout / ".claude" / "dma" / "config.yml").write_text(CONFIG)
+    git(checkout, "checkout", "-q", "-b", "dev")
+    (checkout / "file.txt").write_text("x")
+    git(checkout, "add", "file.txt")
+    git(checkout, "commit", "-q", "-m", "init")
+    git(checkout, "push", "-q", "origin", "dev")
+
+    fake = fakes.FakeJira()
+    (checkout / ".mcp.json").write_text(json.dumps({"mcpServers": {"atlassian": {"env": {
+        "JIRA_URL": fake.url, "JIRA_USERNAME": "u", "JIRA_API_TOKEN": "t"}}}}))
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(checkout))
+    yield checkout, fake
+    fake.shutdown()
+
+
+def test_prepare_with_only_a_key_resolves_everything_from_the_issue(jira_project):
+    """The call the prompts actually make. Nothing but the key is passed."""
+    project, jira = jira_project
+    jira.add_issue("T-1", "In Progress", labels=["area:backend", "agent:dev"])
+
+    rc, out = dma("prepare", "T-1")
+    assert rc == 0, out
+    worktree = project / ".worktrees" / "T-1"
+    assert worktree.is_dir(), "the worktree was created"
+    assert branch_of(worktree) == "ai/T-1", "the branch was cut — role dev may create it"
+    assert f"workspace: {worktree}" in out
+
+
+def test_prepare_with_only_a_key_withholds_creation_from_a_reader_role(jira_project):
+    project, jira = jira_project
+    jira.add_issue("T-1", "In Progress", labels=["area:backend", "agent:qa"])
+
+    rc, out = dma("prepare", "T-1")
+    assert rc == 13, out
+    assert "REF_ABSENT" in out, "qa gets no branch cut for it"
+
+
+def test_prepare_with_only_a_key_uses_the_epic_as_base(jira_project):
+    project, jira = jira_project
+    push_branch(project, "ai/T-9")
+    jira.add_issue("T-9", "In Progress", kind="Epic")
+    jira.add_issue("T-1", "In Progress", labels=["agent:dev"], parent=("T-9", "Epic"))
+
+    rc, out = dma("prepare", "T-1")
+    assert rc == 0, out
+    assert "BASE=ai/T-9" in out, "the parent group is the base branch"
+
+
+def test_prepare_with_only_a_key_on_a_tracker_the_cli_cannot_read(jira_project):
+    project, jira = jira_project
+    config = project / ".claude" / "dma" / "config.yml"
+    config.write_text(config.read_text().replace("provider: jira", "provider: linear"))
+    rc, out = dma("prepare", "T-1")
+    assert rc == 2
+    assert "--workspace" in out, "it says which overrides make it work without the tracker"

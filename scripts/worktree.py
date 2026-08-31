@@ -31,6 +31,23 @@ class WorktreeError(Exception):
     pass
 
 
+def area_workspace(area=None):
+    """The checkout an area lives in: its own `area.yml` first, the project-level
+    `workspace.path` next, the project root otherwise. Relative paths are taken
+    from the project root, the way run.md step 7 resolved them by hand."""
+    config = issue.load_config()
+    path = (config.get("workspace") or {}).get("path")
+    if area:
+        area_config = os.path.join(issue.PROJECT_DIR, ".claude", "dma", "areas", area, "area.yml")
+        if os.path.exists(area_config):
+            import yaml
+            with open(area_config) as f:
+                path = ((yaml.safe_load(f) or {}).get("workspace") or {}).get("path") or path
+    if not path:
+        return issue.PROJECT_DIR
+    return path if os.path.isabs(path) else os.path.normpath(os.path.join(issue.PROJECT_DIR, path))
+
+
 def repo_root(workspace_path):
     """The repo owning the workspace: the project root in a monorepo, the
     area-repo in a multi-repo project."""

@@ -80,11 +80,12 @@ class Settings:
         project_ws = config.get("workspace") or {}
         area_ws = {}
         if area:
+            # "first hit wins": an area with no area.yml is simply no hit at that
+            # level — a label like `area:devops` need not have a config of its own.
             path = os.path.join(issue.PROJECT_DIR, ".claude", "dma", "areas", area, "area.yml")
-            if not os.path.exists(path):
-                issue.die(f"area config not found: {path}")
-            with open(path) as f:
-                area_ws = (yaml.safe_load(f) or {}).get("workspace") or {}
+            if os.path.exists(path):
+                with open(path) as f:
+                    area_ws = (yaml.safe_load(f) or {}).get("workspace") or {}
         vcs = config.get("vcs") or {}
         self.remote = overrides.get("remote") or area_ws.get("remote") or project_ws.get("remote") or "origin"
         self.dev_branch = (overrides.get("dev_branch") or area_ws.get("dev_branch")
