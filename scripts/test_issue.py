@@ -1,8 +1,9 @@
-"""Tests for `dma issue` (scripts/issue.py) against a fake Jira.
+"""Tests for `dma issue` (scripts/issue.py).
 
-The fake is a local HTTP server that records every request. Each test runs
-bin/dma as a subprocess with CLAUDE_PROJECT_DIR pointing at a throwaway project
-(config.yml + .mcp.json) and asserts on exit code, stdout and the HTTP calls.
+Offline: the Jira fake serves payloads recorded off the real API (scripts/fakes.py,
+scripts/fixtures/) and applies the writes it receives, so each test asserts both
+the calls made and the resulting issue state. Whether the endpoints still exist
+and still answer this shape is scripts/test_contract.py.
 
 Run:  .venv/bin/pytest scripts/
 """
@@ -10,28 +11,13 @@ Run:  .venv/bin/pytest scripts/
 import json
 import os
 import subprocess
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
+import fakes
+
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 DMA = os.path.join(ROOT, "bin", "dma")
-
-ISSUE = {
-    "key": "T-1",
-    "fields": {
-        "summary": "Do the thing",
-        "status": {"name": "To Do"},
-        "labels": ["area:backend", "agent:dev", "needs-decision"],
-        "parent": {"key": "E-1", "fields": {"summary": "Big epic", "issuetype": {"name": "Epic"}}},
-        "description": "Purpose\nRequirements",
-        "comment": {"comments": [
-            {"author": {"displayName": "old"}, "created": "2026-01-01", "body": "first comment"},
-            {"author": {"displayName": "new"}, "created": "2026-01-02", "body": "🤖 reviewer (backend): handoff → dev"},
-        ]},
-    },
-}
 
 CONFIG = """
 tasks:
@@ -59,63 +45,19 @@ tasks:
       done: 41
 """
 
-
-class FakeJira:
-    """Records (method, path, json body) for every request; can reject transitions."""
-
-    def __init__(self):
-        self.requests = []
-        self.reject_transition = False
-        fake = self
-
-        class Handler(BaseHTTPRequestHandler):
-            def _body(self):
-                length = int(self.headers.get("Content-Length") or 0)
-                return json.loads(self.rfile.read(length)) if length else None
-
-            def _reply(self, code, payload=None):
-                self.send_response(code)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                if payload is not None:
-                    self.wfile.write(json.dumps(payload).encode())
-
-            def do_GET(self):
-                fake.requests.append(("GET", self.path, None))
-                self._reply(200, ISSUE)
-
-            def do_POST(self):
-                body = self._body()
-                fake.requests.append(("POST", self.path, body))
-                if self.path.endswith("/transitions") and fake.reject_transition:
-                    self._reply(400, {"errorMessages": ["transition not valid"]})
-                else:
-                    self._reply(201 if self.path.endswith("/comment") else 204)
-
-            def do_PUT(self):
-                fake.requests.append(("PUT", self.path, self._body()))
-                self._reply(204)
-
-            def log_message(self, *args):
-                pass
-
-        self.server = HTTPServer(("127.0.0.1", 0), Handler)
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
-        self.url = f"http://127.0.0.1:{self.server.server_port}"
-
-    @property
-    def methods(self):
-        return [r[0] for r in self.requests]
-
-    def body(self, index):
-        return self.requests[index][2]
+TRANSITION_STATUS = {"11": "To Do", "21": "In Progress", "3": "QA", "6": "Code Review",
+                     "2": "On Hold", "5": "Awaiting Merge", "7": "Awaiting Ops", "41": "Done"}
 
 
 @pytest.fixture
 def jira():
-    fake = FakeJira()
+    fake = fakes.FakeJira()
+    fake.transition_status = dict(TRANSITION_STATUS)
+    fake.add_issue("T-1", "To Do", labels=["area:backend", "agent:dev", "needs-decision"],
+                   parent=("E-1", "Epic"),
+                   comments=["first comment", "🤖 reviewer (backend): handoff → dev"])
     yield fake
-    fake.server.shutdown()
+    fake.shutdown()
 
 
 @pytest.fixture
@@ -137,14 +79,19 @@ def dma(project):
 
 # ------------------------------------------------------------------ read
 
-def test_read_prints_normalized_issue(dma, jira):
+def test_read_prints_the_fields_an_agent_works_from(dma, jira):
     result = dma("read", "T-1")
     assert result.returncode == 0, result.stderr
-    assert jira.methods == ["GET"]
-    assert "parent" in jira.requests[0][1], "parent must be requested explicitly (fields=*all omits it)"
-    assert "title: Do the thing" in result.stdout
+    assert "title:" in result.stdout
+    assert "status: To Do" in result.stdout
     assert "parent: E-1 (group)" in result.stdout
     assert "labels: area:backend, agent:dev, needs-decision" in result.stdout
+
+
+def test_read_requests_the_parent_field_explicitly(dma, jira):
+    """fields=*all omits parent, which silently breaks base-branch selection."""
+    dma("read", "T-1")
+    assert "parent" in jira.requests[0][1]
 
 
 def test_read_lists_comments_newest_first(dma):
@@ -152,85 +99,99 @@ def test_read_lists_comments_newest_first(dma):
     assert out.index("handoff → dev") < out.index("first comment")
 
 
+def test_read_of_a_task_without_a_parent(dma, jira):
+    jira.add_issue("T-7", "To Do")
+    assert "parent: null" in dma("read", "T-7").stdout
+
+
 # ------------------------------------------------------------------ claim
 
-def test_claim_transitions_to_in_progress_then_reads(dma, jira):
+def test_claim_transitions_to_in_progress_and_returns_the_issue(dma, jira):
     result = dma("claim", "T-1")
     assert result.returncode == 0, result.stderr
-    assert [(r[0], r[2]) for r in jira.requests] == [("POST", {"transition": {"id": "21"}}), ("GET", None)]
-    assert "CLAIMED T-1" in result.stdout
-    assert "title: Do the thing" in result.stdout
+    assert jira.status_of("T-1") == "In Progress"
+    assert "CLAIMED T-1" in result.stdout and "labels:" in result.stdout
 
 
-def test_claim_rejected_exits_3_without_retry(dma, jira):
-    jira.reject_transition = True
+def test_claim_refused_by_the_workflow_exits_3_without_retrying(dma, jira):
+    jira.reject_transitions.add("21")
     result = dma("claim", "T-1")
     assert result.returncode == 3
     assert "CLAIM_FAILED T-1" in result.stdout
-    assert jira.methods == ["POST"]
+    assert [m for (m, p, b) in jira.writes()] == ["POST"], "no retry, no follow-up read"
 
 
 # ------------------------------------------------------------------ comment
 
-def test_comment_posts_body(dma, jira):
+def test_comment_posts_the_body_verbatim(dma, jira):
     result = dma("comment", "T-1", "🤖 dev (backend): progress")
     assert result.returncode == 0, result.stderr
-    assert jira.requests == [("POST", "/rest/api/2/issue/T-1/comment", {"body": "🤖 dev (backend): progress"})]
+    assert jira.comments_of("T-1")[-1] == "🤖 dev (backend): progress"
 
 
-def test_comment_body_from_stdin_keeps_newlines(dma, jira):
+def test_comment_from_stdin_keeps_line_breaks(dma, jira):
     result = dma("comment", "T-1", "-", stdin="line1\nline2\n")
     assert result.returncode == 0, result.stderr
-    assert jira.body(0) == {"body": "line1\nline2"}
+    assert jira.comments_of("T-1")[-1] == "line1\nline2"
+
+
+def test_comment_does_not_change_status_or_labels(dma, jira):
+    dma("comment", "T-1", "note")
+    assert jira.status_of("T-1") == "To Do"
+    assert jira.labels_of("T-1") == ["area:backend", "agent:dev", "needs-decision"]
 
 
 # ------------------------------------------------------------------ handoff
 
-def test_handoff_default_forward_dev_to_qa(dma, jira):
+def test_handoff_defaults_to_the_next_role_in_the_pipeline(dma, jira):
     result = dma("handoff", "T-1")
     assert result.returncode == 0, result.stderr
-    assert jira.methods == ["GET", "PUT", "POST", "POST"]
-    assert jira.body(1) == {"fields": {"labels": ["area:backend", "agent:qa"]}}, "area kept, agent swapped, needs-decision dropped"
-    assert jira.body(2) == {"transition": {"id": "3"}}
-    assert jira.body(3)["body"].startswith("🤖 dev (backend): handoff → qa\n\n")
-    assert "Manual handoff via /dma:handoff." in jira.body(3)["body"]
+    assert jira.status_of("T-1") == "QA"
+    assert jira.labels_of("T-1") == ["area:backend", "agent:qa"], "area kept, needs-decision dropped"
+    assert jira.comments_of("T-1")[-1].startswith("🤖 dev (backend): handoff → qa\n\n")
 
 
 def test_handoff_to_team_lead_adds_needs_decision(dma, jira):
     result = dma("handoff", "T-1", "team-lead", "Epic branch missing on remote.")
     assert result.returncode == 0, result.stderr
-    assert jira.body(1) == {"fields": {"labels": ["area:backend", "agent:team-lead", "needs-decision"]}}
-    assert jira.body(2) == {"transition": {"id": "2"}}
-    assert jira.body(3)["body"].endswith("Epic branch missing on remote.")
+    assert jira.status_of("T-1") == "On Hold"
+    assert jira.labels_of("T-1") == ["area:backend", "agent:team-lead", "needs-decision"]
+    assert jira.comments_of("T-1")[-1].endswith("Epic branch missing on remote.")
 
 
-def test_handoff_single_non_role_argument_is_the_body(dma, jira):
+def test_handoff_single_argument_that_is_not_a_role_is_the_comment(dma, jira):
     result = dma("handoff", "T-1", "tests added for X")
     assert result.returncode == 0, result.stderr
-    assert jira.body(2) == {"transition": {"id": "3"}}, "default target qa"
-    assert jira.body(3)["body"].endswith("tests added for X")
+    assert jira.status_of("T-1") == "QA"
+    assert jira.comments_of("T-1")[-1].endswith("tests added for X")
 
 
-def test_handoff_to_awaiting_merge_drops_agent_label(dma, jira):
+def test_handoff_to_awaiting_merge_leaves_no_agent_owner(dma, jira):
     result = dma("handoff", "T-1", "awaiting_merge", "approved")
     assert result.returncode == 0, result.stderr
-    assert jira.body(1) == {"fields": {"labels": ["area:backend"]}}
-    assert jira.body(2) == {"transition": {"id": "5"}}
+    assert jira.status_of("T-1") == "Awaiting Merge"
+    assert jira.labels_of("T-1") == ["area:backend"]
 
 
-def test_handoff_unknown_target_mutates_nothing(dma, jira):
+def test_handoff_body_from_stdin(dma, jira):
+    result = dma("handoff", "T-1", "qa", "-", stdin="line1\nline2\n")
+    assert result.returncode == 0, result.stderr
+    assert jira.comments_of("T-1")[-1].endswith("line1\nline2")
+
+
+def test_handoff_to_an_unknown_target_changes_nothing(dma, jira):
     result = dma("handoff", "T-1", "nowhere", "x")
     assert result.returncode == 1
-    assert jira.methods == ["GET"]
+    assert jira.writes() == []
 
 
-def test_handoff_missing_transition_id_fails_before_any_write(dma, jira, project):
+def test_handoff_with_a_missing_transition_id_writes_nothing(dma, jira, project):
     config = project / ".claude" / "dma" / "config.yml"
     config.write_text(config.read_text().replace("qa: 3", "qa: 0"))
     result = dma("handoff", "T-1", "qa", "x")
     assert result.returncode == 1
     assert "transitions.qa" in result.stderr
-    assert jira.methods == ["GET"]
+    assert jira.writes() == [], "labels must not move before the transition is known"
 
 
 # ------------------------------------------------------------------ environment
@@ -248,3 +209,10 @@ def test_missing_credentials_names_the_variables(dma, project):
     result = dma("read", "T-1")
     assert result.returncode == 1
     assert "JIRA_URL" in result.stderr
+
+
+def test_missing_config_names_the_path(dma, project):
+    (project / ".claude" / "dma" / "config.yml").unlink()
+    result = dma("read", "T-1")
+    assert result.returncode == 1
+    assert "config not found" in result.stderr

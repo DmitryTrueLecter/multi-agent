@@ -1,0 +1,52 @@
+{
+  "isLast": false,
+  "issues": [
+    {
+      "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+      "fields": {
+        "status": {
+          "description": "REDACTED TEXT",
+          "iconUrl": "REDACTED",
+          "id": "11925",
+          "name": "Done",
+          "self": "REDACTED",
+          "statusCategory": {
+            "colorName": "green",
+            "id": 3,
+            "key": "done",
+            "name": "Done",
+            "self": "REDACTED"
+          }
+        },
+        "summary": "REDACTED TEXT"
+      },
+      "id": "84505",
+      "key": "T-1",
+      "self": "REDACTED"
+    },
+    {
+      "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+      "fields": {
+        "status": {
+          "description": "REDACTED TEXT",
+          "iconUrl": "REDACTED",
+          "id": "11925",
+          "name": "Done",
+          "self": "REDACTED",
+          "statusCategory": {
+            "colorName": "green",
+            "id": 3,
+            "key": "done",
+            "name": "Done",
+            "self": "REDACTED"
+          }
+        },
+        "summary": "REDACTED TEXT"
+      },
+      "id": "84503",
+      "key": "IDAI-138",
+      "self": "REDACTED"
+    }
+  ],
+  "nextPageToken": "Ck1jcmVhdGVkJmNyZWF0ZWQmT1JERVJfREVTQyNMb25nJk1UYzROamsyTVRreU1qYzNPQT09JVN0cmluZyZTVVJCU1E9PSVJbnQmTVRNNBACGNvon7SFNCIkcHJvamVjdCA9IElEQUkgT1JERVIgQlkgY3JlYXRlZCBERVNDKgJbXQ=="
+}

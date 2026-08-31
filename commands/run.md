@@ -47,7 +47,7 @@ Reviewer-approved tasks sit in `statuses.awaiting_merge` until the user merges o
 
 **When to run.** As the very first step of every `/dma:run` invocation — auto-mode, pipeline mode, all mode, single-issue mode, role-only shortcut. On `/dma:run all`, re-runs before each iteration's task pickup.
 
-Run `/dma:pr-feedback` — the skill handles all PR list queries, issue tracker label/status updates, epic close-out promotion, and error recovery. It returns once all pending decisions are synced.
+Run `${CLAUDE_PLUGIN_ROOT}/bin/dma pr-feedback` — one Bash call. It finds the tasks sitting in `<statuses.awaiting_merge>`, matches each to the newest pull request on its branch, and applies the decision (declined → `agent:dev` + `to_do`; merged → `done`, with the stale-tip guard and group close-out). It reads `config.yml` and the credentials itself. Exit `2` means the tracker/VCS pair is not Jira + Bitbucket — then fall back to the `/dma:pr-feedback` skill; any other non-zero exit: stop and report the stderr. Single-PR failures are logged and skipped, and the next pre-flight retries them.
 
 ## Stuck task pre-flight (runs after PR feedback reconciliation, before queue search)
 

@@ -1,0 +1,89 @@
+{
+  "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+  "fields": {
+    "comment": {
+      "comments": [
+        {
+          "author": {
+            "display_name": "REDACTED"
+          },
+          "body": "REDACTED TEXT",
+          "created": "2026-08-17T19:04:18.883+0800",
+          "id": "154994",
+          "jsdPublic": true,
+          "self": "REDACTED",
+          "updateAuthor": {
+            "display_name": "REDACTED"
+          },
+          "updated": "2026-08-17T19:04:18.883+0800"
+        },
+        {
+          "author": {
+            "display_name": "REDACTED"
+          },
+          "body": "REDACTED TEXT",
+          "created": "2026-08-17T19:18:01.420+0800",
+          "id": "154996",
+          "jsdPublic": true,
+          "self": "REDACTED",
+          "updateAuthor": {
+            "display_name": "REDACTED"
+          },
+          "updated": "2026-08-17T19:18:01.420+0800"
+        },
+        {
+          "author": {
+            "display_name": "REDACTED"
+          },
+          "body": "REDACTED TEXT",
+          "created": "2026-08-17T19:19:29.958+0800",
+          "id": "154997",
+          "jsdPublic": true,
+          "self": "REDACTED",
+          "updateAuthor": {
+            "display_name": "REDACTED"
+          },
+          "updated": "2026-08-17T19:19:29.958+0800"
+        }
+      ],
+      "maxResults": 3,
+      "self": "REDACTED",
+      "startAt": 0,
+      "total": 3
+    },
+    "description": "REDACTED TEXT",
+    "issuetype": {
+      "avatarId": 10318,
+      "description": "REDACTED TEXT",
+      "entityId": "de2d63ba-901c-4adf-8d87-dddddddddddd",
+      "hierarchyLevel": 0,
+      "iconUrl": "REDACTED",
+      "id": "11078",
+      "name": "Task",
+      "self": "REDACTED",
+      "subtask": false
+    },
+    "labels": [
+      "agent:team-lead",
+      "area:frontend"
+    ],
+    "status": {
+      "description": "REDACTED TEXT",
+      "iconUrl": "REDACTED",
+      "id": "11925",
+      "name": "Done",
+      "self": "REDACTED",
+      "statusCategory": {
+        "colorName": "green",
+        "id": 3,
+        "key": "done",
+        "name": "Done",
+        "self": "REDACTED"
+      }
+    },
+    "summary": "REDACTED TEXT"
+  },
+  "id": "84505",
+  "key": "T-1",
+  "self": "REDACTED"
+}

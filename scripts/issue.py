@@ -22,6 +22,7 @@ import os
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import yaml
@@ -103,6 +104,20 @@ class Jira:
 
     def add_comment(self, key, body):
         self.call("POST", f"issue/{key}/comment", {"body": body})
+
+    def get_comments(self, key, limit=50):
+        data = self.call("GET", f"issue/{key}/comment?maxResults={limit}&orderBy=-created")
+        return (data or {}).get("comments") or []
+
+    def search_raw(self, jql, fields="summary,status", max_results=50):
+        """POST-free JQL search. /rest/api/2/search was removed by Atlassian
+        (HTTP 410) — /search/jql is the replacement; it answers {issues, isLast}
+        and no longer carries a `total`."""
+        query = urllib.parse.urlencode({"jql": jql, "fields": fields, "maxResults": max_results})
+        return self.call("GET", f"search/jql?{query}") or {}
+
+    def search(self, jql, fields="summary,status", max_results=50):
+        return self.search_raw(jql, fields, max_results).get("issues") or []
 
 
 class JiraError(Exception):

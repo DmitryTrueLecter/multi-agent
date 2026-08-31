@@ -1,0 +1,86 @@
+{
+  "page": 1,
+  "pagelen": 50,
+  "values": [
+    {
+      "author": {
+        "display_name": "REDACTED"
+      },
+      "close_source_branch": false,
+      "closed_by": {
+        "display_name": "REDACTED"
+      },
+      "comment_count": 0,
+      "created_on": "2026-08-17T11:20:10.163845+00:00",
+      "description": "REDACTED TEXT",
+      "destination": {
+        "branch": {
+          "name": "dev"
+        },
+        "commit": {
+          "hash": "dddddddddddd",
+          "links": {
+            "html": {
+              "href": "https://bitbucket.org/testws/testrepo/pull-requests/1"
+            }
+          },
+          "type": "commit"
+        },
+        "repository": {
+          "display_name": "REDACTED"
+        }
+      },
+      "draft": false,
+      "id": 172,
+      "links": {
+        "html": {
+          "href": "https://bitbucket.org/testws/testrepo/pull-requests/1"
+        }
+      },
+      "merge_commit": {
+        "hash": "dddddddddddddddddddddddddddddddddddddddd",
+        "links": {
+          "html": {
+            "href": "https://bitbucket.org/testws/testrepo/pull-requests/1"
+          }
+        },
+        "type": "commit"
+      },
+      "queued": false,
+      "reason": "REDACTED",
+      "source": {
+        "branch": {
+          "links": {
+            "html": {
+              "href": "https://bitbucket.org/testws/testrepo/pull-requests/1"
+            }
+          },
+          "name": "ai/T-1"
+        },
+        "commit": {
+          "hash": "dddddddddddd",
+          "links": {
+            "html": {
+              "href": "https://bitbucket.org/testws/testrepo/pull-requests/1"
+            }
+          },
+          "type": "commit"
+        },
+        "repository": {
+          "display_name": "REDACTED"
+        }
+      },
+      "state": "MERGED",
+      "summary": {
+        "html": "REDACTED",
+        "markup": "REDACTED",
+        "raw": "REDACTED TEXT",
+        "type": "rendered"
+      },
+      "task_count": 0,
+      "title": "REDACTED TEXT",
+      "type": "pullrequest",
+      "updated_on": "2026-08-17T11:31:18.470452+00:00"
+    }
+  ]
+}
