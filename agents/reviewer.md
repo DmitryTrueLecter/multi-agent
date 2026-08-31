@@ -278,7 +278,14 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
    **Local checkout:** `just task <ISSUE-KEY>`
    ```
 
-   Call `/dma:pr-open <vcs.branch_prefix><ISSUE-KEY> <destination_branch> "<ISSUE-KEY> <Task summary>" workspace-path:<abs-workspace-path> remote:<workspace.remote> description:<pr-description>`.
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/bin/dma pr open <vcs.branch_prefix><ISSUE-KEY> <destination_branch> "<ISSUE-KEY> <Task summary>" \
+       --workspace <abs-workspace-path> --body - <<'PR_BODY'
+   <the description built above>
+   PR_BODY
+   ```
+
+   The body goes on stdin: a review summary carries tables and pipes, which the shell would tokenize if passed inline.
 
    **FORBIDDEN under any circumstance**:
    - `git checkout <destination>` for any destination (epic-branch or `<workspace.dev_branch>`)
@@ -288,7 +295,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
 
    Integration happens via the PR merge button in the VCS platform — clicked by the user, never by the agent.
 
-   **Guard before handoff:** if `/dma:pr-open` returned an error, do NOT call `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff`. Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <error-details>` and stop — leave the Task in `code_review` with `agent:reviewer`.
+   **Guard before handoff:** if `${CLAUDE_PLUGIN_ROOT}/bin/dma pr open` returned an error, do NOT call `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff`. Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <error-details>` and stop — leave the Task in `code_review` with `agent:reviewer`.
 
    Capture the PR URL from the skill's response.
 

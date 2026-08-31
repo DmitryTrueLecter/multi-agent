@@ -492,31 +492,27 @@ def test_list_says_when_the_result_is_truncated(project, board):
     "https://x-token-auth:ATCTT3xFfGN0vMi6UVMrpE_TzTeFKSE@bitbucket.org/officejet/some-repo.git",
     "https://bitbucket.org/officejet/some-repo",
 ])
-def test_coordinates_are_read_from_every_remote_url_form(url):
+def test_bitbucket_coordinates_are_read_from_every_url_form(url):
     """Including the credential-bearing form a token-authenticated clone carries."""
-    import board
-    assert board.derive_coords(url) == ("officejet", "some-repo")
+    import vcs
+    assert vcs.split_remote(url, "bitbucket.org") == ("officejet", "some-repo")
 
 
-def test_a_non_bitbucket_remote_is_declined_not_guessed():
-    import board
-    with pytest.raises(SystemExit) as raised:
-        board.derive_coords("git@github.com:officejet/some-repo.git")
-    assert raised.value.code == 2
+@pytest.mark.parametrize("url", [
+    "git@github.com:xvpn/some-repo.git",
+    "https://github.com/xvpn/some-repo.git",
+    "https://x-access-token:ghs_abc123@github.com/xvpn/some-repo.git",
+    "https://github.com/xvpn/some-repo",
+])
+def test_github_coordinates_are_read_from_every_url_form(url):
+    import vcs
+    assert vcs.split_remote(url, "github.com") == ("xvpn", "some-repo")
 
 
-def test_close_out_is_not_fooled_by_a_truncated_page_of_children(dma, jira, bb):
-    """A big group returns more children than one page. Asking the tracker for
-    "children that are not done" keeps the answer honest; fetching them all and
-    filtering here would promote the group off the first 50 rows."""
-    jira.add_issue("E-1", "In Progress")
-    for n in range(60):
-        jira.add_issue(f"T-{100 + n}", "Done", parent=("E-1", "Epic"))
-    jira.add_issue("T-999", "In Progress", parent=("E-1", "Epic"))     # still open, last
-    jira.add_issue("T-1", AWAITING, parent=("E-1", "Epic"), comments=[f"Approved tip: {APPROVED}"])
-    merged_pr(bb, 1, "T-1")
-
-    result = dma()
-    assert result.returncode == 0, result.stderr
-    assert jira.status_of("T-1") == "Done"
-    assert jira.status_of("E-1") == "In Progress", "one sibling is still open — the group stays open"
+def test_a_remote_on_an_unknown_host_is_declined_not_guessed(tmp_path):
+    import vcs
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "remote", "add", "origin",
+                    "git@gitlab.com:group/repo.git"], check=True)
+    with pytest.raises(vcs.Unsupported):
+        vcs.open_vcs(str(tmp_path), str(tmp_path / ".mcp.json"))

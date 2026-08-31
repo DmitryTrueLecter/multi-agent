@@ -1,6 +1,6 @@
 ---
 name: issue-update-labels
-description: Update labels on an issue without changing its status. Accepts add/remove lists; preserves all other labels. Use for label-only changes not covered by /dma:handoff. Invocation: /dma:issue-update-labels <ISSUE-KEY> [add:<l1>,<l2>] [remove:<l1>,<l2>].
+description: Update labels on an issue without changing its status. Accepts add/remove lists; preserves all other labels. Use for label-only changes, which `dma issue handoff` does not do (it always moves the status too). Invocation: /dma:issue-update-labels <ISSUE-KEY> [add:<l1>,<l2>] [remove:<l1>,<l2>].
 tools: mcp__atlassian__jira_get_issue, mcp__atlassian__jira_update_issue, mcp__linear__get_issue, mcp__linear__save_issue
 ---
 

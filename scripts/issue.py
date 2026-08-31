@@ -1,9 +1,9 @@
 """Tracker operations for agents — one process call instead of a Skill round-trip.
 
-    dma issue read    <KEY>                          skills/task-read
-    dma issue claim   <KEY> | --role <r> | --any     skills/issue-claim
-    dma issue comment <KEY> <body | ->               skills/issue-comment   ('-' = body from stdin)
-    dma issue handoff <KEY> [to-role] [body | ->     skills/handoff
+    dma issue read    <KEY>                          one issue, with its comments
+    dma issue claim   <KEY> | --role <r> | --any     take it, or take the next one in a queue
+    dma issue comment <KEY> <body | ->               a comment ('-' = body from stdin)
+    dma issue handoff <KEY> [to-role] [body | ->     label + status + comment, in one step
 
 Project root = $CLAUDE_PROJECT_DIR, else the current directory. Reads
 <project>/.claude/dma/config.yml (provider, status names, jira transition ids)
@@ -32,7 +32,8 @@ PROJECT_DIR = os.path.realpath(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd
 CONFIG_PATH = os.path.join(PROJECT_DIR, ".claude", "dma", "config.yml")
 MCP_PATH = os.path.join(PROJECT_DIR, ".mcp.json")
 
-# Copied from skills/handoff/SKILL.md → "Target → status key / label changes".
+# Where each handoff target lands: the status it moves to and the agent label it
+# leaves behind. `done`, `awaiting_merge` and `awaiting_ops` have no agent owner.
 HANDOFF_TARGETS = {
     #  target:          (status key,       new agent label or None)
     "qa":               ("qa",             "agent:qa"),
@@ -146,7 +147,7 @@ class JiraError(Exception):
         self.status = status
 
 
-# ----------------------------------------------------------------- output (same shape as skills/task-read)
+# ----------------------------------------------------------------- output
 
 def print_issue(issue):
     print(f"key: {issue['key']}")
@@ -288,7 +289,7 @@ def cmd_handoff(tracker, config, key, to_role, body):
         new_labels.append("needs-decision")
 
     comment = f"🤖 {from_role or 'agent'} ({area}): handoff → {to_role}\n\n"
-    comment += read_body(body) if body else "Manual handoff via /dma:handoff."
+    comment += read_body(body) if body else "Manual handoff."
 
     tracker.set_labels(key, new_labels)
     tracker.set_status(key, status_key)

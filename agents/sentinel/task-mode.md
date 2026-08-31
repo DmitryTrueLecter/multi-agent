@@ -55,10 +55,13 @@ Files matching `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/**` for the area 
 
    Call:
    ```
-   /dma:pr-open <vcs.branch_prefix><ISSUE-KEY> <destination> "<ISSUE-KEY> <Task summary>" workspace-path:<abs-workspace-path> remote:<workspace.remote> description:<pr-description>
+   ${CLAUDE_PLUGIN_ROOT}/bin/dma pr open <vcs.branch_prefix><ISSUE-KEY> <destination> "<ISSUE-KEY> <Task summary>" \
+       --workspace <abs-workspace-path> --body - <<'PR_BODY'
+   <the description built above>
+   PR_BODY
    ```
 
-   Capture the PR URL. On `/dma:pr-open` error: stop, `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <error>`, leave at `in_progress`.
+   Capture the PR URL. On `${CLAUDE_PLUGIN_ROOT}/bin/dma pr open` error: stop, `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <error>`, leave at `in_progress`.
 
 8. **Handoff.**
 

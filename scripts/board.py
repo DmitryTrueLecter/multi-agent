@@ -26,8 +26,9 @@ Project root = $CLAUDE_PROJECT_DIR, else the current directory. Reads
 mcpServers.atlassian.env (JIRA_* and BITBUCKET_URL, BITBUCKET_USERNAME,
 BITBUCKET_APP_PASSWORD), falling back to the environment.
 
-Only provider "jira" (with a Bitbucket remote) is implemented. For "linear" the
-command exits 2 and the agent falls back to the /dma:pr-feedback skill.
+Trackers: jira and linear (scripts/tracker.py). Hosts: Bitbucket and GitHub
+(scripts/vcs.py). A combination with no backend exits 2 and the agent falls back
+to the /dma:pr-feedback skill.
 
 Failure policy from the skill: one task that fails is logged and skipped, the run
 continues, the next pre-flight retries. A declined PR with no rejection text is
@@ -36,15 +37,11 @@ surfaced (NEEDS-INPUT) and left untouched — asking the user is not the script'
 Exit codes: 0 ok · 1 error · 2 provider/remote not supported
 """
 
-import base64
 import json
 import os
 import re
 import subprocess
 import sys
-import urllib.error
-import urllib.parse
-import urllib.request
 
 import issue
 
@@ -54,117 +51,7 @@ TEXT_CAP = 3000
 PR_STATES = ("OPEN", "MERGED", "DECLINED", "SUPERSEDED")
 
 
-# ----------------------------------------------------------------- bitbucket creds / http
-
-def load_bitbucket_credentials():
-    creds = {}
-    if os.path.exists(issue.MCP_PATH):
-        with open(issue.MCP_PATH) as f:
-            creds = json.load(f).get("mcpServers", {}).get("atlassian", {}).get("env", {})
-    url = creds.get("BITBUCKET_URL") or os.environ.get("BITBUCKET_URL") or "https://bitbucket.org"
-    user = creds.get("BITBUCKET_USERNAME") or os.environ.get("BITBUCKET_USERNAME")
-    token = creds.get("BITBUCKET_APP_PASSWORD") or os.environ.get("BITBUCKET_APP_PASSWORD")
-    if not (user and token):
-        issue.die(
-            "Bitbucket credentials not found: need BITBUCKET_USERNAME, BITBUCKET_APP_PASSWORD "
-            f"in {issue.MCP_PATH} (mcpServers.atlassian.env) or in the environment"
-        )
-    return api_base(url), user, token
-
-
-def api_base(bitbucket_url):
-    """Cloud REST lives on api.bitbucket.org/2.0; the configured URL is the web host.
-    A non-Cloud base (e.g. a test server) is used verbatim with /2.0 appended."""
-    base = bitbucket_url.rstrip("/")
-    if "bitbucket.org" in base and "api." not in base:
-        return "https://api.bitbucket.org/2.0"
-    if base.endswith("/2.0"):
-        return base
-    return base + "/2.0"
-
-
-class Bitbucket:
-    def __init__(self, base, user, token):
-        self.base = base
-        self.auth = "Basic " + base64.b64encode(f"{user}:{token}".encode()).decode()
-
-    def call(self, path):
-        url = path if path.startswith("http") else self.base + path
-        request = urllib.request.Request(url, method="GET")
-        request.add_header("Authorization", self.auth)
-        request.add_header("Accept", "application/json")
-        try:
-            with urllib.request.urlopen(request, timeout=60) as response:
-                raw = response.read()
-        except urllib.error.HTTPError as e:
-            raise BitbucketError(e.code, e.read().decode(errors="replace"))
-        return json.loads(raw) if raw else None
-
-    def paginate(self, path, max_pages=20):
-        """Bitbucket returns `next` as an absolute URL; follow it until exhausted."""
-        results, pages = [], 0
-        while path and pages < max_pages:
-            page = self.call(path)
-            results.extend(page.get("values") or [])
-            path = page.get("next")
-            pages += 1
-        if path:
-            print(f"WARNING pull-request listing capped at {max_pages} pages", file=sys.stderr)
-        return results
-
-    def pull_requests_for_branch(self, workspace, repo, branch, states=PR_STATES):
-        """Every PR opened from `branch`, newest first."""
-        params = [("q", f'source.branch.name="{branch}"')]
-        params += [("state", state) for state in states]
-        params += [("sort", "-updated_on"), ("pagelen", 50)]
-        path = f"/repositories/{workspace}/{repo}/pullrequests?{urllib.parse.urlencode(params)}"
-        found = self.paginate(path)
-        return sorted(found, key=lambda pr: pr.get("updated_on") or "", reverse=True)
-
-    def list_pull_requests(self, workspace, repo, state):
-        """Whole-repository listing — used by the fixture recorder and the contract
-        tests, not by reconciliation."""
-        query = urllib.parse.urlencode({"state": state, "sort": "-updated_on", "pagelen": 50})
-        return self.paginate(f"/repositories/{workspace}/{repo}/pullrequests?{query}")
-
-    def get_commit(self, workspace, repo, sha):
-        return self.call(f"/repositories/{workspace}/{repo}/commit/{sha}")
-
-    def list_pull_request_comments(self, workspace, repo, pr_id):
-        return self.paginate(f"/repositories/{workspace}/{repo}/pullrequests/{pr_id}/comments?pagelen=50",
-                             max_pages=10)
-
-
-class BitbucketError(Exception):
-    def __init__(self, status, body):
-        super().__init__(f"Bitbucket HTTP {status}: {body[:500]}")
-        self.status = status
-
-
 # ----------------------------------------------------------------- coordinates / helpers
-
-def git_remote_url(remote):
-    result = subprocess.run(
-        ["git", "-C", issue.PROJECT_DIR, "remote", "get-url", remote],
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        issue.die(f"could not read git remote '{remote}': {result.stderr.strip()}")
-    return result.stdout.strip()
-
-
-def derive_coords(remote_url):
-    """git@bitbucket.org:officejet/some-repo.git or the https form → (workspace, repo)."""
-    if "bitbucket.org" not in remote_url:
-        issue.die(f"remote '{remote_url}' is not a Bitbucket repository — use the /dma:pr-feedback skill", 2)
-    tail = remote_url.split("bitbucket.org", 1)[1].lstrip(":/")
-    if tail.endswith(".git"):
-        tail = tail[:-4]
-    parts = tail.split("/")
-    if len(parts) < 2:
-        issue.die(f"could not parse workspace/repo from remote '{remote_url}'")
-    return parts[0], parts[1]
-
 
 def reachable(ctx, status_key):
     """Can this task be moved there at all? Checked before any write, because the
@@ -185,30 +72,17 @@ def key_from_branch(branch, branch_prefix):
     return branch[len(branch_prefix):] if branch.startswith(branch_prefix) else branch
 
 
-def is_managed(pr, managed_prefix):
-    return (pr.get("source") or {}).get("branch", {}).get("name", "").startswith(managed_prefix)
-
-
-def pr_url(pr):
-    return ((pr.get("links") or {}).get("html") or {}).get("href", "")
-
-
-def rejection_text(bb, workspace, repo, pr):
-    """PR description plus inline/general comments, inline ones prefixed [path:line]."""
+def rejection_text(vcs, pr):
+    """PR description plus its comments, inline ones prefixed [path:line]."""
     parts = []
-    description = ((pr.get("summary") or {}).get("raw")) or pr.get("description") or ""
-    if description.strip():
-        parts.append(description.strip())
-    for comment in bb.list_pull_request_comments(workspace, repo, pr["id"]):
-        raw = ((comment.get("content") or {}).get("raw") or "").strip()
-        if not raw:
-            continue
+    if pr["description"].strip():
+        parts.append(pr["description"].strip())
+    for comment in vcs.comments(pr):
         inline = comment.get("inline")
-        if inline:
-            line = inline.get("to") or inline.get("from") or "?"
-            parts.append(f"[{inline.get('path', '?')}:{line}] {raw}")
+        if inline and inline.get("path"):
+            parts.append(f"[{inline['path']}:{inline.get('to') or '?'}] {comment['body']}")
         else:
-            parts.append(raw)
+            parts.append(comment["body"])
     return "\n\n".join(parts)[:TEXT_CAP]
 
 
@@ -221,19 +95,17 @@ def add_label(labels, label):
 class Context:
     """Everything the per-task handlers need, resolved once."""
 
-    def __init__(self, tracker, bb, config, workspace, repo):
+    def __init__(self, tracker, vcs, config):
         self.tracker = tracker
-        self.bb = bb
+        self.vcs = vcs
         self.config = config
-        self.workspace = workspace
-        self.repo = repo
         self.branch_prefix = (config.get("vcs") or {}).get("branch_prefix", "")
         self.awaiting = status_name(config, "awaiting_merge")
 
 
 def reconcile_task(ctx, key):
     branch = f"{ctx.branch_prefix}{key}"
-    prs = ctx.bb.pull_requests_for_branch(ctx.workspace, ctx.repo, branch)
+    prs = ctx.vcs.pull_requests_for_branch(branch)
     if not prs:
         print(f"waiting {key}: no pull request on {branch}")
         return
@@ -256,9 +128,9 @@ def reconcile_task(ctx, key):
 
 
 def reconcile_declined(ctx, key, data, pr):
-    text = rejection_text(ctx.bb, ctx.workspace, ctx.repo, pr)
+    text = rejection_text(ctx.vcs, pr)
     if not text.strip():
-        print(f"NEEDS-INPUT {key}: declined PR {pr_url(pr)} has no rejection text — ask the user, then re-run")
+        print(f"NEEDS-INPUT {key}: declined PR {pr["url"]} has no rejection text — ask the user, then re-run")
         return
 
     unreachable = reachable(ctx, "to_do")
@@ -268,14 +140,14 @@ def reconcile_declined(ctx, key, data, pr):
 
     ctx.tracker.set_labels(key, add_label(list(data["labels"]), "agent:dev"))
     ctx.tracker.set_status(key, "to_do")
-    ctx.tracker.add_comment(key, f"🤖 user (decline) via PR {pr_url(pr)}:\n\n{text}")
+    ctx.tracker.add_comment(key, f"🤖 user (decline) via PR {pr["url"]}:\n\n{text}")
     print(f"DECLINED {key} → dev (to_do)")
 
 
 def reconcile_merged(ctx, key, data, pr):
-    url = pr_url(pr)
-    destination = (pr.get("destination") or {}).get("branch", {}).get("name", "?")
-    merged_tip = merge_source_tip(ctx.bb, ctx.workspace, ctx.repo, pr)
+    url = pr["url"]
+    destination = pr["destination"] or "?"
+    merged_tip = ctx.vcs.merge_source_tip(pr)
     approved = approved_tip(ctx.tracker, key)
 
     note = ""
@@ -304,18 +176,6 @@ def reconcile_merged(ctx, key, data, pr):
     print(f"MERGED {key} → done")
 
     close_out_parent(ctx, key, data)
-
-
-def merge_source_tip(bb, workspace, repo, pr):
-    """parents[1] of the merge commit is what landed from the source branch.
-    A squash or fast-forward merge has one parent and no reliable source tip → None."""
-    merge_sha = (pr.get("merge_commit") or {}).get("hash")
-    if not merge_sha:
-        return None
-    parents = bb.get_commit(workspace, repo, merge_sha).get("parents") or []
-    if len(parents) < 2:
-        return None
-    return parents[1].get("hash")
 
 
 def approved_tip(tracker, key):
@@ -359,7 +219,7 @@ def close_out_parent(ctx, child_key, child):
 def cmd_list(argv):
     """dma board list [--status S] [--label L] [--parent KEY] [--type task|group]
 
-    The tracker-agnostic filters of skills/issue-search, as one call."""
+    Tracker-agnostic filters, translated to whatever the provider speaks."""
     filters, i = {}, 0
     while i < len(argv):
         flag = argv[i]
@@ -374,7 +234,7 @@ def cmd_list(argv):
     try:
         tracker = tracker_module.open_tracker(config)
     except tracker_module.Unsupported as e:
-        issue.die(f"{e} — use the /dma:issue-search skill", 2)
+        issue.die(str(e), 2)
     except tracker_module.TrackerError as e:
         issue.die(str(e))
 
@@ -406,9 +266,16 @@ def cmd_reconcile(argv):
     except tracker_module.TrackerError as e:
         issue.die(str(e))
 
+    import vcs as vcs_module
+
     remote = ((config.get("workspace") or {}) or {}).get("remote", "origin")
-    workspace, repo = derive_coords(git_remote_url(remote))
-    ctx = Context(tracker, Bitbucket(*load_bitbucket_credentials()), config, workspace, repo)
+    try:
+        host = vcs_module.open_vcs(issue.PROJECT_DIR, issue.MCP_PATH, remote)
+    except vcs_module.Unsupported as e:
+        issue.die(f"{e} — use the /dma:pr-feedback skill", 2)
+    except vcs_module.VcsError as e:
+        issue.die(str(e))
+    ctx = Context(tracker, host, config)
 
     try:
         waiting = tracker.search(status=ctx.awaiting)

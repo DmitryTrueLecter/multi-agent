@@ -237,6 +237,7 @@ class FakeBitbucket:
         self.fail_paths = {}                # path fragment -> status code, for transport failures
         self.page_size = page_size          # small value exercises pagination
         self.pr_template = fixture("bitbucket_pullrequests.json")["values"][0]
+        self.created = []
         self.commit_template = fixture("bitbucket_commit.json")
         self.comment_template = (fixture("bitbucket_pr_comments.json")["values"] or [{
             "content": {"raw": "REDACTED TEXT"}, "inline": None}])[0]
@@ -249,6 +250,19 @@ class FakeBitbucket:
                 self.end_headers()
                 if payload is not None:
                     self.wfile.write(json.dumps(payload).encode())
+
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length") or 0)
+                body = json.loads(self.rfile.read(length)) if length else {}
+                fake.requests.append(self.path)
+                if self.path.endswith("/pullrequests"):
+                    pr = fake.add_pr(900 + len(fake.created),
+                                     body["source"]["branch"]["name"], "OPEN",
+                                     dest=body["destination"]["branch"]["name"],
+                                     description=body.get("description", ""))
+                    fake.created.append(body)
+                    return self._reply(201, pr)
+                self._reply(404, {})
 
             def do_GET(self):
                 fake.requests.append(self.path)

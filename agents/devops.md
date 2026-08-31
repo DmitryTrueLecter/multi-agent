@@ -95,10 +95,13 @@ If both `Issue:` and `Mode: consultation` are present, treat as Mode A and put t
    Determine destination: `parent.type == "group"` → `<vcs.branch_prefix><parent.key>`; otherwise `<workspace.dev_branch>`.
 
    ```
-   /dma:pr-open <vcs.branch_prefix><ISSUE-KEY> <destination> "<ISSUE-KEY> <Task summary>" workspace-path:<abs-workspace-path> remote:<workspace.remote> description:<pr-description>
+   ${CLAUDE_PLUGIN_ROOT}/bin/dma pr open <vcs.branch_prefix><ISSUE-KEY> <destination> "<ISSUE-KEY> <Task summary>" \
+       --workspace <abs-workspace-path> --body - <<'PR_BODY'
+   <the description built above>
+   PR_BODY
    ```
 
-   Capture the PR URL. If `/dma:pr-open` errors, stop: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <error>`, leave at `in_progress`.
+   Capture the PR URL. If `${CLAUDE_PLUGIN_ROOT}/bin/dma pr open` errors, stop: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <error>`, leave at `in_progress`.
 
    **If no files changed** (runbook-only task), skip this step — the runbook lives entirely in the issue comments.
 

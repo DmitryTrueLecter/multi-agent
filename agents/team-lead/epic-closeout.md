@@ -60,10 +60,13 @@ For each such group issue:
 
      For each workspace, call:
      ```
-     /dma:pr-open <vcs.branch_prefix><EPIC-KEY> <workspace.dev_branch> "<EPIC-KEY> <Epic summary>" workspace-path:<workspace.path> remote:<workspace.remote> description:<delivered-summary>
+     ${CLAUDE_PLUGIN_ROOT}/bin/dma pr open <vcs.branch_prefix><EPIC-KEY> <workspace.dev_branch> "<EPIC-KEY> <Epic summary>" \
+         --workspace <abs-workspace-path> --body - <<'PR_BODY'
+     <the description built above>
+     PR_BODY
      ```
 
-     Capture the PR URL from the skill's response. If `/dma:pr-open` returns an error for any workspace, do **not** proceed: run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <EPIC-KEY> <error-details>`, leave the Epic in `In Progress` with `agent:team-lead`, and stop.
+     Capture the PR URL from the skill's response. If `${CLAUDE_PLUGIN_ROOT}/bin/dma pr open` returns an error for any workspace, do **not** proceed: run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <EPIC-KEY> <error-details>`, leave the Epic in `In Progress` with `agent:team-lead`, and stop.
    - Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <EPIC-KEY> done <closing-comment>` where the closing comment starts with `🤖 team-lead:`, summarizes what was delivered, and includes the PR URL(s). The skill removes `agent:team-lead`, transitions the Epic to `Done`, and posts the comment.
    - The PR(s) merge to `<workspace.dev_branch>` outside the agent flow (user / CI). `Done` here means "the agent loop is closed", not "shipped to dev".
 8. On hold (follow-ups required):
