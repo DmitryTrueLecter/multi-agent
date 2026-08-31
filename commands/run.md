@@ -47,7 +47,7 @@ Reviewer-approved tasks sit in `statuses.awaiting_merge` until the user merges o
 
 **When to run.** As the very first step of every `/dma:run` invocation — auto-mode, pipeline mode, all mode, single-issue mode, role-only shortcut. On `/dma:run all`, re-runs before each iteration's task pickup.
 
-Run `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` — one Bash call. It finds the tasks sitting in `<statuses.awaiting_merge>`, matches each to the newest pull request on its branch, and applies the decision (declined → `agent:dev` + `to_do`; merged → `done`, with the stale-tip guard and group close-out). It reads `config.yml` and the credentials itself. Exit `2` means the tracker is not Jira — then run the `/dma:pr-feedback` skill, which carries the Linear path; any other non-zero exit: stop and report the stderr. Single-PR failures are logged and skipped, and the next pre-flight retries them.
+Run `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` — one Bash call. It finds the tasks sitting in `<statuses.awaiting_merge>`, matches each to the newest pull request on its branch, and applies the decision (declined → `agent:dev` + `to_do`; merged → `done`, with the stale-tip guard and group close-out). It reads `config.yml` and the credentials itself. Exit `2` means the project's tracker or VCS host has no backend (the message names it) — stop and tell the user; there is no other path, and skipping the pre-flight would leave merged work unreconciled. any other non-zero exit: stop and report the stderr. Single-PR failures are logged and skipped, and the next pre-flight retries them.
 
 ## Stuck task pre-flight (runs after PR feedback reconciliation, before queue search)
 

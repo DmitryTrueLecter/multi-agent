@@ -49,7 +49,7 @@ Every comment starts `🤖 <role> (<area>):` (sentinel and team-lead carry no ar
 | dev work → handoff | description, `area.yml` `test_command` | commit, progress comment; → qa (or escalate → team-lead) |
 | qa | description (`## Requirements`, `## Test contract`), test files | QA report; → reviewer / dev / team-lead |
 | reviewer | issue for context, diff, `git log` | review summary, PR; → awaiting_merge / dev / team-lead |
-| pr-feedback | reviewer `Approved tip:` + PR state | status transition |
+| `dma board reconcile` | reviewer `Approved tip:` + PR state | status transition |
 | epic close-out (team-lead) | Epic description + comments (greps `deferred` / `follow-up` / `out of scope`), re-runs `area.yml` build/test | closing comment, PR |
 
 ## Triage rule

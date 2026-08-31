@@ -61,7 +61,7 @@ Reject any proposal that:
 - Adds an `agent:<role>` label to a status that has no agent owner. `awaiting_merge` (human is merging the PR), `awaiting_ops` (human is executing a devops runbook), and `done` (terminal) carry no `agent:<role>` — `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff` removes the previous `agent:<from>` and adds nothing.
 - Hardcodes a tracker-specific status display name in a shared-plugin file. Status references use the semantic key; the display name comes from `config.yml.tasks.workflow.statuses` at runtime.
 
-Process labels remain legal alongside status: `area:<area>` (permanent area ownership), `needs-decision` (team-lead `on_hold` filter), `stale-merge` (pr-feedback marker). The invariant is only about the `agent:` prefix.
+Process labels remain legal alongside status: `area:<area>` (permanent area ownership), `needs-decision` (team-lead `on_hold` filter), `stale-merge` (set by `dma board reconcile`). The invariant is only about the `agent:` prefix.
 
 ## Knowledge base
 

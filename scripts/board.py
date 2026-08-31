@@ -27,8 +27,8 @@ mcpServers.atlassian.env (JIRA_* and BITBUCKET_URL, BITBUCKET_USERNAME,
 BITBUCKET_APP_PASSWORD), falling back to the environment.
 
 Trackers: jira and linear (scripts/tracker.py). Hosts: Bitbucket and GitHub
-(scripts/vcs.py). A combination with no backend exits 2 and the agent falls back
-to the /dma:pr-feedback skill.
+(scripts/vcs.py). A tracker or a host with no backend exits 2 and says so — there
+is no other path, so the run stops rather than pretending the board is clean.
 
 Failure policy from the skill: one task that fails is logged and skipped, the run
 continues, the next pre-flight retries. A declined PR with no rejection text is
@@ -210,7 +210,7 @@ def close_out_parent(ctx, child_key, child):
         print(f"WARNING close-out of {parent_key}: label added but transition refused ({e}) — "
               f"partial promote, needs a human", file=sys.stderr)
         return
-    ctx.tracker.add_comment(parent_key, "🤖 pr-feedback: all children merged — group ready for close-out.")
+    ctx.tracker.add_comment(parent_key, "🤖 board reconcile: all children merged — group ready for close-out.")
     print(f"CLOSEOUT {parent_key} → team-lead (code_review)")
 
 
@@ -262,7 +262,7 @@ def cmd_reconcile(argv):
     try:
         tracker = tracker_module.open_tracker(config)
     except tracker_module.Unsupported as e:
-        issue.die(f"{e} — use the /dma:pr-feedback skill", 2)
+        issue.die(str(e), 2)
     except tracker_module.TrackerError as e:
         issue.die(str(e))
 
@@ -272,7 +272,7 @@ def cmd_reconcile(argv):
     try:
         host = vcs_module.open_vcs(issue.PROJECT_DIR, issue.MCP_PATH, remote)
     except vcs_module.Unsupported as e:
-        issue.die(f"{e} — use the /dma:pr-feedback skill", 2)
+        issue.die(str(e), 2)
     except vcs_module.VcsError as e:
         issue.die(str(e))
     ctx = Context(tracker, host, config)
