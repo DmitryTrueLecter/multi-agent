@@ -84,8 +84,10 @@ class FakeJira:
                 fake.requests.append(("GET", self.path, None))
                 path = urlparse(self.path).path
                 if path.startswith("/rest/api/2/search/jql"):
-                    jql = parse_qs(urlparse(self.path).query).get("jql", [""])[0]
-                    return self._reply(200, fake.search_payload(jql))
+                    query = parse_qs(urlparse(self.path).query)
+                    jql = query.get("jql", [""])[0]
+                    limit = int(query.get("maxResults", ["50"])[0])
+                    return self._reply(200, fake.search_payload(jql, limit))
                 if path.endswith("/comment"):
                     key = path.split("/issue/")[1].split("/comment")[0]
                     return self._reply(200, fake.comments_payload(key))
@@ -200,10 +202,12 @@ class FakeJira:
         objects = self._comment_objects(self.issues[key])
         return {"comments": list(reversed(objects)), "maxResults": 50, "startAt": 0, "total": len(objects)}
 
-    def search_payload(self, jql):
+    def search_payload(self, jql, limit=50):
+        """Truncates like the real endpoint: a filter left out of the query is a
+        filter applied to a page the server already cut short."""
         clauses = JQL_CLAUSE.findall(jql.split(" ORDER BY ")[0])
         payload = copy.deepcopy(self.search_template)
-        payload["issues"] = [
+        matched = [
             {"key": key, "fields": {"status": {"name": record["status"]},
                                     "labels": list(record["labels"]),
                                     "summary": f"summary of {key}",
@@ -211,7 +215,8 @@ class FakeJira:
             for key, record in self.issues.items()
             if jql_matches(clauses, key, record)
         ]
-        payload["isLast"] = True
+        payload["issues"] = matched[:limit]
+        payload["isLast"] = len(matched) <= limit
         return payload
 
     def shutdown(self):

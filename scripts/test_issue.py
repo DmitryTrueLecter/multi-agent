@@ -207,12 +207,24 @@ def test_handoff_with_a_missing_transition_id_writes_nothing(dma, jira, project)
 
 # ------------------------------------------------------------------ environment
 
-def test_provider_linear_exits_2_without_http(dma, jira, project):
+def test_a_linear_project_without_a_key_says_where_to_put_one(dma, jira, project):
+    """Linear is supported now; what it needs is a key, and the message names the
+    three places the CLI looks for it."""
     config = project / ".claude" / "dma" / "config.yml"
-    config.write_text(config.read_text().replace("provider: jira", "provider: linear"))
+    config.write_text(config.read_text().replace("provider: jira", "provider: linear")
+                      + "\n  team_key: T\n")
+    result = dma("read", "T-1")
+    assert result.returncode == 1
+    assert "LINEAR_API_KEY" in result.stderr
+    assert jira.requests == []
+
+
+def test_an_unknown_provider_exits_2_so_the_agent_falls_back(dma, jira, project):
+    config = project / ".claude" / "dma" / "config.yml"
+    config.write_text(config.read_text().replace("provider: jira", "provider: youtrack"))
     result = dma("read", "T-1")
     assert result.returncode == 2
-    assert jira.requests == []
+    assert "youtrack" in result.stderr and jira.requests == []
 
 
 def test_missing_credentials_names_the_variables(dma, project):
@@ -338,3 +350,16 @@ def test_reviewer_queue_never_picks_a_group(dma, jira):
     result = dma("claim", "--role", "reviewer")
     assert result.returncode == 4
     assert jira.status_of("T-8") == "Code Review"
+
+
+def test_claim_by_area_looks_past_the_first_page_of_the_queue(dma, jira):
+    """The area filter belongs in the query: a busy queue returns one page, and
+    the area's task can sit past its end."""
+    jira.issues.clear()
+    for n in range(60):
+        jira.add_issue(f"T-{100 + n}", "To Do", labels=["area:frontend", "agent:dev"])
+    jira.add_issue("T-999", "To Do", labels=["area:backend", "agent:dev"])
+
+    result = dma("claim", "--role", "backend/dev")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert jira.status_of("T-999") == "In Progress"

@@ -251,8 +251,8 @@ def test_task_transitioned_between_the_query_and_the_visit_is_skipped(dma, jira,
     # emulate the lag: the search still lists T-1, the issue itself is already Done
     original = jira.search_payload
 
-    def stale_search(jql):
-        payload = original(jql)
+    def stale_search(jql, limit=50):
+        payload = original(jql, limit)
         if AWAITING in jql:
             payload["issues"] = [{"key": "T-1", "fields": {"status": {"name": AWAITING}}}]
             jira.issues["T-1"]["status"] = "Done"
@@ -300,13 +300,13 @@ def test_close_out_survives_the_index_still_listing_the_merged_child(dma, jira, 
     merged_pr(bb, 1, "T-1")
     original = jira.search_payload
 
-    def lagging_search(jql):
+    def lagging_search(jql, limit=50):
         if "parent = E-1" in jql:
             jira.issues["T-1"]["status"] = AWAITING      # index has not caught up
-            payload = original(jql)
+            payload = original(jql, limit)
             jira.issues["T-1"]["status"] = "Done"
             return payload
-        return original(jql)
+        return original(jql, limit)
 
     jira.search_payload = lagging_search
 
@@ -367,9 +367,19 @@ def test_missing_done_transition_id_skips_without_writing(dma, jira, bb, project
     assert jira.status_of("T-1") == AWAITING and jira.wrote_to("T-1") == []
 
 
-def test_provider_linear_exits_2_without_touching_anything(dma, jira, bb, project):
+def test_a_linear_project_without_a_key_says_where_to_put_one(dma, jira, bb, project):
+    """Linear is supported now; reconcile needs a key and a team key to reach it."""
     config = project / ".claude" / "dma" / "config.yml"
-    config.write_text(config.read_text().replace("provider: jira", "provider: linear"))
+    config.write_text(config.read_text().replace("provider: jira", "provider: linear") + "\n  team_key: T\n")
+    result = dma()
+    assert result.returncode == 1
+    assert "LINEAR_API_KEY" in result.stderr
+    assert jira.requests == [] and bb.requests == []
+
+
+def test_an_unknown_provider_exits_2_so_the_agent_falls_back(dma, jira, bb, project):
+    config = project / ".claude" / "dma" / "config.yml"
+    config.write_text(config.read_text().replace("provider: jira", "provider: youtrack"))
     result = dma()
     assert result.returncode == 2
     assert jira.requests == [] and bb.requests == []
@@ -447,9 +457,18 @@ def test_list_rejects_an_unknown_filter(project, board):
     assert "usage:" in result.stderr
 
 
-def test_list_on_a_linear_project_exits_2(project, board):
+def test_list_on_a_linear_project_needs_a_key(project, board):
     config = project / ".claude" / "dma" / "config.yml"
-    config.write_text(config.read_text().replace("provider: jira", "provider: linear"))
+    config.write_text(config.read_text().replace("provider: jira", "provider: linear") + "\n  team_key: T\n")
+    result = dma_list(project, "--status", "To Do")
+    assert result.returncode == 1
+    assert "LINEAR_API_KEY" in result.stderr
+    assert board.requests == []
+
+
+def test_list_on_an_unknown_provider_exits_2(project, board):
+    config = project / ".claude" / "dma" / "config.yml"
+    config.write_text(config.read_text().replace("provider: jira", "provider: youtrack"))
     result = dma_list(project, "--status", "To Do")
     assert result.returncode == 2
     assert board.requests == []
@@ -484,3 +503,20 @@ def test_a_non_bitbucket_remote_is_declined_not_guessed():
     with pytest.raises(SystemExit) as raised:
         board.derive_coords("git@github.com:officejet/some-repo.git")
     assert raised.value.code == 2
+
+
+def test_close_out_is_not_fooled_by_a_truncated_page_of_children(dma, jira, bb):
+    """A big group returns more children than one page. Asking the tracker for
+    "children that are not done" keeps the answer honest; fetching them all and
+    filtering here would promote the group off the first 50 rows."""
+    jira.add_issue("E-1", "In Progress")
+    for n in range(60):
+        jira.add_issue(f"T-{100 + n}", "Done", parent=("E-1", "Epic"))
+    jira.add_issue("T-999", "In Progress", parent=("E-1", "Epic"))     # still open, last
+    jira.add_issue("T-1", AWAITING, parent=("E-1", "Epic"), comments=[f"Approved tip: {APPROVED}"])
+    merged_pr(bb, 1, "T-1")
+
+    result = dma()
+    assert result.returncode == 0, result.stderr
+    assert jira.status_of("T-1") == "Done"
+    assert jira.status_of("E-1") == "In Progress", "one sibling is still open — the group stays open"

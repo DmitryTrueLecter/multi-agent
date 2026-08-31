@@ -10,8 +10,8 @@ Project root = $CLAUDE_PROJECT_DIR, else the current directory. Reads
 and Jira credentials from <project>/.mcp.json → mcpServers.atlassian.env
 (JIRA_URL, JIRA_USERNAME, JIRA_API_TOKEN), falling back to the environment.
 
-Only provider "jira" is implemented. For "linear" the command exits 2 and the
-agent falls back to the /dma:* skills.
+Providers: `jira` and `linear` (see scripts/tracker.py). A provider with no
+backend exits 2 and the agent falls back to the /dma:* skills.
 
 Exit codes: 0 ok · 1 error · 2 provider not supported · 3 claim rejected (already claimed)
             4 nothing to claim (queue addressing only)
@@ -148,43 +148,28 @@ class JiraError(Exception):
 
 # ----------------------------------------------------------------- output (same shape as skills/task-read)
 
-def open_blockers(data, done_status):
-    """Keys of the issues this one is blocked by that are not done yet."""
-    blocked = []
-    for link in data["fields"].get("issuelinks") or []:
-        inward = link.get("inwardIssue")
-        if inward and (link.get("type") or {}).get("inward") == BLOCKED_BY:
-            if inward["fields"]["status"]["name"] != done_status:
-                blocked.append(f"{inward['key']} ({inward['fields']['status']['name']})")
-    return blocked
-
-
 def print_issue(issue):
-    fields = issue["fields"]
-    parent = fields.get("parent")
     print(f"key: {issue['key']}")
-    print(f"title: {fields.get('summary', '')}")
-    print(f"status: {fields['status']['name']}")
-    print(f"labels: {', '.join(fields.get('labels') or [])}")
-    if parent:
-        parent_type = "group" if parent["fields"]["issuetype"]["name"] == "Epic" else "task"
-        print(f"parent: {parent['key']} ({parent_type}) — {parent['fields'].get('summary', '')}")
-    else:
-        print("parent: null")
-    blockers = [f"{l['inwardIssue']['key']} ({l['inwardIssue']['fields']['status']['name']})"
-                for l in fields.get("issuelinks") or []
-                if l.get("inwardIssue") and (l.get("type") or {}).get("inward") == BLOCKED_BY]
+    print(f"title: {issue['title']}")
+    print(f"status: {issue['status']}")
+    print(f"labels: {', '.join(issue['labels'])}")
+    parent = issue["parent"]
+    print(f"parent: {parent['key']} ({parent['type']})" if parent else "parent: null")
+    blockers = [f"{b['key']} ({b['status']})" for b in issue["blockers"]]
     print(f"blocked by: {', '.join(blockers) if blockers else '-'}")
     print()
     print("## description")
-    print(fields.get("description") or "(empty)")
+    print(issue["description"] or "(empty)")
     print()
-    comments = (fields.get("comment") or {}).get("comments") or []
-    print(f"## comments ({len(comments)}, newest first)")
-    for c in reversed(comments):
-        author = (c.get("author") or {}).get("displayName", "?")
-        print(f"--- {author} · {c.get('created', '')}")
-        print(c.get("body") or "")
+    print(f"## comments ({len(issue['comments'])}, newest first)")
+    for comment in issue["comments"]:
+        print(f"--- {comment['author']} · {comment['created']}")
+        print(comment["body"])
+
+
+def open_blockers(issue, done_status):
+    """The issues this one is blocked by that are not done yet."""
+    return [f"{b['key']} ({b['status']})" for b in issue["blockers"] if b["status"] != done_status]
 
 
 def transition_id(config, status_key):
@@ -202,34 +187,31 @@ def read_body(arg):
 
 # ----------------------------------------------------------------- commands
 
-def cmd_read(jira, config, key):
-    print_issue(jira.get_issue(key))
+def cmd_read(tracker, config, key):
+    print_issue(tracker.read(key))
 
 
-def cmd_claim(jira, config, key):
-    """Claim a named issue. The transition to in_progress is the atomic claim: the
-    tracker refuses the second runner, and that refusal is not retried."""
-    try:
-        jira.transition(key, transition_id(config, "in_progress"))
-    except JiraError as e:
-        print(f"CLAIM_FAILED {key}: {e}")
+def cmd_claim(tracker, config, key):
+    claimed, reason = tracker.claim(key)
+    if not claimed:
+        print(f"CLAIM_FAILED {key}: {reason}")
         sys.exit(3)
-    data = jira.get_issue(key)
+    issue = tracker.read(key)
     print(f"CLAIMED {key}")
-    print_role_and_area(data)
+    print_role_and_area(issue)
     print()
-    print_issue(data)
+    print_issue(issue)
 
 
-def print_role_and_area(data):
-    labels = data["fields"].get("labels") or []
+def print_role_and_area(issue):
+    labels = issue["labels"]
     role = next((l[len("agent:"):] for l in labels if l.startswith("agent:")), "-")
     area = next((l[len("area:"):] for l in labels if l.startswith("area:")), "-")
     print(f"role: {role}")
     print(f"area: {area}")
 
 
-def cmd_claim_from_queue(jira, config, role_filter):
+def cmd_claim_from_queue(tracker, config, role_filter):
     """Claim the next available issue instead of a named one: walk the queues in
     priority order, skip what is blocked, and move on when another runner wins the
     race. `role_filter` is None (any queue), a role, or `<area>/<role>`."""
@@ -239,36 +221,31 @@ def cmd_claim_from_queue(jira, config, role_filter):
     if role_filter and role_filter not in {role for role, _, _ in QUEUES}:
         die(f"unknown role '{role_filter}'; one of: {', '.join(sorted({r for r, _, _ in QUEUES}))}")
 
-    project = config["tasks"]["project_key"]
-    statuses = config["tasks"]["workflow"]["statuses"]
-    done = statuses["done"]
+    done = config["tasks"]["workflow"]["statuses"]["done"]
     contended, blocked = [], []
 
     for role, status_key, kind in QUEUES:
         if role_filter and role != role_filter:
             continue
-        clauses = [f"project = {project}", f'status = "{statuses[status_key]}"', f'labels = "agent:{role}"',
-                   f"issuetype {'=' if kind == 'group' else '!='} Epic"]
-        if area:
-            clauses.append(f'labels = "area:{area}"')
-        for row in jira.search(" AND ".join(clauses) + " ORDER BY created ASC", fields="summary"):
+        wanted = [f"agent:{role}"] + ([f"area:{area}"] if area else [])
+        for row in tracker.search(status=tracker.status_name(status_key), labels=wanted,
+                                  kind=kind, oldest_first=True):
             key = row["key"]
-            data = jira.get_issue(key)
+            issue = tracker.read(key)
             if status_key == "to_do":
-                open_ = open_blockers(data, done)
+                open_ = open_blockers(issue, done)
                 if open_:
                     blocked.append(f"{key} blocked by {', '.join(open_)}")
                     continue
-            try:
-                jira.transition(key, transition_id(config, "in_progress"))
-            except JiraError:
+            claimed, _ = tracker.claim(key)
+            if not claimed:
                 contended.append(key)          # another runner claimed it first
                 continue
             print(f"CLAIMED {key}")
-            print(f"queue: {role} / {statuses[status_key]}")
-            print_role_and_area(jira.get_issue(key))
+            print(f"queue: {role} / {tracker.status_name(status_key)}")
+            print_role_and_area(issue)
             print()
-            print_issue(data)
+            print_issue(issue)
             return
 
     for line in blocked:
@@ -280,14 +257,14 @@ def cmd_claim_from_queue(jira, config, role_filter):
     sys.exit(4)
 
 
-def cmd_comment(jira, config, key, body):
-    jira.add_comment(key, read_body(body))
+def cmd_comment(tracker, config, key, body):
+    tracker.add_comment(key, read_body(body))
     print(f"COMMENTED {key}")
 
 
-def cmd_handoff(jira, config, key, to_role, body):
-    issue = jira.get_issue(key)
-    labels = list(issue["fields"].get("labels") or [])
+def cmd_handoff(tracker, config, key, to_role, body):
+    issue = tracker.read(key)
+    labels = issue["labels"]
 
     from_labels = [l for l in labels if l.startswith("agent:")]
     from_role = from_labels[0][len("agent:"):] if from_labels else None
@@ -302,10 +279,8 @@ def cmd_handoff(jira, config, key, to_role, body):
         die(f"unknown handoff target '{to_role}'; one of: {', '.join(HANDOFF_TARGETS)}")
 
     status_key, new_agent_label = HANDOFF_TARGETS[to_role]
-    status_name = config["tasks"]["workflow"]["statuses"][status_key]
-    tid = transition_id(config, status_key)   # resolve before any write, so a bad config mutates nothing
+    tracker.validate_status(status_key)        # before any write
 
-    # Labels: drop agent:<from> and needs-decision, add agent:<to>; team-lead also gets needs-decision.
     new_labels = [l for l in labels if not l.startswith("agent:") and l != "needs-decision"]
     if new_agent_label:
         new_labels.append(new_agent_label)
@@ -315,12 +290,12 @@ def cmd_handoff(jira, config, key, to_role, body):
     comment = f"🤖 {from_role or 'agent'} ({area}): handoff → {to_role}\n\n"
     comment += read_body(body) if body else "Manual handoff via /dma:handoff."
 
-    jira.set_labels(key, new_labels)
-    jira.transition(key, tid)
-    jira.add_comment(key, comment)
+    tracker.set_labels(key, new_labels)
+    tracker.set_status(key, status_key)
+    tracker.add_comment(key, comment)
 
     print(f"HANDOFF {key}: {from_role} → {to_role}")
-    print(f"status: {issue['fields']['status']['name']} → {status_name}")
+    print(f"status: {issue['status']} → {tracker.status_name(status_key)}")
     print(f"labels: {', '.join(new_labels)}")
 
     if to_role == "done":
@@ -344,24 +319,28 @@ def main(argv):
     if not os.path.exists(CONFIG_PATH):
         die(f"config not found: {CONFIG_PATH} (set CLAUDE_PROJECT_DIR or run from the project root)")
 
-    config = load_config()
-    provider = (config.get("tasks") or {}).get("provider")
-    if provider != "jira":
-        die(f"provider '{provider}' is not supported by `dma issue` — use the /dma:* skills", 2)
+    import tracker as tracker_module
 
-    jira = Jira(*load_credentials())
+    config = load_config()
+    try:
+        tracker = tracker_module.open_tracker(config)
+    except tracker_module.Unsupported as e:
+        die(f"{e} — use the /dma:* skills", 2)
+    except tracker_module.TrackerError as e:
+        die(str(e))
+
     try:
         if command == "read":
-            cmd_read(jira, config, key)
+            cmd_read(tracker, config, key)
         elif command == "claim":
             if key in ("--any", "--role"):
-                cmd_claim_from_queue(jira, config, rest[0] if key == "--role" and rest else None)
+                cmd_claim_from_queue(tracker, config, rest[0] if key == "--role" and rest else None)
             else:
-                cmd_claim(jira, config, key)
+                cmd_claim(tracker, config, key)
         elif command == "comment":
             if len(rest) != 1:
                 die("usage: dma issue comment <KEY> <body | ->")
-            cmd_comment(jira, config, key, rest[0])
+            cmd_comment(tracker, config, key, rest[0])
         elif command == "handoff":
             # handoff <KEY>                → default target, default body
             # handoff <KEY> <to-role>      → explicit target
@@ -377,9 +356,13 @@ def main(argv):
                 to_role, body = rest
             elif len(rest) > 2:
                 die("usage: dma issue handoff <KEY> [to-role] [body | -]")
-            cmd_handoff(jira, config, key, to_role, body)
+            cmd_handoff(tracker, config, key, to_role, body)
         else:
             die(__doc__.strip())
-    except JiraError as e:
+    except (JiraError, tracker_module.TrackerError) as e:
         die(str(e))
+    except Exception as e:                       # a backend's own transport error
+        if type(e).__name__ == "LinearError":
+            die(str(e))
+        raise
     return 0
