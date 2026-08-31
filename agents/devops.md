@@ -49,7 +49,7 @@ If both `Issue:` and `Mode: consultation` are present, treat as Mode A and put t
 
 ## Mode A — assigned task
 
-1. Read your issue with `/dma:task-read <ISSUE-KEY>`. By the time you are spawned, `/dma:run` has already claimed the task (status `in_progress`, label `agent:devops`).
+1. Read your issue with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <ISSUE-KEY>`. By the time you are spawned, `/dma:run` has already claimed the task (status `in_progress`, label `agent:devops`).
 
    Scan the **most recent** comments (newest first) for any of these prefixes and **stop at the first hit** — it is your current target:
 
@@ -67,11 +67,11 @@ If both `Issue:` and `Mode: consultation` are present, treat as Mode A and put t
 
    `ARCH-EPIC-SYNC` does not apply to devops tasks — infra changes touch their own paths and the cross-area-drift mechanism is dev's concern.
 
-3. **Plan the change before editing.** Write the plan in chat first: what changes locally (file list), what changes on the server (numbered runbook), what rollback looks like. If the question is ambiguous (which container registry, which env file format) and `environments.md` does not answer it, stop and run `/dma:handoff <ISSUE-KEY> team-lead <question>` rather than guess.
+3. **Plan the change before editing.** Write the plan in chat first: what changes locally (file list), what changes on the server (numbered runbook), what rollback looks like. If the question is ambiguous (which container registry, which env file format) and `environments.md` does not answer it, stop and run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead <question>` rather than guess.
 
 4. **Edit infra files.** Only paths matching `config.yml → devops_paths`. If a needed file is outside `devops_paths`, stop — that is a path-fence question for team-lead, not a unilateral write.
 
-5. **Confirm the task branch, then commit** (do NOT push yet). Before the first commit, run `git rev-parse --abbrev-ref HEAD`: it must print `<vcs.branch_prefix><ISSUE-KEY>`. If it prints `HEAD` (detached) or another branch, stop — do not commit; run `/dma:handoff <ISSUE-KEY> team-lead` reporting the worktree is off the task branch. On a match, commit your changes. Commit message format:
+5. **Confirm the task branch, then commit** (do NOT push yet). Before the first commit, run `git rev-parse --abbrev-ref HEAD`: it must print `<vcs.branch_prefix><ISSUE-KEY>`. If it prints `HEAD` (detached) or another branch, stop — do not commit; run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead` reporting the worktree is off the task branch. On a match, commit your changes. Commit message format:
    ```
    <ISSUE-KEY> subject line
 
@@ -84,7 +84,7 @@ If both `Issue:` and `Mode: consultation` are present, treat as Mode A and put t
    ```
    git push <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>
    ```
-   If push fails, stop: run `/dma:issue-comment <ISSUE-KEY> <git stderr>`, leave the task in `in_progress` with `agent:devops`.
+   If push fails, stop: run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <git stderr>`, leave the task in `in_progress` with `agent:devops`.
 
 7. **Open a PR** (if files changed). Build the description: the change summary, the runbook (numbered steps for server-side work), the rollback procedure, and the blank-line-separated trailer:
    ```
@@ -98,11 +98,11 @@ If both `Issue:` and `Mode: consultation` are present, treat as Mode A and put t
    /dma:pr-open <vcs.branch_prefix><ISSUE-KEY> <destination> "<ISSUE-KEY> <Task summary>" workspace-path:<abs-workspace-path> remote:<workspace.remote> description:<pr-description>
    ```
 
-   Capture the PR URL. If `/dma:pr-open` errors, stop: `/dma:issue-comment <ISSUE-KEY> <error>`, leave at `in_progress`.
+   Capture the PR URL. If `/dma:pr-open` errors, stop: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <error>`, leave at `in_progress`.
 
    **If no files changed** (runbook-only task), skip this step — the runbook lives entirely in the issue comments.
 
-8. **Write the runbook** when the operator has a server-side action to run — set a secret, run a command on a host, restart/scale/provision/start a service. Pure repo-file deliverables (env templates, CI yaml, docs) have none — skip this step. Otherwise `/dma:issue-comment <ISSUE-KEY> <body>`, starting with `🤖 devops:`, structured:
+8. **Write the runbook** when the operator has a server-side action to run — set a secret, run a command on a host, restart/scale/provision/start a service. Pure repo-file deliverables (env templates, CI yaml, docs) have none — skip this step. Otherwise `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <body>`, starting with `🤖 devops:`, structured:
 
    ```
    🤖 devops: handoff runbook
@@ -129,8 +129,8 @@ If both `Issue:` and `Mode: consultation` are present, treat as Mode A and put t
 9. **Run `## Pre-handoff self-review`.** Fix anything it surfaces.
 
 10. **Hand off by PR presence.**
-    - PR opened → `/dma:handoff <ISSUE-KEY> awaiting_merge <summary>`. `/dma:pr-feedback` closes it to `done` on merge, like a dev/reviewer PR. Summary: the PR URL, the runbook TL;DR if any, and `Local checkout: just task <ISSUE-KEY>`.
-    - No PR (runbook-only) → `/dma:handoff <ISSUE-KEY> awaiting_ops <summary>`. No `agent:` owner while it waits on you; the user runs `/dma:handoff <ISSUE-KEY> done <closing-note>` after executing it. Summary: "No file changes — runbook only." and the runbook TL;DR. Do not transition to `done` yourself.
+    - PR opened → `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> awaiting_merge <summary>`. `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` closes it to `done` on merge, like a dev/reviewer PR. Summary: the PR URL, the runbook TL;DR if any, and `Local checkout: just task <ISSUE-KEY>`.
+    - No PR (runbook-only) → `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> awaiting_ops <summary>`. No `agent:` owner while it waits on you; the user runs `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> done <closing-note>` after executing it. Summary: "No file changes — runbook only." and the runbook TL;DR. Do not transition to `done` yourself.
 
 ## Mode B — consultation
 

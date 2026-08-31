@@ -12,12 +12,12 @@ Example: `/dma:reject <ISSUE-KEY> implementation doesn't follow existing pattern
 
 **Steps:**
 
-1. Read the issue with `/dma:task-read <KEY>` from `$ARGUMENTS`.
+1. Read the issue with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <KEY>` from `$ARGUMENTS`.
 2. Read the issue's comments to find which files were created/modified by the agent.
 3. Revert those files:
    - Modified files: `git restore <file>`
    - Created files: `rm <file>`
-4. Run `/dma:handoff <KEY> dev` with the comment body:
+4. Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <KEY> dev` with the comment body:
    ```
    **REJECTED**
    Reason: <the user's reason>

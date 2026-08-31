@@ -24,11 +24,11 @@ Before doing anything:
 
 Tracker operations are one Bash call to the plugin CLI `${CLAUDE_PLUGIN_ROOT}/bin/dma` — always the full path, it is not on `PATH`. It reads the project's `config.yml` and Jira credentials itself; run it from `${CLAUDE_PROJECT_DIR}` or with `CLAUDE_PROJECT_DIR` set.
 
-| Command | Replaces |
-|---------|----------|
-| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <ISSUE-KEY>` | `/dma:task-read` — description, labels, parent, comments newest-first |
-| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <body \| ->` | `/dma:issue-comment` |
-| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> [to-role] [body \| ->` | `/dma:handoff` — same targets, label and status rules |
+| Command | What it does |
+|---------|--------------|
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <ISSUE-KEY>` | description, labels, parent, blockers, comments newest-first |
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <body \| ->` | a comment, without touching status or labels |
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> [to-role] [body \| ->` | swap the `agent:` label, transition, post the comment |
 
 Multi-line bodies go through stdin: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead - <<'EOF' … EOF`. Exit `2` means the project's tracker is not Jira — then use the `/dma:*` skill named in the table instead. Any other non-zero exit: stop and report the stderr text.
 
@@ -255,7 +255,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
 6. Format your review using the **Output format** above. You will pass it as the body of the `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff` call in step 7 / 8 — do **not** post it via `mcp__atlassian__jira_add_comment` separately — `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff` posts the comment.
 7. If **APPROVE**:
 
-   The reviewer **never merges anything locally**. For every approved task — group-child and standalone alike — the reviewer opens a PR and parks the task in `awaiting_merge`. The dev already pushed the task branch at QA handoff — the reviewer never pushes it. The user merges or declines the PR in the VCS platform; `/dma:pr-feedback` then transitions the task to `done` (on merge) or back to `to_do` + `agent:dev` (on decline). This is uniform.
+   The reviewer **never merges anything locally**. For every approved task — group-child and standalone alike — the reviewer opens a PR and parks the task in `awaiting_merge`. The dev already pushed the task branch at QA handoff — the reviewer never pushes it. The user merges or declines the PR in the VCS platform; `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` then transitions the task to `done` (on merge) or back to `to_do` + `agent:dev` (on decline). This is uniform.
 
    **Step 7a — Verify the task branch is on the remote at the reviewed HEAD.** The dev pushed it at QA handoff; you never push it yourself.
    ```
@@ -299,7 +299,7 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
    cd <abs-workspace-path>
    git rev-parse HEAD
    ```
-   That SHA — the exact tip you pushed in step 7a — is the only SHA that survives downstream verification by `/dma:pr-feedback`. Do not derive it from any later command.
+   That SHA — the exact tip you pushed in step 7a — is the only SHA that survives downstream verification by `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile`. Do not derive it from any later command.
 
    `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> awaiting_merge <comment>` — status → `awaiting_merge` (the display name comes from `config.yml.tasks.workflow.statuses.awaiting_merge`), label: remove `agent:reviewer` (no new `agent:` label — the task has no agent owner while it waits on the human merge), comment posted with `🤖 reviewer (<area>):` prefix.
 
@@ -307,8 +307,8 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
    1. The PR URL.
    2. The full review summary (the formatted Output-format block — verdict, coverage matrix, any LOW findings).
    3. The local-checkout instruction: `Local checkout: just task <ISSUE-KEY>`.
-   4. The approved-tip line, exact format `Approved tip: <sha>` — full 40-char SHA on its own line, no backticks, no extra punctuation. `/dma:pr-feedback` matches this line by regex when reconciling the merge.
+   4. The approved-tip line, exact format `Approved tip: <sha>` — full 40-char SHA on its own line, no backticks, no extra punctuation. `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` matches this line by regex when reconciling the merge.
 
-   Do **not** transition the task to `done`. Do **not** promote the parent Epic here. Both happen automatically via `/dma:pr-feedback` once the user merges or declines the PR in the VCS platform.
+   Do **not** transition the task to `done`. Do **not** promote the parent Epic here. Both happen automatically via `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` once the user merges or declines the PR in the VCS platform.
 
 8. If **BLOCK**: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> dev <findings>` — sends back to dev queue (status → `to_do`, label → `agent:dev`). Pass the formatted findings (severity-tagged list from the Output format) as the comment body; `/dma:run dev` re-claims from there.

@@ -1,10 +1,12 @@
 ---
 name: issue-search
-description: Search issues using tracker-agnostic named parameters. Reads project/team key from ${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml. Invocation: /dma:issue-search [status:<s>] [label:<l>] [type:<task|group>] [parent:<KEY>].
-tools: mcp__atlassian__jira_search, mcp__linear__list_issues, mcp__linear__get_issue
+description: Fallback for a non-Jira tracker. On Jira use `${CLAUDE_PLUGIN_ROOT}/bin/dma board list [--status S] [--label L] [--parent KEY] [--type task|group]` — this skill is for when that command exits 2 (provider unsupported). Searches issues with tracker-agnostic named parameters. Invocation: /dma:issue-search [status:<s>] [label:<l>] [type:<task|group>] [parent:<KEY>].
+tools: mcp__linear__list_issues, mcp__linear__get_issue
 ---
 
 # issue-search
+
+> **Jira projects do not use this skill.** Use `${CLAUDE_PLUGIN_ROOT}/bin/dma board list [--status S] [--label L] [--parent KEY] [--type task|group]`; this file is the path for a tracker that command does not support (it exits `2`).
 
 Search for issues using named filter parameters. The skill translates them to the tracker's native query format.
 
@@ -21,28 +23,7 @@ Search for issues using named filter parameters. The skill translates them to th
 
 ## Steps
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks.provider`.
-2. Follow the section for your provider.
-
----
-
-## jira
-
-1. Read `tasks.project_key` from config.
-2. Translate parameters to JQL:
-   - `status:<s>` → `status = "<s>"`
-   - `label:<l>` → `labels = "<l>"`
-   - `type:group` → `issuetype = Epic`
-   - `type:task` → `issuetype = Task`
-   - `parent:<KEY>` → `parent = "<KEY>"`
-   - Prepend `project = <project_key> AND` unless `parent:` is the only parameter.
-   - Combine conditions with `AND`.
-3. Call `mcp__atlassian__jira_search(jql=<assembled-query>)`.
-4. Return list of issues: `key`, `summary` (as `title`), `status`, `labels`, `parent` (if present).
-
----
-
-## linear
+Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks.provider`. This file covers `linear`; on `jira` use the CLI named above.
 
 1. Read `tasks.team_key` and `tasks.project` from config.
 2. Build `mcp__linear__list_issues` parameters:

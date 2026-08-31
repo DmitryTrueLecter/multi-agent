@@ -1,10 +1,12 @@
 ---
 name: issue-comment
-description: Add a standalone comment to an issue without changing its status or labels. Use for progress updates and error notifications that are not part of a handoff. Invocation: /dma:issue-comment <ISSUE-KEY> <comment-body>.
-tools: mcp__atlassian__jira_add_comment, mcp__linear__save_comment
+description: Fallback for a non-Jira tracker. On Jira use `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <KEY> <body>` — this skill is for when that command exits 2 (provider unsupported). Adds a standalone comment without changing status or labels. Invocation: /dma:issue-comment <ISSUE-KEY> <comment-body>.
+tools: mcp__linear__save_comment
 ---
 
 # issue-comment
+
+> **Jira projects do not use this skill.** Use `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <body>`; this file is the path for a tracker that command does not support (it exits `2`).
 
 Add a comment to an issue without changing its status or labels.
 
@@ -14,17 +16,6 @@ Add a comment to an issue without changing its status or labels.
 
 ## Steps
 
-1. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks.provider`.
-2. Follow the section for your provider.
-
----
-
-## jira
-
-1. Call `mcp__atlassian__jira_add_comment(issue_key=<ISSUE-KEY>, body=<comment-body>)`.
-
----
-
-## linear
+Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` → `tasks.provider`. This file covers `linear`; on `jira` use the CLI named above.
 
 1. Call `mcp__linear__save_comment(issueId=<ISSUE-KEY>, body=<comment-body>)`.

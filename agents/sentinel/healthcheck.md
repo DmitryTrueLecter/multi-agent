@@ -139,7 +139,7 @@ For each subdirectory `<area>` under `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/`.
 Skip entirely if any of HC-FS-005, HC-CFG-003, HC-CFG-005 failed. No auto-fix in this stage except HC-MIG-001 (the one-time flag migration) — other tracker mutations require admin-only API and user-choice naming.
 
 - **HC-MCP-001** — `.mcp.json` exists at project root.
-  - Severity: CRITICAL. Without it every provider-bound skill (`/dma:issue-create`, `/dma:task-read`, `/dma:handoff`, `/dma:issue-search`, etc.) deadlocks — `ToolSearch` returns no matching deferred tool for the tracker MCP.
+  - Severity: CRITICAL. Without it every provider-bound skill (`/dma:issue-create`, `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read`, `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff`, `${CLAUDE_PLUGIN_ROOT}/bin/dma board list`, etc.) deadlocks — `ToolSearch` returns no matching deferred tool for the tracker MCP.
   - Detection: `test -f ${CLAUDE_PROJECT_DIR}/.mcp.json`.
   - Manual fix: copy `.mcp.json` from a sibling project's root, edit `mcpServers.<key>` to match `tasks.provider`, then restart Claude Code. MCP servers register only at session start — without a restart the file is inert.
 
@@ -186,14 +186,14 @@ Skip entirely if any of HC-FS-005, HC-CFG-003, HC-CFG-005 failed. No auto-fix in
 
 Pure visibility; never a FAIL, never auto-fixed.
 
-- **HC-HYG-001** — Count open flags in the Sentinel queue: `/dma:issue-search status:<S> label:sentinel-flag`, where `<S>` is the display name of `sentinel_inbox` from `config.yml.tasks.workflow.statuses`. Report count; if >20, suggest triage.
+- **HC-HYG-001** — Count open flags in the Sentinel queue: `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <S> --label sentinel-flag`, where `<S>` is the display name of `sentinel_inbox` from `config.yml.tasks.workflow.statuses`. Report count; if >20, suggest triage.
 - **HC-HYG-002** — Tasks in `on_hold` for >7 days. Detection: tracker search with status filter and updated-before predicate. List keys and last-updated dates.
 - **HC-HYG-003** — Tasks in `awaiting_merge` for >7 days. Same shape.
 - **HC-HYG-004** — Tasks in `awaiting_ops` for >7 days. Same shape.
 
 ## Stage 6 — Worktrees
 
-Persistent per-task worktrees created by `/dma:run → ## Worktree bootstrap` need one invariant: every worktree on disk belongs to an open task. Flags raised inside a worktree go straight to the tracker's Sentinel queue, so no project-local flag state needs sharing across worktrees. The `dma` plugin itself needs no replication either — Claude Code loads it globally, so subagents reach their prompts in every worktree without any per-worktree symlink.
+Persistent per-task worktrees created by `/dma:run → ## Work area` need one invariant: every worktree on disk belongs to an open task. Flags raised inside a worktree go straight to the tracker's Sentinel queue, so no project-local flag state needs sharing across worktrees. The `dma` plugin itself needs no replication either — Claude Code loads it globally, so subagents reach their prompts in every worktree without any per-worktree symlink.
 
 - **HC-WT-001** — No orphaned worktree directories.
   - Severity: WARN.

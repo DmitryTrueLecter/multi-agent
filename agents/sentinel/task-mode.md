@@ -16,7 +16,7 @@ Files matching `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/**` for the area 
 
 ## Procedure
 
-1. Read the issue with `/dma:task-read <ISSUE-KEY>`. By the time you are spawned, `/dma:run` has already claimed the task (status `in_progress`, label `agent:sentinel`). The description carries the `## Context` / `## Desired effect` / `## References` shape from `agents/team-lead.md → ## Consulting sentinel → Task`.
+1. Read the issue with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <ISSUE-KEY>`. By the time you are spawned, `/dma:run` has already claimed the task (status `in_progress`, label `agent:sentinel`). The description carries the `## Context` / `## Desired effect` / `## References` shape from `agents/team-lead.md → ## Consulting sentinel → Task`.
 
    Read the area's `area.yml` and every role-overlay under `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` to learn the area's stack, conventions, and existing rules. Read `${CLAUDE_PROJECT_DIR}/.claude/dma/arch.yml` for project-level invariants — edits must not contradict an `ARCH-*` rule. Read `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/area-config-schema.md` if the desired effect introduces or touches an `area.yml` field.
 
@@ -58,16 +58,16 @@ Files matching `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/**` for the area 
    /dma:pr-open <vcs.branch_prefix><ISSUE-KEY> <destination> "<ISSUE-KEY> <Task summary>" workspace-path:<abs-workspace-path> remote:<workspace.remote> description:<pr-description>
    ```
 
-   Capture the PR URL. On `/dma:pr-open` error: stop, `/dma:issue-comment <ISSUE-KEY> <error>`, leave at `in_progress`.
+   Capture the PR URL. On `/dma:pr-open` error: stop, `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <error>`, leave at `in_progress`.
 
 8. **Handoff.**
 
-   - **All edits landed cleanly:** capture the source-tip SHA before handoff (`git rev-parse HEAD`), then `/dma:handoff <ISSUE-KEY> awaiting_merge <summary>`. The skill removes `agent:sentinel`, transitions to `awaiting_merge` (no new `agent:` label), and posts the comment with `🤖 sentinel:` prefix. The `<summary>` body must include, in this order:
+   - **All edits landed cleanly:** capture the source-tip SHA before handoff (`git rev-parse HEAD`), then `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> awaiting_merge <summary>`. The skill removes `agent:sentinel`, transitions to `awaiting_merge` (no new `agent:` label), and posts the comment with `🤖 sentinel:` prefix. The `<summary>` body must include, in this order:
      1. The PR URL.
      2. A one-paragraph TL;DR of what changed.
      3. `Local checkout: just task <ISSUE-KEY>`.
-     4. `Approved tip: <sha>` on its own line — full 40-char SHA, no backticks. `/dma:pr-feedback` matches this line when reconciling the merge.
-   - **Self-gate failure or scope conflict** (a desired effect cannot be expressed inside `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/`, or the four gates reject the requested change): do not write, do not open a PR. `/dma:handoff <ISSUE-KEY> team-lead <reason>` with `needs-decision`. Team-lead either revises the desired effect or re-routes to architect.
+     4. `Approved tip: <sha>` on its own line — full 40-char SHA, no backticks. `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` matches this line when reconciling the merge.
+   - **Self-gate failure or scope conflict** (a desired effect cannot be expressed inside `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/`, or the four gates reject the requested change): do not write, do not open a PR. `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead <reason>` with `needs-decision`. Team-lead either revises the desired effect or re-routes to architect.
 
 ## Out of task scope
 

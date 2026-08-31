@@ -22,11 +22,11 @@ Adopt the **role** and **context** from `dev.yml`. This shapes how you think abo
 
 Tracker operations are one Bash call to the plugin CLI `${CLAUDE_PLUGIN_ROOT}/bin/dma` — always the full path, it is not on `PATH`. It reads the project's `config.yml` and Jira credentials itself; run it from `${CLAUDE_PROJECT_DIR}` or with `CLAUDE_PROJECT_DIR` set.
 
-| Command | Replaces |
-|---------|----------|
-| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <ISSUE-KEY>` | `/dma:task-read` — description, labels, parent, comments newest-first |
-| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <body \| ->` | `/dma:issue-comment` |
-| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> [to-role] [body \| ->` | `/dma:handoff` — same targets, label and status rules |
+| Command | What it does |
+|---------|--------------|
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <ISSUE-KEY>` | description, labels, parent, blockers, comments newest-first |
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <body \| ->` | a comment, without touching status or labels |
+| `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> [to-role] [body \| ->` | swap the `agent:` label, transition, post the comment |
 
 Multi-line bodies go through stdin: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead - <<'EOF' … EOF`. Exit `2` means the project's tracker is not Jira — then use the `/dma:*` skill named in the table instead. Any other non-zero exit: stop and report the stderr text.
 

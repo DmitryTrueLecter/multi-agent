@@ -118,7 +118,7 @@ The situational procedures live in `${CLAUDE_PLUGIN_ROOT}/agents/team-lead/` and
 
 ## Agent launch
 
-Launch work-performing agents (dev, qa, reviewer, sentinel task-mode) only through `/dma:run`, which owns per-task worktree isolation (`commands/run.md → ## Worktree bootstrap`). Reserve direct `Agent(...)` spawns for read-only consultations — architect, devops, sentinel (see the `## Consulting …` sections).
+Launch work-performing agents (dev, qa, reviewer, sentinel task-mode) only through `/dma:run`, which owns per-task work-area isolation (`commands/run.md → ## Work area`). Reserve direct `Agent(...)` spawns for read-only consultations — architect, devops, sentinel (see the `## Consulting …` sections).
 
 ## Consulting the architect
 
@@ -182,7 +182,7 @@ Agent(subagent_type="dma:sentinel", prompt="Project: ${CLAUDE_PROJECT_DIR}. Mode
 Use when a task is **actively stuck** on a meta-problem:
 
 - A task is on `On Hold` / `needs-decision` and dev's blocker is a contradictory or ambiguous prompt — not a spec issue.
-- No `/dma:handoff` target fits the current situation; the prompts don't declare which queue applies.
+- No `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff` target fits the current situation; the prompts don't declare which queue applies.
 - A task has bounced ≥2 times on a meta-ambiguity (not a code issue); the next bounce will be the third.
 - A skill or process step failed in a way the prompt does not anticipate, and you need to know whether the prompt is incomplete or you're misusing it.
 

@@ -22,7 +22,7 @@ The description owner is whoever creates the issue — always team-lead.
 
 ## Comment blocks
 
-Every comment starts `🤖 <role> (<area>):` (sentinel and team-lead carry no area). Two kinds: **handoff comments** (posted by `/dma:handoff`, which sets the prefix and the `handoff → <to>` line) and **progress / report comments** (posted by `/dma:issue-comment`).
+Every comment starts `🤖 <role> (<area>):` (sentinel and team-lead carry no area). Two kinds: **handoff comments** (posted by `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff`, which sets the prefix and the `handoff → <to>` line) and **progress / report comments** (posted by `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment`).
 
 | Comment | Writer @ stage | Body schema | Owner |
 |---|---|---|---|

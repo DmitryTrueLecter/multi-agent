@@ -5,11 +5,11 @@ Epic-scoped lifecycle analysis. Run manually via `/dma:sentinel retrospective <E
 ## Procedure
 
 1. Fetch the Epic and every child via the tracker:
-   - `/dma:task-read <EPIC-KEY>` — description, status, comments.
-   - `/dma:issue-search parent:<EPIC-KEY>` — list of children.
-   - `/dma:task-read <CHILD-KEY>` for each child.
+   - `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <EPIC-KEY>` — description, status, comments.
+   - `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --parent <EPIC-KEY>` — list of children.
+   - `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <CHILD-KEY>` for each child.
 
-2. Per child, extract from `/dma:task-read` output:
+2. Per child, extract from `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read` output:
    - Count of `🤖 qa (<area>): handoff → dev` rejections.
    - Count of `🤖 reviewer (<area>): handoff → dev` rejections.
    - Whether the child ever sat in `on_hold` with `agent:team-lead` (look for `🤖 dev … handoff → team-lead`).
@@ -17,7 +17,7 @@ Epic-scoped lifecycle analysis. Run manually via `/dma:sentinel retrospective <E
    - Whether the child carries the `stale-merge` label.
    - `ARCH-EPIC-SYNC` drift handoffs (`🤖 dev … handoff → team-lead (ARCH-EPIC-SYNC drift)`).
 
-3. Cross-reference the Sentinel queue: `/dma:issue-search label:sentinel-flag`, then read each flag's `Originating` description field. Catalog the flags whose originating task is one of this Epic's children.
+3. Cross-reference the Sentinel queue: `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --label sentinel-flag`, then read each flag's `Originating` description field. Catalog the flags whose originating task is one of this Epic's children.
 
 4. Aggregate against the taxonomy:
    - Same rejection reason in ≥2 children → `PATTERN-REPEAT` candidate.

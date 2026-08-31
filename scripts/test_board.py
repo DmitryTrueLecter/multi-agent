@@ -11,6 +11,7 @@ Run:  .venv/bin/pytest scripts/
 import json
 import os
 import subprocess
+import sys
 
 import pytest
 
@@ -18,6 +19,7 @@ import fakes
 
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 DMA = os.path.join(ROOT, "bin", "dma")
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 APPROVED = "a" * 40
 OTHER = "b" * 40
@@ -460,3 +462,25 @@ def test_list_says_when_the_result_is_truncated(project, board):
     result = dma_list(project, "--status", "To Do")
     assert result.returncode == 0, result.stderr
     assert "truncated" in result.stdout
+
+
+# ------------------------------------------------------------------ remote URL forms
+
+@pytest.mark.parametrize("url", [
+    "git@bitbucket.org:officejet/some-repo.git",
+    "https://bitbucket.org/officejet/some-repo.git",
+    "https://user@bitbucket.org/officejet/some-repo.git",
+    "https://x-token-auth:ATCTT3xFfGN0vMi6UVMrpE_TzTeFKSE@bitbucket.org/officejet/some-repo.git",
+    "https://bitbucket.org/officejet/some-repo",
+])
+def test_coordinates_are_read_from_every_remote_url_form(url):
+    """Including the credential-bearing form a token-authenticated clone carries."""
+    import board
+    assert board.derive_coords(url) == ("officejet", "some-repo")
+
+
+def test_a_non_bitbucket_remote_is_declined_not_guessed():
+    import board
+    with pytest.raises(SystemExit) as raised:
+        board.derive_coords("git@github.com:officejet/some-repo.git")
+    assert raised.value.code == 2
