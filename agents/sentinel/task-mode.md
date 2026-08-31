@@ -12,7 +12,7 @@ Spawn is automated by `/dma:run` — see `commands/run.md → ## Auto-mode` buck
 
 ## In scope
 
-Files matching `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/**` for the area named on the Task's `area:<area>` label. Out-of-scope writes — `agents/*.md`, `skills/**`, `commands/**`, `hooks/**`, `arch.yml`, `config.yml`, anything outside `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` — abort the task and hand back to team-lead per step 8. Shared-plugin or arch-level prompt changes route through `/dma:sentinel-flag` (async) or consultation (sync), not task-mode.
+Files matching `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/**` for the area named on the Task's `area:<area>` label. Out-of-scope writes — `agents/*.md`, `skills/**`, `commands/**`, `hooks/**`, `arch.yml`, `config.yml`, anything outside `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` — abort the task and hand back to team-lead per step 8. Shared-plugin or arch-level prompt changes route through `${CLAUDE_PLUGIN_ROOT}/bin/dma sentinel flag` (async) or consultation (sync), not task-mode.
 
 ## Procedure
 
@@ -74,7 +74,7 @@ Files matching `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/**` for the area 
 
 ## Out of task scope
 
-- **Shared-plugin or arch-level changes.** Route via `/dma:sentinel-flag` or consultation; do not coerce them through a task.
+- **Shared-plugin or arch-level changes.** Route via `${CLAUDE_PLUGIN_ROOT}/bin/dma sentinel flag` or consultation; do not coerce them through a task.
 - **Code changes.** A prompt-deliverable Task touches `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` only. If the Epic also requires code changes, they live in paired dev / devops Tasks linked via `blocks:` — not in the sentinel Task.
 - **Rule-content disputes.** If the desired effect declares a rule whose substance you disagree with on engineering grounds but that passes the four gates, you apply it. Subjective architectural taste is architect's call, not sentinel's.
 

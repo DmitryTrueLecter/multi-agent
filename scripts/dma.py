@@ -7,6 +7,7 @@
     dma worktree <bootstrap|remove> ...           a task worktree      — scripts/worktree.py
     dma workspace <prepare|remove> ...            worktree + branch    — scripts/workspace.py
     dma pr open ...                               a pull request       — scripts/pr.py
+    dma sentinel flag ...                         a prompt defect      — scripts/sentinel.py
 """
 
 import sys
@@ -14,6 +15,7 @@ import sys
 import board
 import issue
 import pr
+import sentinel
 import task_branch
 import workspace
 import worktree
@@ -34,6 +36,8 @@ def main(argv):
         return workspace.main(rest)
     if group == "pr":
         return pr.main(rest)
+    if group == "sentinel":
+        return sentinel.main(rest)
     if group == "board":
         return board.main(rest)
     print(__doc__.strip(), file=sys.stderr)

@@ -63,5 +63,5 @@ Both rules apply unchanged to `qa.yml.edge_cases` (scenario names the agent conf
 A new field in `area.yml` is a structural decision that propagates across every project on this plugin. Procedure:
 
 1. Architect proposes the field shape (key name, type, audience, purpose).
-2. Sentinel extends this schema (`area-config-schema.md`) before any project's `area.yml` carries the field. Direct edits to a project's `area.yml` adding undocumented fields are a `PROMPT-FRAGMENTED` smell — flag via `/dma:sentinel-flag`.
+2. Sentinel extends this schema (`area-config-schema.md`) before any project's `area.yml` carries the field. Direct edits to a project's `area.yml` adding undocumented fields are a `PROMPT-FRAGMENTED` smell — flag via `${CLAUDE_PLUGIN_ROOT}/bin/dma sentinel flag`.
 3. Once the schema lands, the architect rolls the field into the affected project's `area.yml` and updates any consuming agent prompt (`agents/*.md`) to read it.

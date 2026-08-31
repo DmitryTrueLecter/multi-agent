@@ -158,18 +158,20 @@ Out of scope for devops consultation: application-design questions — those rou
 
 ## Consulting sentinel
 
-### Async — `/dma:sentinel-flag`
+### Async — `dma sentinel flag`
 
 Use when you notice a structural problem but the pipeline is not blocked on it right now.
 
-`/dma:sentinel-flag <type> "<problem>" where:<file:section> originating:<ISSUE-KEY>`
+`${CLAUDE_PLUGIN_ROOT}/bin/dma sentinel flag <TYPE> "<one-line problem>" \
+    --where <file:section> --reporter <your role> \
+    [--originating <ISSUE-KEY>] [--details - <<'DETAILS' … DETAILS]
 
 Trigger moments:
 
 1. **You ran a prescribed command, the environment refused it, and you started looking for a workaround.** → `ENV-FRICTION`
 2. **The same kind of breakdown recurs across different tasks because the prompt's prescribed steps cause it.** → `PATTERN-REPEAT`
 
-Other types per `skills/sentinel-flag/SKILL.md`.
+Other types: run `${CLAUDE_PLUGIN_ROOT}/bin/dma sentinel flag` with no arguments to see the list.
 
 ### Sync — consultation
 
@@ -198,7 +200,7 @@ Not for defect reports (those are flags). Not for ambiguities discovered mid-fli
 
 Constraints:
 
-- **Scope is `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/**` only.** Sentinel in task-mode refuses any other path. If the Epic genuinely needs shared-plugin changes (root `CLAUDE.md`, `agents/*.md`, `config.yml`), route through `/dma:sentinel-flag` or consultation instead.
+- **Scope is `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/**` only.** Sentinel in task-mode refuses any other path. If the Epic genuinely needs shared-plugin changes (root `CLAUDE.md`, `agents/*.md`, `config.yml`), route through `${CLAUDE_PLUGIN_ROOT}/bin/dma sentinel flag` or consultation instead.
 - **Cycle has no qa or reviewer.** Sentinel works on `<vcs.branch_prefix><KEY>`, opens a PR to the parent Epic branch (or `<vcs.dev_branch>` if standalone), task moves to `awaiting_merge`. You and the user review the PR.
 - **Request, not instruction.** Sentinel owns prompt quality, so it decides what changes and where. You write the desired effect; sentinel may implement differently and explain in the PR, or decline and handoff back to you on `on_hold`.
 

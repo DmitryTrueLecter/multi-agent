@@ -168,7 +168,9 @@ Additionally flag when:
 
 Invocation:
 ```
-/dma:sentinel-flag <type> "<problem>" where:<file:section> [originating:<ISSUE-KEY>] [details:<text>]
+${CLAUDE_PLUGIN_ROOT}/bin/dma sentinel flag <TYPE> "<one-line problem>" \
+    --where <file:section> --reporter <your role> \
+    [--originating <ISSUE-KEY>] [--details - <<'DETAILS' … DETAILS]
 ```
 
 Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock the task. If the prompt issue also blocks you, additionally `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead`.

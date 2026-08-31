@@ -137,9 +137,21 @@ class JiraTracker:
         created = self.api.call("POST", "issue", {"fields": fields})
         key = created["key"]
         # The project's create-time status is whatever its workflow says — not
-        # necessarily to_do — so the requested one is applied unless it matched.
+        # necessarily to_do — so the requested one is applied unless it matched,
+        # and then read back: an issue parked in the wrong queue is invisible to
+        # whoever picks that queue.
         if state_key and self.read(key)["status"] != self.status_name(state_key):
-            self.set_status(key, state_key)
+            # Whatever goes wrong from here, the issue already exists — say which
+            # one, or the caller is left with an orphan it cannot name.
+            try:
+                self.set_status(key, state_key)
+            except issue_module.JiraError as e:
+                raise TrackerError(f"created {key}, but the move to "
+                                   f"'{self.status_name(state_key)}' was refused: {e}")
+            actual = self.read(key)["status"]
+            if actual != self.status_name(state_key):
+                raise TrackerError(f"created {key}, but it is in '{actual}' and not "
+                                   f"'{self.status_name(state_key)}'")
         return key
 
     def add_blocks(self, key, blocked_keys):
@@ -263,7 +275,11 @@ class LinearTracker:
         # Linear falls back to the team's default state when it will not take the
         # one asked for; say so rather than leaving the caller to discover it.
         if state_key and issue["state"]["name"].lower() != self.status_name(state_key).lower():
-            self.set_status(key, state_key)
+            try:
+                self.set_status(key, state_key)
+            except self.linear_api.LinearError as e:
+                raise TrackerError(f"created {key}, but the move to "
+                                   f"'{self.status_name(state_key)}' failed: {e}")
             actual = self.api.issue(key)["state"]["name"]
             if actual.lower() != self.status_name(state_key).lower():
                 raise TrackerError(f"created {key}, but it is in '{actual}' and not "

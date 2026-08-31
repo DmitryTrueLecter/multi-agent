@@ -5,7 +5,7 @@ Restricts which skills each subagent can invoke via the Skill tool.
 Main-session calls (no agent_type in payload) bypass the ACL.
 
 Shipped inside the `dma` plugin, every plugin-contributed agent and skill is
-namespaced (`dma:dev`, `dma:sentinel-flag`). This hook strips the `dma:` prefix from
+namespaced (`dma:dev`, `dma:sentinel`). This hook strips the `dma:` prefix from
 both the agent_type and the skill name before matching, so the ALLOWED table
 below stays written in bare names. Built-in agents (general-purpose, Explore, …)
 arrive un-namespaced and match unchanged. Renaming the plugin = edit PLUGIN only.
@@ -42,12 +42,12 @@ ALLOWED: dict[str, set[str] | str] = {
     "team-lead": "*",
     # Tracker operations moved to the `dma` CLI, which the Bash hook governs;
     # what is left here are the skills that still exist.
-    "dev":       {"sentinel-flag"},
-    "qa":        {"sentinel-flag"},
-    "reviewer":  {"sentinel-flag"},
-    "devops":    {"sentinel-flag"},
-    "architect": {"sentinel-flag"},
-    "sentinel":  {"sentinel-flag", "sentinel"},
+    "dev":       set(),
+    "qa":        set(),
+    "reviewer":  set(),
+    "devops":    set(),
+    "architect": set(),
+    "sentinel":  {"sentinel"},
 
     # Built-in research / utility agents — no ACL needed
     "general-purpose":    "*",
