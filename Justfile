@@ -22,18 +22,9 @@ project := file_name(justfile_directory())
 # tmux session name (per-project, no collisions across checkouts).
 session := "claude-" + project
 
-# Auto-resume claude after rate-limit reset (logs: /tmp/claude-resume-<session>.log)
-claude-resume:
-    @pgrep -f "claude-resume.sh {{session}}" > /dev/null && echo "already running" || (cd "{{justfile_directory()}}" && nohup bash .claude/dma/scripts/claude-resume.sh {{session}}:0 > /tmp/claude-resume-{{session}}.log 2>&1 & disown ; echo started)
-
-# Stop claude auto-resume (only this project's watchdog)
-claude-resume-stop:
-    @pkill -f "claude-resume.sh {{session}}" && echo stopped || echo "not running"
-
-# Start claude in a per-project tmux session + auto-resume watchdog, then attach
+# Start claude in a per-project tmux session, then attach
 claude-start:
     @tmux has-session -t {{session}} 2>/dev/null || tmux new-session -d -s {{session}} -c "{{justfile_directory()}}" 'claude --agent dma:team-lead --permission-mode bypassPermissions --rc "{{project}}"'
-    @just claude-resume
     @tmux attach -t {{session}}
 
 # Attach to the existing per-project claude tmux session (does not create one)
@@ -41,12 +32,11 @@ claude-attach:
     @tmux has-session -t {{session}} 2>/dev/null || (echo "session {{session}} not running — start it with: just claude-start | just claude-start-detached" >&2 ; exit 1)
     @tmux attach -t {{session}}
 
-# Stop this project's claude session: kill the tmux session and the resume watchdog
+# Stop this project's claude session
 claude-stop:
-    @just claude-resume-stop >/dev/null 2>&1 || true
     @tmux has-session -t {{session}} 2>/dev/null && (tmux kill-session -t {{session}} && echo "killed tmux session {{session}}") || echo "session {{session}} not running"
 
-# Start claude detached + watchdog and print the remote-control chat URL
+# Start claude detached and print the remote-control chat URL
 claude-start-detached:
     #!/usr/bin/env bash
     set -e
@@ -55,7 +45,6 @@ claude-start-detached:
     else
         tmux new-session -d -s {{session}} -c "{{justfile_directory()}}" 'claude --agent dma:team-lead --permission-mode bypassPermissions --rc "{{project}}"'
     fi
-    just claude-resume >/dev/null
     for i in $(seq 1 30); do
         url=$(tmux capture-pane -p -S -1000 -t {{session}} | grep -oE 'https://claude\.ai/code/session_[A-Za-z0-9_-]+' | tail -1)
         if [ -n "$url" ]; then

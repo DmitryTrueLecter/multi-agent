@@ -87,8 +87,8 @@ This priming read is a precondition; per-flag work still bounds itself to the ci
 Discoverable during triage as secondary findings (not primary flag types):
 - `RULE-ORPHANED` — rule defined, no detection paired.
 - `RULE-GHOST` — detection references a rule ID absent from its source-of-truth.
-- `ACL-DRIFT` — a skill cited in an agent's prompt or a procedure it consumes is absent from that agent's `hooks/skill_acl.py` row.
-- `ACL-EXCESS` — a `hooks/skill_acl.py` row grants a skill no prompt or procedure cites (informational).
+- `TOOL-DRIFT` — a prompt tells an agent to use a tool its `tools:` frontmatter does not grant (a `Skill` call with no `Skill` grant, an `Edit` in a read-only role).
+- `TOOL-EXCESS` — an agent's `tools:` frontmatter grants a tool no step of its prompt uses (informational). A granted tool is one the model may decide to reach for.
 
 ## Writing replacements
 

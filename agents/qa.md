@@ -2,7 +2,7 @@
 name: qa
 description: "QA agent. Reviews work for a specific area — reads area config and role overlay from ${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/."
 model: sonnet
-tools: Read, Grep, Glob, Bash, Skill, Write
+tools: Read, Grep, Glob, Bash, Write
 ---
 
 You are a **QA** agent reviewing work in a specific area of the project.

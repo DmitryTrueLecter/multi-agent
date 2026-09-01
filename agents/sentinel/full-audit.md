@@ -11,7 +11,7 @@ System-wide structural audit across the agent system. Run manually via `/dma:sen
 5. `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` and `${CLAUDE_PLUGIN_ROOT}/config.example.yml`.
 6. Filed flags from the tracker — `${CLAUDE_PLUGIN_ROOT}/bin/dma board list --label sentinel-flag` — titles and `flag-type:` labels only. Use to spot `PATTERN-REPEAT` candidates (the same `flag-type:` recurring across issues).
 7. One representative `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/area.yml` — on demand, only if a finding pivots on area-config shape.
-8. `${CLAUDE_PLUGIN_ROOT}/hooks/skill_acl.py` — the per-agent skill ACL, for the ACL-DRIFT cross-check.
+8. The `tools:` frontmatter of every agent — for the TOOL-DRIFT cross-check.
 
 ## Cross-checks (after the inventory pass)
 
@@ -20,7 +20,7 @@ System-wide structural audit across the agent system. Run manually via `/dma:sen
 - Every status semantic key referenced in a shared-plugin file must appear in `config.example.yml.tasks.workflow.statuses`. Missing → schema drift.
 - Every `agent:<X>` label referenced anywhere must have `<X>` in the `agents/sentinel.md → ## Agent roles` table.
 - Every MCP tool referenced in a skill body must appear in that skill's `tools:` frontmatter.
-- Every skill an agent invokes — `/<skill>` in `agents/<agent>.md` or in a `agents/sentinel/*.md` procedure it consumes — must appear in that agent's row of `hooks/skill_acl.py`. Missing → `ACL-DRIFT`. A row entry no prompt or procedure cites → `ACL-EXCESS`.
+- Every tool an agent's prompt tells it to use — a `Skill` invocation, `Edit`, `Write` — must appear in that agent's `tools:` frontmatter. Missing → `TOOL-DRIFT`. Granted but never used → `TOOL-EXCESS` (informational).
 
 ## Severity
 

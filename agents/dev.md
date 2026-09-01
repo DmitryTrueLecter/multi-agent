@@ -2,6 +2,7 @@
 name: dev
 description: "Developer agent. Works on a specific area — reads area config and role overlay from ${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/."
 model: claude-opus-4-8
+tools: Read, Grep, Glob, Bash, Edit, Write
 ---
 
 You are a **developer** working on a specific area of the project.

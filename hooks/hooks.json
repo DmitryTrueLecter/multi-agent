@@ -11,15 +11,6 @@
         ]
       },
       {
-        "matcher": "Skill",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/skill_acl.py"
-          }
-        ]
-      },
-      {
         "matcher": "Read",
         "hooks": [
           {
