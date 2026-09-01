@@ -261,12 +261,9 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
 
    **Step 7a — Verify the task branch is on the remote at the reviewed HEAD.** The dev pushed it at QA handoff; you never push it yourself.
    ```
-   cd <abs-workspace-path>
-   git fetch <workspace.remote> <vcs.branch_prefix><ISSUE-KEY>
-   git rev-parse HEAD
-   git rev-parse <workspace.remote>/<vcs.branch_prefix><ISSUE-KEY>
+   ${CLAUDE_PLUGIN_ROOT}/bin/dma branch verify-remote <ISSUE-KEY>
    ```
-   If the remote branch is missing or the two SHAs differ, the state you reviewed is not the state that would merge — STOP: do not open a PR, run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> dev "task branch not on <workspace.remote> at reviewed HEAD <local-sha>; push your reviewed commits"`, which returns the Task to `to_do` + `agent:dev`.
+   `MATCH` — the remote holds exactly what you reviewed; continue. Exit `14` — it does not (`REMOTE_MISSING`, or `REMOTE_BEHIND` with both SHAs), so the state you reviewed is not the state that would merge: do **not** open a PR, run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> dev "<the command's output>"`, which returns the Task to `to_do` + `agent:dev`. The `LOCAL` line is the reviewed tip — the SHA step 7c records as the approved tip.
 
    **Step 7b — Open a PR.**
 

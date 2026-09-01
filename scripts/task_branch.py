@@ -1,9 +1,17 @@
 """Task-branch operations. Mirrors dev.md "Task workflow" step 2 and qa/reviewer step 2.
 
-    dma branch prepare    --workspace P --issue K [--epic E] [--area A]
-    dma branch checkout   --workspace P --issue K [--epic E] [--area A] [--create]
-    dma branch sync-epic  --workspace P --epic E [--area A]
-    dma branch create-epic --workspace P --epic E [--area A]
+    dma branch prepare      <KEY>        make the task branch ready to work in
+    dma branch checkout     <KEY>        switch to it; it must already exist
+    dma branch verify-remote <KEY>       the remote holds what was reviewed
+    dma branch sync-epic    <EPIC-KEY> --area A   merge the dev branch into it
+    dma branch create-epic  <EPIC-KEY> --area A   cut it off the dev branch
+    dma branch drift        <EPIC-KEY> --area A   has the dev branch moved on
+
+A task key is all these need: the issue says which area it belongs to, and that
+gives the checkout and — for `prepare` and `checkout` — the worktree the task
+works in. An epic carries no area label, so those three take `--area` (skip it in
+a monorepo). `--workspace`, `--epic` and `--create` remain as overrides, for a
+tracker the CLI cannot read and for tests.
 
 `prepare` is what dev calls: one command, so the sequence cannot be executed
 half-way. Under the hood it is `sync-epic` (only for a fresh epic-parented task)
@@ -22,6 +30,7 @@ Exit codes:
     11  ARCH-EPIC-SYNC conflict, aborted       (dev.md 2c)
     12  epic branch push did not land on the remote (decompose.md step 4)
     13  task branch or base missing on remote  (qa.md / reviewer.md "Ref absent")
+    14  the remote branch is not at the local HEAD (reviewer.md step 7a)
 """
 
 import os
@@ -186,6 +195,60 @@ def create_epic(workspace, settings, epic_key):
     print(f"CREATED {epic_branch} <- {settings.dev_branch}")
 
 
+def verify_remote(workspace, settings, key):
+    """reviewer.md step 7a: the branch on the remote is the state that was reviewed.
+
+    The dev pushes at QA handoff and the reviewer never pushes, so a mismatch means
+    the reviewed tree is not the tree that would merge — the PR must not be opened.
+    """
+    task_branch = settings.branch(key)
+    git(workspace, "fetch", settings.remote, task_branch, check=False)
+    local = git(workspace, "rev-parse", "HEAD")
+    print(f"LOCAL {local}")
+    if not on_remote(workspace, settings.remote, task_branch):
+        raise Stop(14, f"REMOTE_MISSING {task_branch} is not on {settings.remote}; "
+                       f"push the reviewed commits ({local})")
+    remote_head = git(workspace, "rev-parse", f"{settings.remote}/{task_branch}")
+    print(f"REMOTE {remote_head}")
+    if remote_head != local:
+        raise Stop(14, f"REMOTE_BEHIND {task_branch} on {settings.remote} is at {remote_head}, "
+                       f"the reviewed HEAD is {local}; push the reviewed commits")
+    print("MATCH")
+
+
+def drift(workspace, settings, epic_key):
+    """epic-closeout.md step 7: has the dev branch moved on since the epic branch
+    was cut, and does the movement touch the same files?
+
+    Path-disjoint drift is a non-event a plain merge handles at PR time. Overlapping
+    drift carries semantic-conflict risk, and rewriting a shared epic branch is not
+    a decision to take without the user, so this only reports.
+    """
+    epic_branch = settings.branch(epic_key)
+    git(workspace, "fetch", settings.remote)
+    if not on_remote(workspace, settings.remote, epic_branch):
+        raise Stop(10, f"EPIC_MISSING {epic_branch} on {settings.remote}")
+    # Both sides are read as remote refs: those are what the PR will merge, and a
+    # worktree need not have either branch locally.
+    epic_ref = f"{settings.remote}/{epic_branch}"
+    dev_ref = f"{settings.remote}/{settings.dev_branch}"
+    base = git(workspace, "merge-base", epic_ref, dev_ref)
+    ahead = int(git(workspace, "rev-list", f"{base}..{dev_ref}", "--count") or 0)
+    print(f"MERGE_BASE {base}")
+    print(f"DEV_AHEAD {ahead}")
+    if not ahead:
+        print("DRIFT none")
+        return
+    dev_files = set(git(workspace, "diff", "--name-only", f"{base}..{dev_ref}").splitlines())
+    epic_files = set(git(workspace, "diff", "--name-only", f"{base}..{epic_ref}").splitlines())
+    overlap = sorted(dev_files & epic_files)
+    print(f"DRIFT {'overlapping' if overlap else 'disjoint'}")
+    if overlap:
+        print("OVERLAP")
+        for path in overlap:
+            print(path)
+
+
 def prepare(workspace, settings, key, epic_key=None):
     """What dev calls. Resuming a previous attempt never re-syncs the epic — the
     integration contract was established when the branch was first cut."""
@@ -199,7 +262,7 @@ def prepare(workspace, settings, key, epic_key=None):
 
 # ----------------------------------------------------------------- cli
 
-FLAGS = ("--workspace", "--issue", "--epic", "--area", "--remote", "--dev-branch", "--prefix")
+FLAGS = ("--workspace", "--epic", "--area", "--remote", "--dev-branch", "--prefix")
 
 
 def parse(argv):
@@ -216,39 +279,64 @@ def parse(argv):
     return options, create
 
 
+TASK_COMMANDS = ("prepare", "checkout", "verify-remote")
+EPIC_COMMANDS = ("sync-epic", "create-epic", "drift")
+
+
+def resolve_workspace(command, key, options):
+    """Where the command runs. A task command works inside that task's worktree;
+    an epic command works in the area's own checkout, because at decomposition and
+    at close-out there is no per-task tree yet."""
+    if options.get("workspace"):
+        return options["workspace"], options.get("area"), options.get("epic")
+
+    import worktree
+
+    area = options.get("area")
+    epic = None
+    if command in TASK_COMMANDS and not area:
+        import workspace as workspace_module
+        import tracker as tracker_module
+
+        config = issue.load_config()
+        try:
+            backend = tracker_module.open_tracker(config)
+        except (tracker_module.Unsupported, tracker_module.TrackerError) as e:
+            issue.die(f"{e} — pass --workspace and --area", 2)
+        area, epic, _ = workspace_module.resolve(key, backend.api if hasattr(backend, "api") else backend)
+    checkout = worktree.area_workspace(area)
+    if command in EPIC_COMMANDS:
+        return checkout, area, None
+    return worktree.worktree_path(checkout, key), area, epic
+
+
 def main(argv):
-    if not argv or argv[0] not in ("prepare", "sync-epic", "checkout", "create-epic"):
+    if not argv or argv[0] not in TASK_COMMANDS + EPIC_COMMANDS or len(argv) < 2:
         print(__doc__.strip(), file=sys.stderr)
         return 1
-    command = argv[0]
-    options, create = parse(argv[1:])
+    command, key = argv[0], argv[1]
+    options, create = parse(argv[2:])
 
-    workspace = options.get("workspace")
-    if not workspace:
-        issue.die("--workspace is required")
+    workspace, area, found_epic = resolve_workspace(command, key, options)
     if not os.path.isdir(workspace):
         issue.die(f"workspace not found: {workspace}")
-    settings = Settings(options.get("area"), overrides={
+    settings = Settings(area, overrides={
         "remote": options.get("remote"),
         "dev_branch": options.get("dev_branch"),
         "prefix": options.get("prefix"),
     })
+    epic = options.get("epic") or found_epic
 
     try:
-        if command in ("sync-epic", "create-epic"):
-            if not options.get("epic"):
-                issue.die(f"--epic is required for {command}")
-            if command == "sync-epic":
-                sync_epic(workspace, settings, options["epic"])
-            else:
-                create_epic(workspace, settings, options["epic"])
+        if command in EPIC_COMMANDS:
+            {"sync-epic": sync_epic, "create-epic": create_epic, "drift": drift}[command](
+                workspace, settings, key)
+        elif command == "verify-remote":
+            verify_remote(workspace, settings, key)
+        elif command == "prepare":
+            prepare(workspace, settings, key, epic)
         else:
-            if not options.get("issue"):
-                issue.die("--issue is required")
-            if command == "prepare":
-                prepare(workspace, settings, options["issue"], options.get("epic"))
-            else:
-                checkout(workspace, settings, options["issue"], options.get("epic"), create=create)
+            checkout(workspace, settings, key, epic, create=create)
     except Stop as stop:
         print(str(stop))
         return stop.code

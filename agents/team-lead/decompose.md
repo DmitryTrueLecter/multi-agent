@@ -92,7 +92,7 @@ Pass `--parent <EPIC-KEY>` when creating Tasks — the command links the Task to
 
    - Per workspace:
      ```
-     ${CLAUDE_PLUGIN_ROOT}/bin/dma branch create-epic --workspace <workspace.path> --epic <EPIC-KEY>
+     ${CLAUDE_PLUGIN_ROOT}/bin/dma branch create-epic <EPIC-KEY> --area <area>
      ```
      `CREATED` — the branch was cut from `<workspace.dev_branch>` and is on the remote (the command verifies it landed). `EXISTS` — it was already there and was left untouched, which is what makes the recovery below safe to re-run. Exit `12` `PUSH_NOT_LANDED` or exit `1` — stop the decomposition, post the output with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <EPIC-KEY> <output>`, and do not create child tasks: they would all fail on a missing epic branch.
 

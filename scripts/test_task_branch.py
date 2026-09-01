@@ -128,10 +128,8 @@ def project_env(project, monkeypatch):
 
 
 def dma(command, workspace, issue=None, epic=None, extra=()):
-    args = [DMA, "branch", command, "--workspace", str(workspace)]
-    if issue:
-        args += ["--issue", issue]
-    if epic:
+    args = [DMA, "branch", command, issue or epic, "--workspace", str(workspace)]
+    if issue and epic:
         args += ["--epic", epic]
     args += list(extra)
     result = subprocess.run(args, capture_output=True, text=True)
@@ -345,7 +343,7 @@ def test_prepare_on_a_rerun_does_not_resync_the_epic(remote):
 # ------------------------------------------------------------------ create-epic
 
 def dma_epic(command, workspace, epic):
-    args = [DMA, "branch", command, "--workspace", str(workspace), "--epic", epic]
+    args = [DMA, "branch", command, epic, "--workspace", str(workspace)]
     result = subprocess.run(args, capture_output=True, text=True)
     return result.returncode, result.stdout + result.stderr
 
@@ -408,3 +406,91 @@ def test_create_epic_fails_when_the_push_did_not_land(remote, monkeypatch):
         task_branch.create_epic(str(ws), settings, "E-1")
     assert raised.value.code == 12
     assert "PUSH_NOT_LANDED" in str(raised.value)
+
+
+# ------------------------------------------------------------------ verify-remote
+
+def dma_key(command, workspace, key, extra=()):
+    args = [DMA, "branch", command, key, "--workspace", str(workspace), *extra]
+    result = subprocess.run(args, capture_output=True, text=True)
+    return result.returncode, result.stdout + result.stderr
+
+
+def test_verify_remote_passes_when_the_remote_holds_the_reviewed_head(remote):
+    ws = remote.worktree("ws")
+    dma("prepare", ws, "T-1")
+    git(ws, "push", "-q", "origin", "ai/T-1")
+    rc, out = dma_key("verify-remote", ws, "T-1")
+    assert rc == 0, out
+    assert "MATCH" in out
+
+
+def test_verify_remote_refuses_an_unpushed_commit(remote):
+    """The reviewed tree is not the tree that would merge, so no PR may be opened."""
+    ws = remote.worktree("ws")
+    dma("prepare", ws, "T-1")
+    git(ws, "push", "-q", "origin", "ai/T-1")
+    (ws / "later.txt").write_text("x")
+    git(ws, "add", "later.txt"); git(ws, "commit", "-q", "-m", "later")
+
+    rc, out = dma_key("verify-remote", ws, "T-1")
+    assert rc == 14
+    assert "REMOTE_BEHIND" in out
+
+
+def test_verify_remote_refuses_a_branch_that_was_never_pushed(remote):
+    ws = remote.worktree("ws")
+    dma("prepare", ws, "T-1")
+    rc, out = dma_key("verify-remote", ws, "T-1")
+    assert rc == 14
+    assert "REMOTE_MISSING" in out
+
+
+# ------------------------------------------------------------------ drift
+
+def dma_epic_cmd(command, workspace, epic):
+    result = subprocess.run([DMA, "branch", command, epic, "--workspace", str(workspace)],
+                            capture_output=True, text=True)
+    return result.returncode, result.stdout + result.stderr
+
+
+def test_drift_reports_none_when_the_dev_branch_has_not_moved(remote):
+    remote.new_branch("ai/E-1")
+    remote.commit("ai/E-1", "epic.txt")
+    ws = remote.worktree("ws")
+    rc, out = dma_epic_cmd("drift", ws, "E-1")
+    assert rc == 0, out
+    assert "DRIFT none" in out and "DEV_AHEAD 0" in out
+
+
+def test_drift_on_untouched_files_is_a_non_event(remote):
+    """A plain merge handles it at PR time; the close-out only logs it."""
+    remote.new_branch("ai/E-1")
+    remote.commit("ai/E-1", "epic-only.txt")
+    remote.commit("dev", "dev-only.txt")
+    ws = remote.worktree("ws")
+    rc, out = dma_epic_cmd("drift", ws, "E-1")
+    assert rc == 0, out
+    assert "DRIFT disjoint" in out
+    assert "DEV_AHEAD 1" in out
+    assert "OVERLAP" not in out
+
+
+def test_drift_on_the_same_file_is_named_with_the_paths(remote):
+    remote.new_branch("ai/E-1")
+    remote.commit("ai/E-1", "shared.txt", "from the epic")
+    remote.commit("dev", "shared.txt", "from dev")
+    remote.commit("dev", "other.txt")
+    ws = remote.worktree("ws")
+    rc, out = dma_epic_cmd("drift", ws, "E-1")
+    assert rc == 0, out
+    assert "DRIFT overlapping" in out
+    assert "shared.txt" in out.split("OVERLAP")[1]
+    assert "other.txt" not in out.split("OVERLAP")[1], "only the intersection is listed"
+
+
+def test_drift_without_an_epic_branch_says_so(remote):
+    ws = remote.worktree("ws")
+    rc, out = dma_epic_cmd("drift", ws, "E-9")
+    assert rc == 10
+    assert "EPIC_MISSING ai/E-9" in out
