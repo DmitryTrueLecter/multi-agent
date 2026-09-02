@@ -172,7 +172,7 @@ Skip entirely if any of HC-FS-005, HC-CFG-003, HC-CFG-005 failed. No auto-fix in
 
 - **HC-MIG-001** — No leftover file-based flags under `${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/`; any legacy flag is migrated to the Sentinel queue. Covers the file→tracker cutover; once clean it is a permanent no-op.
   - Severity: WARN per leftover flag.
-  - Detection: `ls ${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/*.md 2>/dev/null` — each top-level match is an unmigrated flag. PASS when the directory is absent or holds no top-level `*.md`. SKIPPED when HC-MCP-002 failed, or (jira) `tasks.jira.transitions.sentinel_inbox` is `0` — migration cannot create issues.
+  - Detection: `ls ${CLAUDE_PROJECT_DIR}/.claude/sentinel-inbox/*.md 2>/dev/null` — each top-level match is an unmigrated flag. PASS when the directory is absent or holds no top-level `*.md`. SKIPPED when HC-CRED-001 failed, or (jira) `tasks.jira.transitions.sentinel_inbox` is `0` — migration cannot create issues.
   - Auto-fix: per leftover file, parse its frontmatter (`type`, `reporter`, `where`, `originating_task`) and `## Problem` / `## Details` body, then create the flag issue as `${CLAUDE_PLUGIN_ROOT}/bin/dma sentinel flag` would — `${CLAUDE_PLUGIN_ROOT}/bin/dma issue create task "[<TYPE>] <problem>" --labels sentinel-flag,flag-type:<type --description -`. On a created key, delete the file (`git rm` if tracked, else `rm`). Emit one `↻` line per migrated flag with its new key.
   - Manual fix: re-file each via `${CLAUDE_PLUGIN_ROOT}/bin/dma sentinel flag`, or run `/dma:sentinel healthcheck fix` once the tracker responds and (jira) the `sentinel_inbox` transition id is populated via `/dma:sentinel-bootstrap-jira`.
 

@@ -8,7 +8,7 @@ Spawn-time invocation by `/dma:run` for tasks in `to_do` with `agent:sentinel`. 
 Agent(subagent_type="dma:sentinel", prompt="Project: ${CLAUDE_PROJECT_DIR}. Workspace: <abs-workspace-path>. Mode: task. Issue: <ISSUE-KEY>.")
 ```
 
-Spawn is automated by `/dma:run` — see `commands/run.md → ## Auto-mode` bucket #3 and `## Steps` step 9.
+Spawn is automated by `/dma:run` — the `sentinel` row of the Role → queue mapping in `commands/run.md`; `dma issue claim --any` walks that queue and the spawn shape is under `## Steps`.
 
 ## In scope
 

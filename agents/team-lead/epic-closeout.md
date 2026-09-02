@@ -6,7 +6,7 @@ When `/dma:run` spawns you for epic close-out (group issue in `code_review`), th
 
 If an area appears in your close-out plan but is missing from the `Workspaces` map, fall back to the `area.yml.workspace.path` resolution and proceed without a worktree (single-runner mode). If you find no `Workspaces:` field at all (you were not spawned for close-out, or the orchestrator predates this contract), nothing changes.
 
-After close-out completes and the epic transitions to `done`, `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <EPIC-KEY> done` cleans up the worktrees automatically (see `skills/handoff/SKILL.md → ## Worktree cleanup`).
+After close-out completes and the epic transitions to `done`, `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <EPIC-KEY> done` cleans up the worktrees automatically — it looks in every area's checkout for `.worktrees/<EPIC-KEY>` (see `commands/run.md → ## Work area → ### Cleanup`).
 
 ## Closing Epics (Epic in Code Review with `agent:team-lead`)
 

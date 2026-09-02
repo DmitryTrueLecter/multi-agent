@@ -4,7 +4,7 @@ description: "Run agent: /dma:run | /dma:run <ISSUE-KEY> | /dma:run pipeline | /
 
 Launch a subagent to work on a tracker task.
 
-**Setup:** Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` to get `tasks.project_key`, `tasks.workflow.statuses` (semantic key → tracker display name), and known areas (scan `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/` subdirectory names). Resolve every `<statuses.X>` reference below through that map. Tracker and VCS operations go through the plugin CLI `${CLAUDE_PLUGIN_ROOT}/bin/dma` (always the full path, it is not on `PATH`); the remaining `/dma:*` skills are the fallback when the CLI reports the provider is unsupported (exit `2`). No direct tracker or VCS MCP calls in this command.
+**Setup:** Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` to get `tasks.project_key`, `tasks.workflow.statuses` (semantic key → tracker display name), and known areas (scan `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/` subdirectory names). Resolve every `<statuses.X>` reference below through that map. Tracker and VCS operations go through the plugin CLI `${CLAUDE_PLUGIN_ROOT}/bin/dma` (always the full path, it is not on `PATH`). Exit `2` means the project's tracker or VCS host has no backend in the CLI — stop and tell the user; there is no fallback. No direct tracker or VCS MCP calls in this command.
 
 **Usage patterns:**
 

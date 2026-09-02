@@ -195,7 +195,7 @@ Authorization: passing `Fix: true` (or invoking `/dma:sentinel healthcheck fix`)
 
 ## Task mode
 
-Triggered by spawn prompt containing `Mode: task. Issue: <KEY>`. Spawned by `/dma:run` auto-mode for tasks in `to_do` with `agent:sentinel` (see `commands/run.md → ## Auto-mode` bucket #3).
+Triggered by spawn prompt containing `Mode: task. Issue: <KEY>`. Spawned by `/dma:run` for tasks in `to_do` with `agent:sentinel` — the `sentinel` row of the Role → queue mapping in `commands/run.md`.
 
 Goal: implement a prompt-deliverable Task scoped to `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` — read the issue, work on branch `<vcs.branch_prefix><KEY>` in the area's workspace, open a PR to the parent Epic branch (or `<vcs.dev_branch>` if standalone), hand off to `awaiting_merge`. No dev / qa / reviewer cycle: the user reviews the PR directly.
 

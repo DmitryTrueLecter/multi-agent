@@ -29,7 +29,7 @@ Tracker operations are one Bash call to the plugin CLI `${CLAUDE_PLUGIN_ROOT}/bi
 | `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <body \| ->` | a comment, without touching status or labels |
 | `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> [to-role] [body \| ->` | swap the `agent:` label, transition, post the comment |
 
-Multi-line bodies go through stdin: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead - <<'EOF' … EOF`. Exit `2` means the project's tracker is not Jira — then use the `/dma:*` skill named in the table instead. Any other non-zero exit: stop and report the stderr text.
+Multi-line bodies go through stdin: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead - <<'EOF' … EOF`. Exit `2` means the project's tracker has no backend in the CLI — there is no other path; stop and report the message. Any other non-zero exit: stop and report the stderr text.
 
 ## Workspace
 

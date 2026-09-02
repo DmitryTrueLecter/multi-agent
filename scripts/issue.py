@@ -13,7 +13,7 @@ and Jira credentials from <project>/.mcp.json → mcpServers.atlassian.env
 (JIRA_URL, JIRA_USERNAME, JIRA_API_TOKEN), falling back to the environment.
 
 Providers: `jira` and `linear` (see scripts/tracker.py). A provider with no
-backend exits 2 and the agent falls back to the /dma:* skills.
+backend exits 2; there is no other path, the agent stops and reports.
 
 Exit codes: 0 ok · 1 error · 2 provider not supported · 3 claim rejected (already claimed)
             4 nothing to claim (queue addressing only)
@@ -398,7 +398,7 @@ def main(argv):
     try:
         tracker = tracker_module.open_tracker(config)
     except tracker_module.Unsupported as e:
-        die(f"{e} — use the /dma:* skills", 2)
+        die(str(e), 2)
     except tracker_module.TrackerError as e:
         die(str(e))
 
