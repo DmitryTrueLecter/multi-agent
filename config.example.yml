@@ -28,6 +28,7 @@ tasks:
       on_hold: "On Hold"
       awaiting_merge: "Awaiting Merge"
       awaiting_ops: "Awaiting Ops"     # devops handoff target — human executes runbook here
+      sentinel_inbox: "Sentinel"       # where `dma sentinel flag` files prompt defects; sentinel triages from here
       done: "Done"
 
   # Jira-only block. Skip when provider: linear.
@@ -45,6 +46,7 @@ tasks:
       on_hold: 0
       awaiting_merge: 0
       awaiting_ops: 0
+      sentinel_inbox: 0
       done: 0
 
 # Project-level path fence for the devops agent.

@@ -102,7 +102,7 @@ No check in this stage has an auto-fix — every value here carries user-choice 
 - **HC-CFG-004** — `tasks.team_key` and `tasks.project` set.
   - Severity: CRITICAL. Detection: non-empty strings. Manual fix: set in `config.yml`.
 
-- **HC-CFG-005** — `tasks.workflow.statuses` has all required semantic keys: `to_do`, `in_progress`, `qa`, `code_review`, `on_hold`, `awaiting_merge`, `awaiting_ops`, `done`. Each maps to a non-empty string.
+- **HC-CFG-005** — `tasks.workflow.statuses` has all required semantic keys: `to_do`, `in_progress`, `qa`, `code_review`, `on_hold`, `awaiting_merge`, `awaiting_ops`, `sentinel_inbox`, `done`. Each maps to a non-empty string. Without `sentinel_inbox`, `${CLAUDE_PLUGIN_ROOT}/bin/dma sentinel flag` refuses to file — every agent's flag path is dead.
   - Severity: CRITICAL. Detection: key presence + value non-empty.
   - Manual fix: add missing keys with chosen display names.
 

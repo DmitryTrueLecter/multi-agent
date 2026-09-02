@@ -52,7 +52,7 @@ Tag findings by layer; for `shared-plugin`, append `(cross-project: yes)`. A pat
 
 Tracker tasks carry two orthogonal markers; mix them up and the system rots.
 
-- **Status** = board column = queue position. Semantic keys are universal across projects (`to_do`, `in_progress`, `qa`, `code_review`, `on_hold`, `awaiting_merge`, `done`) and map to project-specific tracker names via `config.yml.tasks.workflow.statuses`. Shared-plugin prompts reference status by semantic key only; the tracker display name is resolved at runtime.
+- **Status** = board column = queue position. Semantic keys are universal across projects (`to_do`, `in_progress`, `qa`, `code_review`, `on_hold`, `awaiting_merge`, `awaiting_ops`, `sentinel_inbox`, `done`) and map to project-specific tracker names via `config.yml.tasks.workflow.statuses`. Shared-plugin prompts reference status by semantic key only; the tracker display name is resolved at runtime.
 - **`agent:<role>` label** = which **agent** currently owns the task. Legal values for `<role>` are exactly the rows of `## Agent roles` whose tasks flow through tracker queues: `dev`, `qa`, `reviewer`, `devops`, `team-lead`, `sentinel`. `architect` is consulted via `Agent` spawn and never owns a tracked task — no `agent:architect` label exists. No other value is legal on the `agent:` prefix.
 
 Reject any proposal that:

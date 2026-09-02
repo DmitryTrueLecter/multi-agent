@@ -41,6 +41,8 @@ This is required because `mcp__atlassian__jira_transition_issue` takes a numeric
          code_review: <id or ?>
          on_hold: <id or ?>
          awaiting_merge: <id or ?>
+         awaiting_ops: <id or ?>
+         sentinel_inbox: <id or ?>
          done: <id or ?>
 
    Sample issue: <KEY>, current status: <name>.
