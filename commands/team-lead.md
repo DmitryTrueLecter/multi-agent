@@ -4,7 +4,7 @@ description: "Team-lead actions: pass a spec path to decompose, or invoke withou
 
 The main session runs as team-lead when launched with `claude --agent dma:team-lead`, so the role definition is already in your system prompt. This command is an explicit trigger to do one of:
 
-**With `$ARGUMENTS` containing a path to a spec / task description:**
+**With `$ARGUMENTS` containing a path to a spec / task description** (typically the analyst's feature document, `${CLAUDE_PROJECT_DIR}/.claude/dma/product/drafts/<feature>.md`):
 - Read the spec.
 - Read relevant architecture docs referenced in it.
 - Decompose into tracker issues following the rules in `${CLAUDE_PLUGIN_ROOT}/agents/team-lead.md`.

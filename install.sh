@@ -28,3 +28,10 @@ copy_if_missing() {
 copy_if_missing "$ROOT/config.example.yml"       "$DEST/config.yml"
 copy_if_missing "$ROOT/agents/sentinel/templates/arch.yml" "$DEST/arch.yml"
 copy_if_missing "$ROOT/Justfile"                 "$DEST/Justfile"
+
+# The analyst's product description: templates for the tracked files, and the
+# self-ignoring drafts directory for feature documents in progress.
+for template in product glossary features rules non-goals; do
+    copy_if_missing "$ROOT/agents/sentinel/templates/product/$template.md" "$DEST/product/$template.md"
+done
+copy_if_missing "$ROOT/agents/sentinel/templates/product/drafts/.gitignore" "$DEST/product/drafts/.gitignore"

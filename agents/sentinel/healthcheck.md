@@ -84,6 +84,12 @@ When an auto-fix runs successfully, the check line uses `↻ FIXED — <command>
   - Auto-fix: when the file is absent, `cp ${CLAUDE_PLUGIN_ROOT}/agents/sentinel/templates/arch.yml ${CLAUDE_PROJECT_DIR}/.claude/dma/arch.yml` (template-materialization class; never overwrites). A file that is present but does not parse is not auto-fixed — parser errors require human resolution, as in HC-FS-005.
   - Manual fix: copy the template from `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/templates/arch.yml`, or address the parse error at the cited line.
 
+- **HC-FS-011** — The analyst's product description exists: `${CLAUDE_PROJECT_DIR}/.claude/dma/product/` holds `product.md`, `glossary.md`, `features.md`, `rules.md`, `non-goals.md`, and `drafts/.gitignore`.
+  - Severity: WARN. `agents/analyst.md` (bootstrap) reads the five files unconditionally; without `drafts/.gitignore`, feature documents in progress land in git.
+  - Detection: `test -f` per listed path. One report line naming every missing file.
+  - Auto-fix: per missing file, `cp ${CLAUDE_PLUGIN_ROOT}/agents/sentinel/templates/product/<name> ${CLAUDE_PROJECT_DIR}/.claude/dma/product/<name>` (template-materialization class; `mkdir -p` the directory first; never overwrites). After materialization, tell the user the files are placeholders the analyst fills in its first conversation.
+  - Manual fix: run `bash ${CLAUDE_PLUGIN_ROOT}/install.sh ${CLAUDE_PROJECT_DIR}` — it copies exactly these templates and skips files that exist.
+
 ## Stage 2 — Config completeness
 
 Read `${CLAUDE_PROJECT_DIR}/.claude/dma/config.yml` once. All checks operate on the parsed structure. If HC-FS-005 failed, skip the entire stage.

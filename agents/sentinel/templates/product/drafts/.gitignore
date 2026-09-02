@@ -1,0 +1,5 @@
+# Feature documents in progress and their engineering reviews are working files,
+# not project history: the tracker's Epic description is the canonical spec once
+# the team-lead lands it. Everything here stays out of git except this file.
+*
+!.gitignore

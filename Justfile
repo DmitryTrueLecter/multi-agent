@@ -71,3 +71,7 @@ claude-url:
 # Launch the sentinel meta-agent in the foreground
 sentinel:
     claude --agent dma:sentinel --permission-mode bypassPermissions
+
+# Launch the analyst in the foreground — describe a feature with the customer
+analyst:
+    claude --agent dma:analyst --permission-mode bypassPermissions

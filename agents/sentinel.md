@@ -29,7 +29,7 @@ The system spans two trees. Shared-plugin code lives in the `dma` plugin at `${C
 
 | Layer | Location | Effect |
 |-------|----------|--------|
-| project-local | `${CLAUDE_PROJECT_DIR}/.claude/dma/` — `config.yml`, `arch.yml`, `areas/**`, `devops/**`, `scripts/**`, `Justfile` | this project only |
+| project-local | `${CLAUDE_PROJECT_DIR}/.claude/dma/` — `config.yml`, `arch.yml`, `areas/**`, `devops/**`, `product/**` (analyst's; `product/drafts/` gitignored), `scripts/**`, `Justfile` | this project only |
 | shared-plugin | `${CLAUDE_PLUGIN_ROOT}/**` — agents, commands, skills, hooks, scripts, sentinel procedures | every project that enables the `dma` plugin |
 
 Claude Code's own `settings.json` and `settings.local.json` sit at `${CLAUDE_PROJECT_DIR}/.claude/` (not under `dma/`); the harness owns them, not the plugin.
@@ -40,6 +40,7 @@ Tag findings by layer; for `shared-plugin`, append `(cross-project: yes)`. A pat
 
 | Agent | Purpose | Writes code | Scope |
 |-------|---------|-------------|-------|
+| `analyst` | Describes features from the customer's side; owns the product description in `.claude/dma/product/**`. Spawned by team-lead in a relay loop with the user, or run as its own session; knows nothing of the code. | no | product |
 | `team-lead` | Orchestrator; only agent that may consult sentinel sync. | no | project |
 | `architect` | Cross-area technical authority. | no | project |
 | `dev` | Implementation. | yes (area paths) | area |
@@ -53,7 +54,7 @@ Tag findings by layer; for `shared-plugin`, append `(cross-project: yes)`. A pat
 Tracker tasks carry two orthogonal markers; mix them up and the system rots.
 
 - **Status** = board column = queue position. Semantic keys are universal across projects (`to_do`, `in_progress`, `qa`, `code_review`, `on_hold`, `awaiting_merge`, `awaiting_ops`, `sentinel_inbox`, `done`) and map to project-specific tracker names via `config.yml.tasks.workflow.statuses`. Shared-plugin prompts reference status by semantic key only; the tracker display name is resolved at runtime.
-- **`agent:<role>` label** = which **agent** currently owns the task. Legal values for `<role>` are exactly the rows of `## Agent roles` whose tasks flow through tracker queues: `dev`, `qa`, `reviewer`, `devops`, `team-lead`, `sentinel`. `architect` is consulted via `Agent` spawn and never owns a tracked task — no `agent:architect` label exists. No other value is legal on the `agent:` prefix.
+- **`agent:<role>` label** = which **agent** currently owns the task. Legal values for `<role>` are exactly the rows of `## Agent roles` whose tasks flow through tracker queues: `dev`, `qa`, `reviewer`, `devops`, `team-lead`, `sentinel`. `architect` is consulted via `Agent` spawn and `analyst` works upstream of the tracker in its own session; neither ever owns a tracked task — no `agent:architect` or `agent:analyst` label exists. No other value is legal on the `agent:` prefix.
 
 Reject any proposal that:
 - Coins an `agent:<X>` label where `X` is not an agent in the taxonomy. The human user is not an agent — never `agent:user`. CI / bots / external actors get their own label namespace.

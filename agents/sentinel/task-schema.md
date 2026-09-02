@@ -16,7 +16,8 @@ The description owner is whoever creates the issue — always team-lead.
 |---|---|---|
 | Dev / qa Task | `## Purpose` / `## Requirements` / `## Test contract` / `## References` — closed; no command directives in the body | `team-lead/decompose.md → ### Issue description format` (closed-schema `**Rule:**`) |
 | `## Test contract` content | Invariants / Scenarios / Boundaries, each with level (`unit`/`integration`/`e2e`); copied verbatim from architect | authored `architect.md → ## Output format`; copied `decompose.md → ### Issue description format` |
-| Epic | canonical spec (free-form), lives only in the tracker | `decompose.md → ## Workflow` (Spec storage) |
+| Epic | canonical spec, lives only in the tracker. From the analyst: `## Goal` / `## Users and context` / `## How it works` / `## Business rules` / `## Boundaries` / `## Acceptance criteria` / `## Decisions` / `## Open questions`, copied verbatim from `product/drafts/<feature>.md`; free-form when team-lead wrote it from raw user text | authored `analyst.md → ## The feature document`; landed `decompose.md → ## Workflow` (Spec storage) |
+| Requirements review (not a tracker artifact) | `product/drafts/<feature>.review.md` — per contested requirement: quote / `Cost:` / `Alternative for the user:` / `Question:` / `Status:`; analyst appends `Resolution:` | written `team-lead.md → ## Requirements objection`; resolved `analyst.md → ## Engineering review` |
 | Coordination Task (`agent:team-lead`, `to_do`) | originating sentinel finding + proposed steps + archived-flag ref | `team-lead/coordination.md → ## Handling coordination tasks` |
 | Sentinel Task (`agent:sentinel`) | `## Context` / `## Desired effect` / `## References` | `team-lead.md → ## Consulting sentinel → Task` |
 

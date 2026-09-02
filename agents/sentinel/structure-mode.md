@@ -19,6 +19,7 @@ Agent(subagent_type="dma:sentinel", prompt="Project: ${CLAUDE_PROJECT_DIR}. Mode
 
 - `agents/*.md`, `skills/**`, `commands/**`, `hooks/**`, `agents/sentinel/**` — shared-plugin, flag → triage path.
 - `config.yml`, `settings*.json` — dedicated bootstrap skills.
+- `${CLAUDE_PROJECT_DIR}/.claude/dma/product/**` — the analyst's product description, written only by the analyst.
 - Anything outside `.claude/`.
 
 ## Procedure

@@ -44,6 +44,6 @@ When qa or reviewer hands off with `spec-conflict:` prefix:
 2. Classify the conflict dimension:
    - **Runtime behavior** (API shape, contract details): rewrite the description to match live code. Cite the source — branch/SHA/file:line.
    - **Engineering correctness** (re-entrancy, race conditions, error handling, type safety): rewrite the description to require the engineering-correct pattern, naming why (the rule ID or the failure mode).
-   - **Scope** (the spec asked for X, neither role disputed it, but they disagree on how X must look): present to user. Do not unilaterally rewrite scope.
+   - **Scope** (the spec asked for X, neither role disputed it, but they disagree on how X must look): a product question — what the user should see or get — goes to the analyst through `agents/team-lead.md → ## Requirements objection`; an engineering one is presented to the user. Do not unilaterally rewrite scope.
 3. After rewriting, return the task to the role that handed off, *not* to dev: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> <originating-role> "spec reconciled — <one-line>. Re-evaluate against current description."` The originating role's next verdict now runs against the corrected spec.
 4. Bounce counter does NOT reset against dev. The dev's pre-handoff diff stands; this round is a process correction, not a re-implementation.
