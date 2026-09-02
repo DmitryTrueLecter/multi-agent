@@ -28,6 +28,11 @@ CONFIG = """
 tasks:
   provider: jira
   project_key: T
+  workflow:
+    statuses:
+      to_do: "To Do"
+      in_progress: "In Progress"
+      done: "Done"
 vcs:
   dev_branch: dev
   branch_prefix: "ai/"
@@ -190,12 +195,11 @@ def test_role_and_parent_come_from_the_issue_when_not_given(project, monkeypatch
     sys.path.insert(0, os.path.join(ROOT, "scripts"))
     import workspace
 
-    class FakeJira:
-        def get_issue(self, key):
-            return {"fields": {"labels": ["area:backend", "agent:qa"],
-                               "parent": {"key": "T-9", "fields": {"issuetype": {"name": "Epic"}}}}}
+    class FakeTracker:
+        def read(self, key):
+            return {"labels": ["area:backend", "agent:qa"], "parent": {"key": "T-9", "type": "group"}}
 
-    assert workspace.resolve("T-1", FakeJira()) == ("backend", "T-9", "qa")
+    assert workspace.resolve("T-1", FakeTracker()) == ("backend", "T-9", "qa")
 
 
 def test_a_parent_that_is_not_a_group_is_not_a_base(project):
@@ -203,12 +207,11 @@ def test_a_parent_that_is_not_a_group_is_not_a_base(project):
     sys.path.insert(0, os.path.join(ROOT, "scripts"))
     import workspace
 
-    class FakeJira:
-        def get_issue(self, key):
-            return {"fields": {"labels": ["agent:dev"],
-                               "parent": {"key": "T-9", "fields": {"issuetype": {"name": "Task"}}}}}
+    class FakeTracker:
+        def read(self, key):
+            return {"labels": ["agent:dev"], "parent": {"key": "T-9", "type": "task"}}
 
-    area, epic, role = workspace.resolve("T-1", FakeJira())
+    area, epic, role = workspace.resolve("T-1", FakeTracker())
     assert epic is None, "only a group parent means an epic branch"
     assert role == "dev"
 
@@ -289,7 +292,7 @@ def test_prepare_with_only_a_key_uses_the_epic_as_base(jira_project):
 def test_prepare_with_only_a_key_on_a_tracker_the_cli_cannot_read(jira_project):
     project, jira = jira_project
     config = project / ".claude" / "dma" / "config.yml"
-    config.write_text(config.read_text().replace("provider: jira", "provider: linear"))
+    config.write_text(config.read_text().replace("provider: jira", "provider: trello"))
     rc, out = dma("prepare", "T-1")
     assert rc == 2
     assert "--workspace" in out, "it says which overrides make it work without the tracker"

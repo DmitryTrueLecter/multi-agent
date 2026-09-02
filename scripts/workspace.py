@@ -17,13 +17,13 @@ read it, so for them a branch dev never pushed stops here with REF_ABSENT instea
 of handing them an empty one.
 
 `--workspace`, `--epic`, `--create` and `--no-create` override those, for a tracker
-the CLI does not support and for tests.
+the CLI has no backend for and for tests.
 
 `remove` is called when a task closes; it looks in every checkout the project
 declares, because the worktree lives in the repo of whichever area owned the task.
 
-Exit codes: 0 ok · 1 error · 10 epic branch missing · 11 epic sync conflict
-            13 task branch or base missing on the remote
+Exit codes: 0 ok · 1 error · 2 provider not supported · 10 epic branch missing
+            11 epic sync conflict · 13 task branch or base missing on the remote
 """
 
 import os
@@ -38,15 +38,30 @@ import worktree
 BRANCH_AUTHORS = {"dev", "devops", "sentinel", "team-lead"}
 
 
-def resolve(key, jira):
-    """The area, the base and the role — from the issue, in one read."""
-    data = jira.get_issue(key)
-    labels = data["fields"].get("labels") or []
+def resolve(key, tracker):
+    """The area, the base and the role — from the issue, in one read. `tracker` is
+    a scripts/tracker.py backend: the issue arrives in the one shape both trackers
+    answer in, so this works the same for Jira and Linear."""
+    data = tracker.read(key)
+    labels = data["labels"]
     area = next((l[len("area:"):] for l in labels if l.startswith("area:")), None)
     role = next((l[len("agent:"):] for l in labels if l.startswith("agent:")), None)
-    parent = data["fields"].get("parent") or {}
-    epic = parent.get("key") if parent.get("fields", {}).get("issuetype", {}).get("name") == "Epic" else None
+    parent = data["parent"]
+    epic = parent["key"] if parent and parent["type"] == "group" else None
     return area, epic, role
+
+
+def open_tracker_or_die():
+    """The tracker the project configures. No backend for it → exit 2 and name
+    the overrides that make `prepare` work without reading the issue."""
+    import tracker as tracker_module
+
+    try:
+        return tracker_module.open_tracker(issue.load_config())
+    except tracker_module.Unsupported as e:
+        issue.die(f"{e} — pass --workspace / --epic / --create", 2)
+    except tracker_module.TrackerError as e:
+        issue.die(str(e))
 
 
 def prepare(key, workspace_path=None, epic_key=None, area=None, create=None):
@@ -54,11 +69,7 @@ def prepare(key, workspace_path=None, epic_key=None, area=None, create=None):
     # decision are given; `--epic` absent then means a standalone task, not
     # "unknown". Anything less and the issue is read to fill the gaps.
     if workspace_path is None or create is None:
-        config = issue.load_config()
-        provider = (config.get("tasks") or {}).get("provider")
-        if provider != "jira":
-            issue.die(f"provider '{provider}' is not supported — pass --workspace / --epic / --create", 2)
-        issue_area, issue_epic, role = resolve(key, issue.Jira(*issue.load_credentials()))
+        issue_area, issue_epic, role = resolve(key, open_tracker_or_die())
         area = area or issue_area
         epic_key = epic_key or issue_epic
         if create is None:

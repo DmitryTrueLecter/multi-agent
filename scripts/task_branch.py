@@ -296,14 +296,8 @@ def resolve_workspace(command, key, options):
     epic = None
     if command in TASK_COMMANDS and not area:
         import workspace as workspace_module
-        import tracker as tracker_module
 
-        config = issue.load_config()
-        try:
-            backend = tracker_module.open_tracker(config)
-        except (tracker_module.Unsupported, tracker_module.TrackerError) as e:
-            issue.die(f"{e} — pass --workspace and --area", 2)
-        area, epic, _ = workspace_module.resolve(key, backend.api if hasattr(backend, "api") else backend)
+        area, epic, _ = workspace_module.resolve(key, workspace_module.open_tracker_or_die())
     checkout = worktree.area_workspace(area)
     if command in EPIC_COMMANDS:
         return checkout, area, None
