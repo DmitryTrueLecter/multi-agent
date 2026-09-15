@@ -1,19 +1,21 @@
-# Sentinel knowledge base
+# Sentinel reference
 
-Durable storage for sentinel meta-agent. Read by sentinel at the start of every triage (`/dma:sentinel full-audit`, `/dma:sentinel retrospective`, conversation mode).
+Files the sentinel agent reads on demand. The agent's charter is `agents/sentinel.md`; each mode's procedure is a skill under `skills/sentinel-<mode>/SKILL.md` (triage, consultation, structure, task, full-audit, retrospective, healthcheck) and names which of these files to read and when.
 
-## Structure
+| File | What it holds | Read when |
+|---|---|---|
+| `patterns/*.md` | One recurring problem shape per file: signature, observed instances, triage rule. Stack-agnostic. | Priming step of triage, consultation, full-audit, retrospective. |
+| `solutions/*.md` | Conditional recommendations: an IF-condition on an area's properties, a THEN-recommendation. | A flag names an area; apply those whose condition the area meets. |
+| `task-schema.md` | Issue description blocks, comment blocks, who writes and reads each at which stage. | Priming; any flag about a description section, a handoff comment, or who-reads-what. |
+| `area-config-schema.md` | Canonical schema of `areas/<area>/area.yml` and role overlays: fields, readers, what goes where. | Flags about area-config gaps; structure and task gates; architect proposals adding fields. |
+| `structure-gates.md` | The four gates (scope, schema, quality, consistency) and the rejection block. | Structure mode; task-mode self-check. |
+| `plugin-layers.md` | The shared-plugin vs project-local trees. | A finding's scope tag is in doubt. |
+| `agent-roles.md` | The role table and the tracked-queue set for `agent:<role>`. | Role-gap / role-overlap flags; label checks. |
+| `status-invariants.md` | Status vs `agent:` label rules and the proposals to reject. | Anything touching labels, statuses, or queues. |
+| `templates/` | Files healthcheck materializes into a project (`arch.yml`, `environments.md`, `product/*`). | Healthcheck auto-fix. |
 
-- `patterns/` — recurring problem shapes observed in past flags. Each file documents one shape with its signature, observed instances, and a triage rule. Stack-agnostic. Use to recognize when a new flag matches a known meta-form.
-- `solutions/` — conditional recommendations. Each file declares an IF-condition (a property of an area, its stack, or its role) at the top and a THEN-recommendation (rules or fixes to apply). Sentinel reads all solutions and applies those whose conditions match the affected area.
-- `area-config-schema.md` — canonical schema for `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/area.yml`: which fields exist, who reads them, what goes there vs in role overlays. Read when triaging flags about area-config gaps and when reviewing architect's proposals to add new fields.
-- `task-schema.md` — canonical map of task/issue content in the tracker: description blocks, comment blocks, and the who-writes/who-reads flow by stage. Read when triaging flags about a description section, a handoff or report comment, or a who-reads-what question.
-
-## How sentinel uses this
-
-1. On triage start, scan `patterns/*.md` (small catalog, read all) and `task-schema.md` (the task/issue content map — writers, readers, stages).
-2. For each flag referencing an area, read `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/area.yml` to learn the area's characteristics, then scan `solutions/*.md` and apply those whose IF-condition matches.
-3. If a new flag matches a known pattern: cite the pattern, don't re-derive.
-4. When a flag generalizes beyond its first instance: add a new entry to `patterns/` and link to it from the originating flag's resolution.
-5. When a recurring fix shape applies to all areas matching some condition: add a new entry to `solutions/`.
-6. When triaging a flag about area-config structure (missing field, wrong location of a fact): consult `area-config-schema.md` before recommending a fix. If the fix introduces a new field, the schema is updated in the same triage pass.
+Maintenance:
+- A flag that generalizes beyond its first instance → new `patterns/` entry, linked from the flag's resolution.
+- A fix shape that applies to every area meeting some condition → new `solutions/` entry.
+- A schema fix that introduces a new `area.yml` field → update `area-config-schema.md` in the same pass.
+- `task-schema.md` or `area-config-schema.md` disagreeing with the current agent files is itself a finding — reconcile in the same pass.

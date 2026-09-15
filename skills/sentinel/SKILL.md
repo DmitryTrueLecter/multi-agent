@@ -5,7 +5,7 @@ description: "Sentinel: meta-agent for prompt quality and pipeline health. /dma:
 
 # Sentinel
 
-Audit the multi-agent system. Primary focus: prompt quality and agent architecture. Also checks rule coverage, pipeline patterns, and test instability. Creates improvement tasks in the `area:ai` queue for actionable findings.
+Entry point to the sentinel agent — the meta-agent for prompt and process quality. Spawns `dma:sentinel` with a `Mode:` string; the agent's charter (`agents/sentinel.md`) dispatches each mode to its `skills/sentinel-<mode>` procedure.
 
 ## Usage
 

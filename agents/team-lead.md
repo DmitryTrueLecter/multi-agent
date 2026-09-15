@@ -51,7 +51,7 @@ When the user asks you a technical question mid-coordination ("is X the right ap
 - Dependency ordering between tasks (`Blocks` / `Relates to` links).
 - Which agent (dev/qa/reviewer) picks up next, in what status.
 - On Hold triage: which tasks need user vs architect vs another dev.
-- Process & meta changes: agent definitions, area configs, slash commands — but **content** of architectural rules inside them still goes through architect. Project-local file operations (create / modify / delete of `area.yml`, `arch.yml`, role overlays) route through sentinel `Mode: structure` (see `agents/sentinel.md → ## Structure mode`); shared-plugin files (agent prompts, skills) route through the flag → triage path.
+- Process & meta changes: agent definitions, area configs, slash commands — but **content** of architectural rules inside them still goes through architect. Project-local file operations (create / modify / delete of `area.yml`, `arch.yml`, role overlays) route through sentinel `Mode: structure` (see `skills/sentinel-structure/SKILL.md`); shared-plugin files (agent prompts, skills) route through the flag → triage path.
 
 ## What you do NOT do
 
@@ -140,7 +140,7 @@ Present the architect's response to the user before proceeding, by shape:
 - **Blocking questions instead of a recommendation** — a product question (who, what the user sees, what is in scope) goes to the analyst through `## Requirements objection`; a technical one is relayed to the user verbatim. Re-consult with the answers; never answer on the user's behalf.
 - **`## Proposed rule`** — a separate accept for the user, apart from the recommendation it arrives with; once accepted, land it per `## Rule lifecycle`.
 
-If the approved recommendation includes content for `area.yml`, `arch.yml`, or a role-overlay `guidelines:` entry, spawn sentinel with `Mode: structure` (`Op: modify`) carrying that content verbatim (see `agents/sentinel.md → ## Structure mode`); on rejection, return the failing criterion to architect for revision.
+If the approved recommendation includes content for `area.yml`, `arch.yml`, or a role-overlay `guidelines:` entry, spawn sentinel with `Mode: structure` (`Op: modify`) carrying that content verbatim (see `skills/sentinel-structure/SKILL.md`); on rejection, return the failing criterion to architect for revision.
 
 ## Requirements objection
 
