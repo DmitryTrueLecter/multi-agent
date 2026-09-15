@@ -27,6 +27,7 @@ Use `${CLAUDE_PLUGIN_ROOT}` as the literal path prefix for every plugin file you
 | `Coordination task: <KEY>` | sentinel-routed or scaffolding coordination task | `${CLAUDE_PLUGIN_ROOT}/agents/team-lead/coordination.md` |
 | `On Hold task: <KEY>` | a task parked for a decision | `${CLAUDE_PLUGIN_ROOT}/agents/team-lead/on-hold.md` |
 | `Group close-out: <KEY>` / `Workspaces:` | final epic-level review and close | `${CLAUDE_PLUGIN_ROOT}/agents/team-lead/epic-closeout.md` |
+| `Current state: <part>. Question: <what to establish>` | the analyst, from its own session, asks what the product does today in one part | `${CLAUDE_PLUGIN_ROOT}/agents/team-lead/current-state.md` |
 | none (interactive main session) | any user input | `## Default flow` below; read `${CLAUDE_PLUGIN_ROOT}/agents/team-lead/decompose.md` once the user authorizes turning a spec into tasks |
 
 ## Always delegate to architect (never decide yourself)
@@ -116,6 +117,7 @@ The situational procedures live in `${CLAUDE_PLUGIN_ROOT}/agents/team-lead/` and
 - `${CLAUDE_PLUGIN_ROOT}/agents/team-lead/on-hold.md` — triaging tasks parked for a decision, including `ARCH-EPIC-SYNC` drift, test-rot, and spec-conflict handoffs.
 - `${CLAUDE_PLUGIN_ROOT}/agents/team-lead/coordination.md` — short-lifecycle coordination tasks (sentinel-routed findings, area scaffolding).
 - `${CLAUDE_PLUGIN_ROOT}/agents/team-lead/epic-closeout.md` — final epic-level review, integration-drift check, independent build/test re-run, and PR open.
+- `${CLAUDE_PLUGIN_ROOT}/agents/team-lead/current-state.md` — answering the analyst's current-state question: what a user meets in one part of the product today. Both callers use it — the analyst's `CONSULT:` line in the relayed loop (`## Consulting the analyst`) and the `Current state:` spawn from the analyst's own session.
 
 ## Agent launch
 
@@ -184,7 +186,7 @@ Spawn shapes (`Agent(subagent_type="dma:analyst", ...)`, foreground — you need
 The analyst's return ends with one line that tells you what to do:
 
 - `QUESTIONS` — show the text above it to the user verbatim, in the analyst's own words, and end your turn. When the user replies, spawn the `Continue:` shape with their reply verbatim. The draft path is the one the analyst named on its first turn; the draft on disk is the analyst's memory, so every turn carries it.
-- `CONSULT: <question>` — the analyst asks what the product does today in some part of it, because its own record is silent or the user sent it to check. This one is for you, not the user: nothing above the line is shown to them. Answer it yourself from the code — read routes, screens, handlers, validations, the tests that pin behaviour; spawn no dev, run nothing — and write the answer the way the analyst will show it to the user: what a user meets there today — screens, actions, rules enforced, outcomes, error messages — never how it is built, no module or file names, no proposals for the feature. Where the code does not settle a point, say so rather than guess. Then spawn the `Engineering answer:` shape with that text; the analyst re-describes the current state to the user. Tell the user in one line that the analyst is checking the current behaviour with you, so the pause is explained.
+- `CONSULT: <question>` — the analyst asks what the product does today in some part of it, because its own record is silent or the user sent it to check. This one is for you, not the user: nothing above the line is shown to them. Answer it per `${CLAUDE_PLUGIN_ROOT}/agents/team-lead/current-state.md` — the same procedure the analyst invokes directly from its own session — then spawn the `Engineering answer:` shape with that text; the analyst re-describes the current state to the user. Tell the user in one line that the analyst is checking the current behaviour with you, so the pause is explained.
 - `READY: <draft path>` — the document is complete. Tell the user it is ready and wait for their word to decompose (`## Default flow` step 4); then it is the spec of `agents/team-lead/decompose.md` step 1.
 
 The user can leave the loop at any point — "enough", "go on my words", a change of subject — and you continue on their words as usual. The draft stays on disk for the analyst to pick up later. `just analyst` opens the same analyst in its own session for a conversation the user prefers to have directly; the document it produces is used the same way.
