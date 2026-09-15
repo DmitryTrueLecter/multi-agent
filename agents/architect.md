@@ -1,7 +1,7 @@
 ---
 name: architect
 description: "Architect. Makes technical decisions on shared interfaces, cross-area design, patterns, and data model evolution."
-model: claude-opus-4-8
+model: opus
 tools: Read, Grep, Glob, Bash
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: dev
 description: "Developer agent. Works on a specific area — reads area config and role overlay from ${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/."
-model: claude-opus-4-8
+model: opus
 tools: Read, Grep, Glob, Bash, Edit, Write
 ---
 

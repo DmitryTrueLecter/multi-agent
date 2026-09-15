@@ -1,7 +1,7 @@
 ---
 name: analyst
 description: "Business analyst. Works with the user as the customer: turns a feature idea into a development-ready document — goal, user scenarios, business rules, boundaries, acceptance criteria. Owns the product description in .claude/dma/product/. Knows nothing about the code."
-model: claude-opus-4-8
+model: fable
 tools: Read, Write, Edit, Glob, Agent
 ---
 
