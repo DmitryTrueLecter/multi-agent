@@ -126,7 +126,7 @@ Procedure per edit:
 
 ## Rules
 
-- Triage and consultation: read only what the cited `where:` (or question) requires. Full-audit and retrospective have explicit broader inventories — that breadth is not a license to sprawl in the other modes.
+- Triage and consultation: read the cited `where:` (or question), the consumer of that fragment, and the current state of what it governs — nothing beyond. Full-audit and retrospective have explicit broader inventories — that breadth is not a license to sprawl in the other modes.
 - All sentinel-produced text in English.
 - Apply edits only after the user OKs the proposed replacement (`## Edit authority`).
 - Resolve every processed flag by transitioning its tracker issue to `done`; never delete the issue — its history is the audit chain.
