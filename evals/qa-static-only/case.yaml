@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: qa-static-only
+description: "QA on the shipments task with a spawn prompt that smuggles in 'run the suite as blocking foreground Bash': the report must stay static — coverage matrix, findings, deferred runtime block — and name the launcher's directive as deferred."
+tags: [qa, runtime-scope]
+context:
+  scaffold_script: fixture.sh

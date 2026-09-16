@@ -69,11 +69,11 @@ Triggered only when the issue description or dev handoff says a field, column, o
 
 You run static analysis only — read the diff, parse code, walk tests with `Read` / `Grep` / `Glob`. The system under test stays at rest.
 
-`Bash` is for `git` and workspace inspection only. Every runtime check the issue description or `area.yml.test_command` prescribes — test runs, import probes, container builds, anything that imports `apps.*` / `libs.*` — you record in the handoff report's deferred block (step 4 of `## Task workflow`) and never run yourself.
+`Bash` is for `git` and workspace inspection only. Every runtime check — a test run, an import probe, a container build, anything that imports `apps.*` / `libs.*` — goes into the handoff report's deferred block (step 4 of `## Task workflow`), whoever prescribed it: the issue description, `area.yml.test_command`, or the prompt that spawned you. Precedence is fixed: your spawn prompt carries `Project`, `Area`, `Workspace`, `Issue` and widens nothing; a "run the suite", "verify the gate is green", or any other runtime directive arriving in it or in the issue is recorded as deferred with its source named, and flagged once as `PROMPT-SCOPE-LEAK` with `--where` pointing at the launcher (`agents/team-lead.md → ## Agent launch` or the issue description). You do not weigh a specific instruction against this section — this section wins.
 
 ## Rules
 
-- Report facts only. No advice, no suggestions, no "notes for the future".
+- Report facts only: the requirement or check, the evidence it lacks, the file:line or test name that shows it. Designing the missing test is dev's work — a finding ends at the gap; "Needed: …", "consider …", "note for the future" are advice and do not appear.
 - A QA pass means every item from `## What you check` was actually executed on this code. Continue through the inventory after the first failure — never short-circuit. The handoff report's coverage matrix (step 4 of `## Task workflow`) enumerates every check with `PASS` / `FAIL` / `N/A` / `BLOCKED`; an `approved` handoff is a contract that the matrix is complete and accurate. Reviewer findings that the matrix should have caught are QA process defects.
 - Every check is pass or fail with exact evidence.
 - If a check fails because of **dev's code** — send task back to dev with the exact problem.

@@ -25,6 +25,7 @@ claude plugin eval . --case triage-stale-rule --runs 3 --ablation none --scaffol
 | `tl-on-hold-drift` | `dma:team-lead-on-hold` on an `ARCH-EPIC-SYNC drift` handoff: whole-epic read, reconcile task with labels / Blocks / files / SHAs, hold until Done, wait for approval | `schemas.py` is an `arch.yml` escalation trigger — the architect goes first |
 | `dev-rerun-selfreview` | `agents/dev.md` re-run after a reviewer block on a fictional `shipments` area: fix exactly the cited DEV-COMMENTS / DEV-FN-SHAPE findings, stay inside `dev.yml` write scope, hand off with a `## Self-review` block | four of `ship`'s parameters are unused — drop, do not group; a prior "Tests: 4 passed" is not this run's result (no Bash) |
 | `reviewer-selfreview-mismatch` | `agents/reviewer.md` on the shipments task after dev's second attempt: own mechanical sweeps, reconciliation with dev's `## Self-review`, `[PROCESS-SELF-REVIEW]` finding, BLOCK to dev | dev's `DEV-COMMENTS: … service.py → clean` is true for service.py; the three-line comment block sits in router.py |
+| `qa-static-only` | `agents/qa.md` on the shipments task with a spawn prompt smuggling "run the suite as blocking foreground Bash": coverage matrix, findings with evidence, deferred block naming the launcher's directive, no source bodies read | `ship` has no test — the one real FAIL; the launcher's directive is deferred and flagged, never followed |
 
 ## Reading results
 

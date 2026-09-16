@@ -10,7 +10,7 @@ Files the sentinel agent reads on demand. The agent's charter is `agents/sentine
 | `area-config-schema.md` | Canonical schema of `areas/<area>/area.yml` and role overlays: fields, readers, what goes where. | Flags about area-config gaps; structure and task gates; architect proposals adding fields. |
 | `structure-gates.md` | The four gates (scope, schema, quality, consistency) and the rejection block. | Structure mode; task-mode self-check. |
 | `plugin-layers.md` | The shared-plugin vs project-local trees. | A finding's scope tag is in doubt. |
-| `agent-roles.md` | The role table and the tracked-queue set for `agent:<role>`. | Role-gap / role-overlap flags; label checks. |
+| `agent-roles.md` | The role table, the tracked-queue set for `agent:<role>`, and `## Settled decisions` — role-scope decisions the user has made (QA runs nothing, …). | Role-gap / role-overlap flags; label checks; any flag or question about what a role may do. |
 | `status-invariants.md` | Status vs `agent:` label rules and the proposals to reject. | Anything touching labels, statuses, or queues. |
 | `templates/` | Files healthcheck materializes into a project (`arch.yml`, `environments.md`, `product/*`). | Healthcheck auto-fix. |
 

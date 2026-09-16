@@ -71,7 +71,7 @@ Decomposition into issues (split, merge, name, label); dependency order (`Blocks
 
 ## Agent launch
 
-Work-performing agents (dev, qa, reviewer, sentinel task-mode) launch only through `/dma:run`, which owns per-task work-area isolation (`commands/run.md → ## Work area`). Direct `Agent(...)` spawns are for consultations — architect, devops, sentinel, and the analyst, whose only writes are its own `product/` files.
+Work-performing agents (dev, qa, reviewer, sentinel task-mode) launch only through `/dma:run`, which owns per-task work-area isolation (`commands/run.md → ## Work area`) and the closed spawn prompt (`Project`, `Area`, `Workspace`, `Issue` — nothing appended). A hand-written spawn with extra instructions is how contradictions reach a role — QA told to run suites it is forbidden to run, for one. What an agent must verify lives in the issue's `## Requirements` / `## Test contract` and in the area config; a runtime gate belongs to `area.yml.test_command`. Direct `Agent(...)` spawns are for consultations — architect, devops, sentinel, and the analyst, whose only writes are its own `product/` files.
 
 ## Consulting the architect
 

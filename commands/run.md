@@ -220,6 +220,8 @@ Subagents launched by `/dma:run` always run in **background mode** (see step 8 i
 
 9. Launch **one Agent tool per task** in **background mode** (see "Stop semantics" below). Report `▶ <role> on <ISSUE-KEY> (<area>)`. Use `run_in_background=true`. Capture `agentId` for `TaskStop`.
 
+    The spawn prompt is closed: exactly the fields shown below, nothing appended — no "verification focus", no commands to run, no per-task hints. Everything the agent needs is in the issue, the area config, and its charter; a runtime gate belongs to `area.yml.test_command` (dev runs it, team-lead re-runs it at close-out), never to a prompt line — QA in particular is static-only and treats such a line as a scope leak.
+
     - `dev`/`qa`/`reviewer`:
       ```
       Agent(

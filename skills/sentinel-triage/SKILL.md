@@ -21,6 +21,7 @@ Process the Sentinel flag queue: per flag, read the cited location, classify, pr
       - `ARCH-ROLE-GAP` / `ARCH-ROLE-OVERLAP` → the one or two agent files the flag implicates, plus `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/agent-roles.md`.
       - `ENV-FRICTION` → `${CLAUDE_PLUGIN_ROOT}/hooks/` and `${CLAUDE_PROJECT_DIR}/.claude/settings*.json` for the rule blocking the prescribed command.
       - A flag touching labels, statuses, or queues → `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/status-invariants.md`.
+      - A flag questioning what a role may do — run tests, write outside its paths, decide product scope — → `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/agent-roles.md → ## Settled decisions` first; a flag that asks to reverse a settled decision is **not actionable** as a defect and goes to the user as a question.
    e. Classify:
       - **Confirmed defect** — the problem is systemic and still present. Derive the fix from the defect and from what the consumer does with the fragment across the plugin; the change the flag asks for is input, never the fix as written. State what changes in the consumer's behaviour.
       - **Obsolete** — the fragment was rewritten, the governed code removed, or the mechanism replaced. Cite what resolved it (file:line or commit).

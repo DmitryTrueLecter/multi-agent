@@ -12,7 +12,7 @@ Answer one structured question inline for team-lead (`agents/team-lead.md → ##
 
 1. Scope guard. A technical question — pattern, library, file split, whether a design is wise — → print `Out of scope — architect consultation.` and stop.
 2. Prime. Read every `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/patterns/*.md` and `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/task-schema.md`.
-3. Read what the question requires — typically one or two agent or skill files, plus the cited issue (`${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <KEY>`) when the context names one — and nothing else. A question touching labels, statuses, or queues → also `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/status-invariants.md`.
+3. Read what the question requires — typically one or two agent or skill files, plus the cited issue (`${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <KEY>`) when the context names one — and nothing else. A question touching labels, statuses, or queues → also `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/status-invariants.md`. A question about what a role may do → also `${CLAUDE_PLUGIN_ROOT}/agents/sentinel/agent-roles.md → ## Settled decisions`.
 4. Classify against the charter's `## Findings taxonomy`; label `advisory` when no class fits.
 5. Compose the recommendation. A prompt rewrite goes through the charter's `## Writing replacements`: draft per steps 1–3, then apply the checklist item by item — for each item, name the span that fails it and rewrite that span; keep the items that changed the draft for the `Checked:` line.
 6. When the question reveals a defect another agent's run would also hit, file it: `${CLAUDE_PLUGIN_ROOT}/bin/dma sentinel flag <TYPE> "<problem>" --where <file:section> --reporter sentinel`.
