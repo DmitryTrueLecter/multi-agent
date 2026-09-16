@@ -31,7 +31,7 @@ For each On Hold task:
      - **Delete** — the tested behavior is gone for good (module removed, v1 schema replaced by v2 with no v1 path). File a task to remove the test.
      - **Temporarily disable** — the contract is in flux and the test will be revived after a known follow-up (v1 tests during a v1→v2 migration with a planned port). File a task to add the language-appropriate skip marker with the tracking-issue ID in the reason field.
 
-     Link each triage task `Blocks` the on-hold task. Return the on-hold task via `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <KEY> dev` only after the triage lands — the dev's re-run baseline must include the triage outcomes.
+     Link each triage task `Blocks` the on-hold task, then route the on-hold task by what the rot covers. Rot in tests the diff did not change, failing identically on HEAD and base, leaves the dev's work valid: hand the task to qa with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <KEY> qa` in the same turn the triage task is filed. Rot over code the diff did change needs the triage outcomes in the dev's re-run baseline: that task goes back with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <KEY> dev` once the triage lands.
 5. Read the spec and relevant architecture docs to verify.
 6. Present your analysis to the user in the format under `## Analysis format` below.
 7. **Wait for user approval before making any changes.** Nothing is created, transitioned, or commented until the user says so.
