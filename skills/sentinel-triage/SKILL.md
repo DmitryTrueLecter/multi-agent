@@ -52,7 +52,8 @@ Originating task: <KEY or "—">
 
 **Fix:**
 <before — the literal changed span, fenced>
-<after — the fenced replacement>
+<after — the fenced replacement; for a removed span the fence reads `(deleted — <where its action now lives>)`>
+<one before/after pair per changed span, the sibling that absorbs a rule ID included>
 
 **Checked:** <checklist items that changed the draft, each with its span — or `no changes`>
 
@@ -96,7 +97,7 @@ The rule requires every outbound call to wrap itself in `RetryPolicy.exponential
 - Send outbound calls through `libs/net/client.py` and leave retries to it (PAY-RETRY-BACKOFF).
 ```
 
-**Checked:** references (`RetryPolicy.exponential()` → `libs/net/client.py`, the helper no longer exists); thresholds ("retries responsibly" in the draft → the loop/sleep detection); voice (guideline draft opened "Retries are handled by…" → "Send … and leave …"); one home (guideline draft repeated the rule's violation list → cites the rule ID and keeps only the action).
+**Checked:** references (`RetryPolicy.exponential()` → `libs/net/client.py`, the helper no longer exists); thresholds ("retries responsibly" in the draft → the loop/sleep detection); voice (guideline draft opened "Retries are handled by…" → "Send … and leave …"); positive phrasing (guideline draft ended "never loop, never sleep between attempts" → dropped, the rule names the violations); one home (guideline draft repeated the rule's violation list → cites the rule ID and keeps only the action).
 
 **Note:** `PAY-TIMEOUTS` cites `RetryPolicy` in its own text; it is not this flag's `where` — filed separately as PROJ-102.
 

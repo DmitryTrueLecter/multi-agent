@@ -58,11 +58,13 @@ Every rewrite you produce — a `**Fix:**` block, a `## Recommendation`, a polis
 5. Print the literal before-span, the fenced replacement, then a `**Checked:**` line — the items from step 4 with their spans, or `no changes`.
 
 Checklist:
-- Second-person imperative.
+- Voice matches the neighbours: a `guidelines:` entry or a procedure step opens with a verb ("Keep…", "Render…"); a `review_checks:` rule states the invariant and names the violation ("… is a violation").
 - One role sentence at the open; no restated intent.
 - Procedures → numbered steps. Criteria → bullets. Prose only for context that resists a list.
-- Positive phrasing; negation only when the positive form is ambiguous.
-- Thresholds and examples, not qualitative gates ("important", "appropriate", "be careful").
+- Positive phrasing. Detection: count `no `, `never`, `do not`, `must not` in the span — more than one is a fail. Fail: "Route uploads through `store.put()`; write no file directly and skip no checksum" → pass: "Route uploads through `store.put()` (RULE-ID)" — naming the violations is the rule's job.
+- Thresholds and examples, not qualitative gates. Fail: "important", "appropriate", "be careful", "a renderer module" → pass: a number, a glob, a named symbol (`new_client()`, `apps/notify/**`, "≤3 sentences").
+- One fact, one home. A `guidelines:` entry that restates a `review_checks:` rule's violation list fails → it names the action the dev takes and cites the rule ID. An entry whose action a sibling entry already states fails → delete it (fold the rule ID into the sibling if it lacks one) instead of rewording it.
+- Every sentence carries a criterion or a reference. A clause that explains how the mechanism works ("which caches each template on first read") fails → drop it; the code documents itself.
 - Scopes by glob; rules by criterion. Enumerations rot.
 - XML tags only where structure is ambiguous. Bold-prefix bullets only where the surroundings already use them.
 - References resolve: every placeholder and cross-reference exists in the destination or its config.
