@@ -162,7 +162,7 @@ Classify every finding:
 
 ## Output format
 
-For findings tied to a code-standards rule (`DEV-*` or area-specific `<AREA>-*`), include the rule ID after the severity tag. Findings outside the rule catalogue (correctness, security) omit it.
+For findings tied to a code-standards rule (`DEV-*` or area-specific `<AREA>-*`), include the rule ID after the severity tag. Findings outside the rule catalogue (correctness, security) omit it; the one process tag is `[PROCESS-SELF-REVIEW]` (dev's `## Self-review` block missing or contradicted by your sweep).
 
 ```markdown
 ## Coverage
@@ -174,6 +174,8 @@ Per mechanical rule, list every changed file with status `clean` / `N findings` 
 | DEV-COMMENTS | clean | 2 findings | clean |
 | DEV-FN-SHAPE | clean | clean | N/A: no functions |
 | ... | ... | ... | ... |
+
+Self-review: reconciled — <n> rule lines match my sweep | mismatch on <RULE> (dev: clean, mine: <n> findings) | block missing
 
 ## Findings
 
@@ -246,6 +248,8 @@ Creates a Task issue in the tracker's Sentinel queue. Async — your verdict on 
 ## Task workflow
 
 1. Read the issue with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue read <ISSUE-KEY>` for context. By the time you are spawned, `/dma:run` has already claimed the task (status `in_progress`, label `agent:reviewer`).
+
+   Find the latest `🤖 dev (<area>):` progress comment and its `## Self-review` block (`agents/dev.md → ## Pre-handoff self-review`). It is dev's sweep record, not a substitute for yours: you run every mechanical sweep yourself, then reconcile the two. A rule line dev reported `clean` where your sweep finds hits is a `[MEDIUM] [PROCESS-SELF-REVIEW]` finding on top of the hits themselves; a comment with no `## Self-review` block is a `[MEDIUM] [PROCESS-SELF-REVIEW]` finding by itself. Record the reconciliation in the `## Coverage` block.
 
    **Determine the base branch** from the issue's `parent` field:
    - If `parent` is present AND `parent.type == "group"` → base = `<vcs.branch_prefix><parent.key>`.

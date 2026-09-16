@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: reviewer-selfreview-mismatch
+description: "Reviewer reconciles dev's Self-review block with its own sweep: dev reported DEV-COMMENTS clean after grepping one file; a three-line comment block remains in router.py."
+tags: [reviewer, self-review]
+context:
+  scaffold_script: fixture.sh

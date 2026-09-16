@@ -24,6 +24,7 @@ claude plugin eval . --case triage-stale-rule --runs 3 --ablation none --scaffol
 | `tl-current-state` | `dma:team-lead-current-state` on a fictional `members` screen: user-terms description, no mechanics, open points marked, no preamble | the removal path has no authorization check — surface it, do not design it |
 | `tl-on-hold-drift` | `dma:team-lead-on-hold` on an `ARCH-EPIC-SYNC drift` handoff: whole-epic read, reconcile task with labels / Blocks / files / SHAs, hold until Done, wait for approval | `schemas.py` is an `arch.yml` escalation trigger — the architect goes first |
 | `dev-rerun-selfreview` | `agents/dev.md` re-run after a reviewer block on a fictional `shipments` area: fix exactly the cited DEV-COMMENTS / DEV-FN-SHAPE findings, stay inside `dev.yml` write scope, hand off with a `## Self-review` block | four of `ship`'s parameters are unused — drop, do not group; a prior "Tests: 4 passed" is not this run's result (no Bash) |
+| `reviewer-selfreview-mismatch` | `agents/reviewer.md` on the shipments task after dev's second attempt: own mechanical sweeps, reconciliation with dev's `## Self-review`, `[PROCESS-SELF-REVIEW]` finding, BLOCK to dev | dev's `DEV-COMMENTS: … service.py → clean` is true for service.py; the three-line comment block sits in router.py |
 
 ## Reading results
 
