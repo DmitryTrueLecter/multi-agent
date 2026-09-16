@@ -11,7 +11,6 @@ contract, or bypass project conventions:
   - git push --mirror, git filter-branch / filter-repo, git stash clear
   - deleting protected branches
   - rm -rf at root or HOME
-  - hand-creating files under migrations/alembic/versions/
   - curl / wget piped into a shell, bash -c "$(curl ...)" obfuscated form
   - docker run --privileged, host-root volume mount, prune --volumes
   - psql DROP DATABASE / SCHEMA / ROLE / USER
@@ -97,14 +96,6 @@ DENY = [
     (
         re.compile(r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*f?[a-zA-Z]*\s+~/?(?:\s|$|;|&|\||\))"),
         "rm -rf ~ is blocked.",
-    ),
-    (
-        re.compile(r"(?:echo|cat|tee|touch|cp|mv|printf)\s+[^|;&]*\bmigrations/alembic/versions/"),
-        'Creating files in migrations/alembic/versions/ by hand is blocked. Use: cd migrations && alembic revision --autogenerate -m "..."',
-    ),
-    (
-        re.compile(r">\s*[^|;&]*\bmigrations/alembic/versions/"),
-        'Writing into migrations/alembic/versions/ via redirection is blocked. Use: cd migrations && alembic revision --autogenerate -m "..."',
     ),
     (
         re.compile(r"\b(?:curl|wget)\b[^|;&]*\|\s*(?:sudo\s+)?(?:bash|sh|zsh|fish)\b"),

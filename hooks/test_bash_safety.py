@@ -81,10 +81,6 @@ CASES = [
     ("fs-destruct", "rm -rf /", "rm -rf /", BLOCK),
     ("fs-destruct", "rm -rf ~", "rm -rf ~", BLOCK),
 
-    # ---- migration files by hand ----
-    ("alembic", "touch a versions file", "touch migrations/alembic/versions/x.py", BLOCK),
-    ("alembic", "redirect into versions dir",
-     "echo x > migrations/alembic/versions/x.py", BLOCK),
     ("alembic", "downgrade base", "alembic downgrade base", BLOCK),
 
     # ---- remote code execution ----
