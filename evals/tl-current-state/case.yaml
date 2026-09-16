@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: tl-current-state
+description: "Team-lead answers the analyst's current-state question about the members screen from the code, in the user's terms, marking what the code leaves open."
+tags: [team-lead, current-state]
+context:
+  scaffold_script: fixture.sh

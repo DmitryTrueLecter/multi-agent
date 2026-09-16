@@ -1,4 +1,12 @@
-Procedure for decomposing a spec into an Epic and area-scoped Tasks. Reached from the interactive main session once the user authorizes turning a spec into tasks (`agents/team-lead.md → ## Default flow`). Read this after the spine in `agents/team-lead.md` — it inherits every rule there.
+---
+name: team-lead-decompose
+description: "Team-lead decomposition procedure: turn an approved spec into an Epic and area-scoped Tasks — issue mechanics, description schema, decomposition principles, epic-branch and base-green gates, architect consultations. Invoked by the team-lead agent once the user authorizes decomposition."
+user-invocable: false
+---
+
+# Team-lead: decompose
+
+Turn a spec the user authorized into an Epic and area-scoped Tasks in the tracker. Reached from the interactive main session (`agents/team-lead.md → ## Default flow` step 4); every rule of the charter applies here.
 
 ## Task management
 
@@ -50,7 +58,7 @@ Links to spec sections, existing code to follow.
 
 **Rule:** Author every file path in the description repo-relative — the path as it reads from the repo root — never absolute (no leading `${CLAUDE_PROJECT_DIR}`, no machine path). Dev/qa/reviewer consume the description under a worktree checkout, not the repo root; an absolute path resolves to the wrong tree.
 
-**Rule:** Register any runtime or format gate that matters at final verification — a test run, a build, a format or lint check, a mechanical grep invariant — with its owner; never inline it as a `Verify:` / `Run:` command directive in the Task body. The owners are `area.yml` `test_command` / `build_command` (re-run at epic close-out per `agents/team-lead/epic-closeout.md`), `area.yml` `review_checks` (enforced by reviewer), and CI. Before writing such a directive, check whether one of these owners already holds the gate: if so, drop it as a duplicate; if the gate is genuinely needed and unowned, register it with the owner — route the `area.yml` / `review_checks` change through sentinel per `## Rule lifecycle` — not into the description. Keep the description to what to build (`## Requirements`) and what must be tested (`## Test contract`); it never carries commands a role must execute, and QA is static-only and cannot run them.
+**Rule:** Register any runtime or format gate that matters at final verification — a test run, a build, a format or lint check, a mechanical grep invariant — with its owner; never inline it as a `Verify:` / `Run:` command directive in the Task body. The owners are `area.yml` `test_command` / `build_command` (re-run at epic close-out per `dma:team-lead-epic-closeout`), `area.yml` `review_checks` (enforced by reviewer), and CI. Before writing such a directive, check whether one of these owners already holds the gate: if so, drop it as a duplicate; if the gate is genuinely needed and unowned, register it with the owner — route the `area.yml` / `review_checks` change through sentinel per `agents/team-lead/rule-lifecycle.md` — not into the description. Keep the description to what to build (`## Requirements`) and what must be tested (`## Test contract`); it never carries commands a role must execute, and QA is static-only and cannot run them.
 
 ### Dependencies
 
@@ -102,10 +110,10 @@ Pass `--parent <EPIC-KEY>` when creating Tasks — the command links the Task to
 
    1. Identify every affected `workspace.path` from the Epic's child Task labels (same resolution rule as the create step above).
    2. For each workspace, run the same `branch create-epic` call as in step 4 — an epic branch that already exists is reported as `EXISTS` and left untouched, so the recovery is safe to re-run.
-   3. If any child Task was already merged to `<workspace.dev_branch>` while no epic branch existed (i.e. dev silently fell back to dev-branch base — the pre-2026-05 prompt allowed this), post `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <EPIC-KEY> "🤖 team-lead: epic branch <vcs.branch_prefix><EPIC-KEY> created retroactively after N child(ren) already merged to <dev_branch>. ARCH-EPIC-SYNC contract was not enforced for those children — the close-out integration-drift check in `agents/team-lead/epic-closeout.md → ## Closing Epics` step 7 will catch any resulting drift."`. List the merged child keys in the comment.
+   3. If any child Task was already merged to `<workspace.dev_branch>` while no epic branch existed (i.e. dev silently fell back to dev-branch base — the pre-2026-05 prompt allowed this), post `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <EPIC-KEY> "🤖 team-lead: epic branch <vcs.branch_prefix><EPIC-KEY> created retroactively after N child(ren) already merged to <dev_branch>. ARCH-EPIC-SYNC contract was not enforced for those children — the close-out integration-drift check in `dma:team-lead-epic-closeout` step 7 will catch any resulting drift."`. List the merged child keys in the comment.
    4. Return each on-hold child citing the missing epic branch to `To Do` + `agent:dev` via `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <CHILD-KEY> dev "Epic branch <vcs.branch_prefix><EPIC-KEY> now present on <workspace.remote>. Re-run task workflow step 2."`.
 
-   The retroactive comment is the audit trail — close-out (`agents/team-lead/epic-closeout.md → ## Closing Epics` step 7) is where the drift, if any, is actually mechanically caught and resolved.
+   The retroactive comment is the audit trail — close-out (`dma:team-lead-epic-closeout` step 7) is where the drift, if any, is actually mechanically caught and resolved.
 5. **Verify the base is green per affected workspace, before decomposing.** Test rot on the base masquerades as task failures once decomposition lands — every child task that touches a rotted file pays the cost (dev hits red tests, escalates via `dev.md` step 4, triage task is filed, original task re-queues). Catch the rot once, here. For each `workspace.path` from step 4, in a subshell:
 
    ```
@@ -115,8 +123,31 @@ Pass `--parent <EPIC-KEY>` when creating Tasks — the command links the Task to
    ```
 
    - **All green** → proceed to step 6.
-   - **Failures exist** → classify each failing test (or group sharing a failure mode) into **fix** / **delete** / **temporarily disable** per the criteria in `agents/team-lead/on-hold.md → ## Handling On Hold tasks` step 4 (the test-rot bullet). File triage tasks against this Epic before any application Task — label `area:<area> agent:dev`, link each as `Blocks` for any application Task whose Requirements touch the rotted file's symbols. Triage tasks land first; application Tasks land after. Do not decompose application work over rotted tests.
+   - **Failures exist** → classify each failing test (or group sharing a failure mode) into **fix** / **delete** / **temporarily disable** per the criteria in `dma:team-lead-on-hold` step 4 (the test-rot bullet). File triage tasks against this Epic before any application Task — label `area:<area> agent:dev`, link each as `Blocks` for any application Task whose Requirements touch the rotted file's symbols. Triage tasks land first; application Tasks land after. Do not decompose application work over rotted tests.
 6. **Consult the architect where `## Always delegate to architect` requires it, and pass the document's requirements as `Constraints:`.** Read the verdicts before drafting Tasks. A *holds, with cost* or *does not hold* verdict on a requirement from the analyst's document, or a blocking question only the customer can answer, is a requirements objection — follow `agents/team-lead.md → ## Requirements objection`: write the review block, draft no Task that depends on the contested requirement, continue with the rest, and tell the user the decomposition is partial until the analyst resolves it. `## Test contract` sections come from the same consultations and go into the affected Tasks in step 7.
 7. Create Task issues with `${CLAUDE_PLUGIN_ROOT}/bin/dma issue create task "<summary>" --parent <EPIC-KEY> --labels area:<area>,agent:dev --description -`. The `parent:<EPIC-KEY>` argument is what dev/qa/reviewer use to derive the epic branch. Each Task is scoped to **one area** (and therefore one workspace). Pass `blocks:<KEY>` for any dependency links. Every Task's `## Requirements` traces to a sentence in the Epic description; a requirement that appears in no Task is an omission to fix, and a Task requirement that appears nowhere in the Epic is an invention to remove.
 8. Present the decomposition to user for approval.
 9. User launches agents via `/dma:run`. You report progress. When a paused objection resolves, re-read the document, mirror any `Changed after engineering review` edits into the Epic description, and decompose the remaining requirements from step 6.
+
+<example>
+A Task description that passes the rules above — repo-relative paths, the architect's contract copied verbatim, no command directives:
+
+```markdown
+## Purpose
+Let an operator retry a failed export from the export list instead of re-creating it, so a transient storage error does not cost the operator the filter set they built.
+
+## Requirements
+- `POST /exports/{id}/retry` re-queues an export whose status is `failed`; any other status returns 409.
+- The retried export keeps the original filter set and owner; only `status`, `attempts`, `queued_at` change.
+- The export list shows a "Retry" action on failed rows only.
+
+## Test contract
+- Invariant: a retry never creates a second export row (level: integration — the guarantee lives in the DB write path).
+- Scenario: fail → retry → success updates the same row through the full queue (level: e2e).
+- No boundary items.
+
+## References
+- Epic description → "Business rules" → retry.
+- `apps/exports/router.py` — existing status transitions to follow.
+```
+</example>

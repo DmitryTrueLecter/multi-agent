@@ -2,4 +2,5 @@
 .claude
 .venv
 __pycache__
-evals
+evals/results/
+evals/*/prompt.md

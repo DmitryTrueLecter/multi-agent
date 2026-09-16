@@ -217,7 +217,7 @@ def verify_remote(workspace, settings, key):
 
 
 def drift(workspace, settings, epic_key):
-    """epic-closeout.md step 7: has the dev branch moved on since the epic branch
+    """team-lead-epic-closeout step 7: has the dev branch moved on since the epic branch
     was cut, and does the movement touch the same files?
 
     Path-disjoint drift is a non-event a plain merge handles at PR time. Overlapping

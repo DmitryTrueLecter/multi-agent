@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: triage-stale-rule
+description: "Triage one RULE-CONTRADICTION flag whose rule cites a removed mechanism; the fix must be derived from the code, not from the flag's 'delete the rule'."
+tags: [triage, checklist]
+context:
+  scaffold_script: fixture.sh

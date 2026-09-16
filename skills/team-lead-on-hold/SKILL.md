@@ -1,4 +1,12 @@
-Procedure for tasks parked for a decision. Spawned with `On Hold task: <KEY>`. Read this after the spine in `agents/team-lead.md` — it inherits every rule there.
+---
+name: team-lead-on-hold
+description: "Team-lead On Hold procedure: triage a task parked for a decision — read the whole epic, find the root cause (spec gap, misunderstanding, ARCH-EPIC-SYNC drift, pre-existing test rot, spec conflict), present the analysis, act only on the user's approval. Invoked by the team-lead agent on `On Hold task: <KEY>`."
+user-invocable: false
+---
+
+# Team-lead: On Hold
+
+Triage one task a role parked for a decision: understand the whole epic, name the root cause, propose one action, and wait for the user before touching the tracker. Spawned by `/dma:run` with `On Hold task: <KEY>`; every rule of `agents/team-lead.md` applies here.
 
 ## Handling On Hold tasks
 
@@ -25,11 +33,8 @@ For each On Hold task:
 
      Link each triage task `Blocks` the on-hold task. Return the on-hold task via `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <KEY> dev` only after the triage lands — the dev's re-run baseline must include the triage outcomes.
 5. Read the spec and relevant architecture docs to verify.
-6. Present your analysis and proposed action to the user:
-   - What the dev flagged
-   - What you found after reviewing the full context
-   - Your recommendation (fix spec, update existing task, create new task, tell dev to proceed differently)
-7. **Wait for user approval before making any changes.**
+6. Present your analysis to the user in the format under `## Analysis format` below.
+7. **Wait for user approval before making any changes.** Nothing is created, transitioned, or commented until the user says so.
 8. After approval, execute: use `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <KEY> <role> <comment>` to route the task to the next role. The skill removes `agent:team-lead` + `needs-decision`, sets the appropriate `agent:` label, and transitions status:
    - back to dev → `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <KEY> dev <explanation>`
    - to qa → `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <KEY> qa <explanation>`
@@ -47,3 +52,35 @@ When qa or reviewer hands off with `spec-conflict:` prefix:
    - **Scope** (the spec asked for X, neither role disputed it, but they disagree on how X must look): a product question — what the user should see or get — goes to the analyst through `agents/team-lead.md → ## Requirements objection`; an engineering one is presented to the user. Do not unilaterally rewrite scope.
 3. After rewriting, return the task to the role that handed off, *not* to dev: `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> <originating-role> "spec reconciled — <one-line>. Re-evaluate against current description."` The originating role's next verdict now runs against the corrected spec.
 4. Bounce counter does NOT reset against dev. The dev's pre-handoff diff stands; this round is a process correction, not a re-implementation.
+
+## Analysis format
+
+```markdown
+## On Hold: <KEY> — <task summary>
+
+**Flagged by:** <role> — <one line quoting what they flagged>
+**Kind:** spec gap | misunderstanding | already covered by <KEY> | ARCH-EPIC-SYNC drift | pre-existing test rot | spec conflict | real gap
+
+**What I found:**
+<one paragraph: the evidence from the epic, the code, the comments — file:line, SHAs, test IDs where they exist>
+
+**Proposed action:**
+<one action: the handoff target, or the task(s) to create — summary, labels, `Blocks` links, and the description text with every file, SHA, and test ID written out, never "the two files" — or the spec section to rewrite; and what the dev does next>
+
+Awaiting your approval.
+```
+
+<example>
+## On Hold: PROJ-212 — Add retry endpoint for failed exports
+
+**Flagged by:** dev — "suite red on base: 3 failures in `apps/exports/tests/test_legacy_csv.py` not touched by my diff (base `a1b2c3d`)"
+**Kind:** pre-existing test rot
+
+**What I found:**
+The three failing tests assert the v1 CSV header order that PROJ-198 (merged 2026-08-30, epic PROJ-190) replaced with the v2 header; no v1 path remains in `apps/exports/csv.py`. The dev's diff touches `router.py` and `queue.py` only, and the same three tests fail on the base SHA the dev cited. This is not covered by any open task in PROJ-190 or PROJ-200.
+
+**Proposed action:**
+Create `PROJ-190: remove v1 CSV header tests superseded by v2` (`area:exports`, `agent:dev`, description names the three test IDs and the v2 commit) and link it `Blocks` PROJ-212. Return PROJ-212 to dev only after that task lands, so the dev's re-run baseline is green.
+
+Awaiting your approval.
+</example>

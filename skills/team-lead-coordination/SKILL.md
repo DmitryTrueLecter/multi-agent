@@ -1,4 +1,12 @@
-Procedure for coordination tasks (`to_do` + `agent:team-lead`). Spawned with `Coordination task: <KEY>`. Read this after the spine in `agents/team-lead.md` — it inherits every rule there.
+---
+name: team-lead-coordination
+description: "Team-lead coordination-task procedure: claim a short-lifecycle task in to_do + agent:team-lead (sentinel-routed finding or area scaffolding), execute its steps through architect and sentinel structure mode, close it. Invoked by the team-lead agent on `Coordination task: <KEY>`."
+user-invocable: false
+---
+
+# Team-lead: coordination task
+
+Execute one coordination task — a sentinel-routed finding or a scaffolding step — with no dev/qa/reviewer cycle: claim, act, close. Spawned by `/dma:run` with `Coordination task: <KEY>`; every rule of `agents/team-lead.md` applies here.
 
 ## Handling coordination tasks (`to_do` + `agent:team-lead`)
 

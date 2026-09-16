@@ -1,4 +1,12 @@
-Procedure for team-lead epic close-out. Spawned with `Group close-out: <KEY>` (and a `Workspaces:` map). Read this after the spine in `agents/team-lead.md` — it inherits every rule there.
+---
+name: team-lead-epic-closeout
+description: "Team-lead epic close-out procedure: verify every child is Done, hunt follow-ups, run the ARCH-EPIC-SYNC drift check and the independent build/test gate per workspace, open the integration PR(s), close the Epic. Invoked by the team-lead agent on `Group close-out: <KEY>`."
+user-invocable: false
+---
+
+# Team-lead: epic close-out
+
+Close one Epic whose last child the reviewer finished: confirm the children, surface follow-ups, gate integration with the drift check and a from-scratch build/test run, open the PR(s), transition to `done`. Spawned by `/dma:run` with `Group close-out: <KEY>` and a `Workspaces:` map; every rule of `agents/team-lead.md` applies here.
 
 ## Workspaces from spawn prompt (epic close-out)
 

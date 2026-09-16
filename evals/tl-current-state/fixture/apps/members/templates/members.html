@@ -1,0 +1,17 @@
+<h1>Team members</h1>
+<form method="post" action="/members/invite">
+  <input name="email" type="email" placeholder="colleague@example.com" required>
+  <select name="role"><option>viewer</option><option>editor</option></select>
+  <button>Invite</button>
+</form>
+<table>
+  <tr><th>Email</th><th>Role</th><th>Status</th><th></th></tr>
+  {% for m in members %}
+  <tr>
+    <td>{{ m.email }}</td>
+    <td><select name="role" data-email="{{ m.email }}"><option>viewer</option><option>editor</option></select></td>
+    <td>{% if m.status == "invited" %}Invited {{ m.invited_days_ago }} days ago{% else %}Active{% endif %}</td>
+    <td><button data-action="remove" data-email="{{ m.email }}">Remove</button></td>
+  </tr>
+  {% endfor %}
+</table>

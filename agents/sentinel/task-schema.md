@@ -14,11 +14,11 @@ The description owner is whoever creates the issue — always team-lead.
 
 | Issue type | Description schema | Owner |
 |---|---|---|
-| Dev / qa Task | `## Purpose` / `## Requirements` / `## Test contract` / `## References` — closed; no command directives in the body | `team-lead/decompose.md → ### Issue description format` (closed-schema `**Rule:**`) |
-| `## Test contract` content | Invariants / Scenarios / Boundaries, each with level (`unit`/`integration`/`e2e`); copied verbatim from architect | authored `architect.md → ## Output format`; copied `decompose.md → ### Issue description format` |
-| Epic | canonical spec, lives only in the tracker. From the analyst: `## Goal` / `## Users and context` / `## Current state` / `## How it works` / `## Business rules` / `## Boundaries` / `## Acceptance criteria` / `## Decisions` / `## Open questions`, copied verbatim from `product/drafts/<feature>.md`; free-form when team-lead wrote it from raw user text | authored `analyst.md → ## The feature document`; landed `decompose.md → ## Workflow` (Spec storage) |
+| Dev / qa Task | `## Purpose` / `## Requirements` / `## Test contract` / `## References` — closed; no command directives in the body | `skills/team-lead-decompose/SKILL.md → ### Issue description format` (closed-schema `**Rule:**`) |
+| `## Test contract` content | Invariants / Scenarios / Boundaries, each with level (`unit`/`integration`/`e2e`); copied verbatim from architect | authored `architect.md → ## Output format`; copied `skills/team-lead-decompose/SKILL.md → ### Issue description format` |
+| Epic | canonical spec, lives only in the tracker. From the analyst: `## Goal` / `## Users and context` / `## Current state` / `## How it works` / `## Business rules` / `## Boundaries` / `## Acceptance criteria` / `## Decisions` / `## Open questions`, copied verbatim from `product/drafts/<feature>.md`; free-form when team-lead wrote it from raw user text | authored `analyst.md → ## The feature document`; landed `skills/team-lead-decompose/SKILL.md → ## Workflow` (Spec storage) |
 | Requirements review (not a tracker artifact) | `product/drafts/<feature>.review.md` — per contested requirement: quote / `Cost:` / `Alternative for the user:` / `Question:` / `Status:`; analyst appends `Resolution:` | written `team-lead.md → ## Requirements objection`; resolved `analyst.md → ## Engineering review` |
-| Coordination Task (`agent:team-lead`, `to_do`) | originating sentinel finding + proposed steps + archived-flag ref | `team-lead/coordination.md → ## Handling coordination tasks` |
+| Coordination Task (`agent:team-lead`, `to_do`) | originating sentinel finding + proposed steps + archived-flag ref | `skills/team-lead-coordination/SKILL.md` |
 | Sentinel Task (`agent:sentinel`) | `## Context` / `## Desired effect` / `## References` | `team-lead.md → ## Consulting sentinel → Task` |
 
 ## Comment blocks
@@ -34,7 +34,7 @@ Every comment starts `🤖 <role> (<area>):` (sentinel and team-lead carry no ar
 | reviewer summary | reviewer @ handoff | Coverage matrix / Findings / Summary+Verdict | `reviewer.md → ## Output format` |
 | reviewer → awaiting_merge | reviewer @ approve | PR URL / review summary / `Local checkout` / `Approved tip: <sha>` | `reviewer.md → ## Task workflow` step 7c |
 | devops runbook | devops @ handoff | Pre-checks / Steps / Verification / Rollback | `devops.md → ## Mode A — assigned task` step 8 |
-| team-lead closing | team-lead @ done | what landed + PR URL(s) | `team-lead/coordination.md`; `epic-closeout.md → ## Closing Epics` step 7 |
+| team-lead closing | team-lead @ done | what landed + PR URL(s) | `skills/team-lead-coordination/SKILL.md`; `skills/team-lead-epic-closeout/SKILL.md → ## Closing Epics` step 7 |
 
 **Bounce-target scan.** On re-run, dev/devops read comments newest-first and stop at the first matching prefix — that is the current target:
 - dev (`dev.md → ## Task workflow` step 1): `🤖 user (decline) via PR <URL>:` → `🤖 reviewer (<area>): handoff → dev` → `🤖 qa (<area>): handoff → dev`.
