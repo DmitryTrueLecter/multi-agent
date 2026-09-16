@@ -79,6 +79,24 @@ A task in `<statuses.in_progress>` with an `agent:<role>` label is either being 
 
 6. **Recency hint.** Tasks claimed within the last few minutes are almost certainly running in another session; tasks claimed hours or days ago are almost certainly stuck. Show the duration so the user has the signal — do not act on it automatically.
 
+## Epics awaiting production confirmation (runs after the stuck-task pre-flight)
+
+An Epic whose integration PR is open sits in `<statuses.awaiting_ops>` until the user confirms it works on production (`skills/team-lead-epic-closeout` step 7). Nothing else surfaces it, so report it here, once per `/dma:run` invocation:
+
+```
+${CLAUDE_PLUGIN_ROOT}/bin/dma board list --status <statuses.awaiting_ops> --type group
+```
+
+Empty result → continue silently. Otherwise list one line per Epic — key, summary, days since last update — and state what closes it:
+
+```
+⚠ Epics awaiting your production confirmation:
+  - <EPIC-KEY> (<N> days): <summary>
+Deployed and working → ${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <EPIC-KEY> done "<what you verified>"
+```
+
+Report and continue to queue search; the Epic blocks nothing and the answer can come whenever the user has it.
+
 ## Work area (called by step 7)
 
 Every agent that operates on a specific branch's state — dev, qa, reviewer, devops, sentinel Mode: task, team-lead at epic close-out — works in a git worktree of its own under `.worktrees/<KEY>`, checked out on the task branch. That isolates the working tree per task / epic so parallel agents on different keys do not collide.

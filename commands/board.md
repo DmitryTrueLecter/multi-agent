@@ -23,7 +23,7 @@ Make the following `${CLAUDE_PLUGIN_ROOT}/bin/dma board list` calls and present 
 
 3. **Awaiting merge** — from the `awaiting_merge` results: list every task (key, summary, area). The user merges or declines the PR; `${CLAUDE_PLUGIN_ROOT}/bin/dma board reconcile` reconciles the result on the next `/dma:run`.
 
-4. **Awaiting ops** — from the `awaiting_ops` results: list every task (key, summary). The runbook is in the issue comments; the user executes it, then closes manually via `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <KEY> done`.
+4. **Awaiting ops** — from the `awaiting_ops` results, split by issue type. Tasks: list key and summary — the runbook is in the issue comments; the user executes it, then closes it manually via `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <KEY> done`. Epics: list key, summary and days waiting — these are integrated and deployed-or-deploying, and close on the user's confirmation that they work on production.
 
 5. **In progress** — from the `in_progress` results: group by `agent:` label (shows who is doing what right now).
 

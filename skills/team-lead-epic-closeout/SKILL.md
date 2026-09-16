@@ -68,8 +68,8 @@ For each such group issue:
      ```
 
      Capture the PR URL from the skill's response. If `${CLAUDE_PLUGIN_ROOT}/bin/dma pr open` returns an error for any workspace, do **not** proceed: run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <EPIC-KEY> <error-details>`, leave the Epic in `In Progress` with `agent:team-lead`, and stop.
-   - Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <EPIC-KEY> done <closing-comment>` where the closing comment starts with `🤖 team-lead:`, summarizes what was delivered, and includes the PR URL(s). The skill removes `agent:team-lead`, transitions the Epic to `Done`, and posts the comment.
-   - The PR(s) merge to `<workspace.dev_branch>` outside the agent flow (user / CI). `Done` here means "the agent loop is closed", not "shipped to dev".
+   - Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <EPIC-KEY> awaiting_ops <closing-comment>` where the closing comment starts with `🤖 team-lead:`, includes the PR URL(s), summarizes what was delivered, and states what the user sees on production once this is deployed — on what data, after which manual steps.
+   - The Epic reaches `done` on the user's word that it works on production, and on nothing else: the PR(s) merge outside the agent flow, deploy follows, and no agent observes production. Until then the Epic is live work — a defect found after this point is an ordinary child Task, its merge re-promotes the Epic to close-out (`dma board reconcile`), and this procedure runs again for the commits it added.
 8. On hold (follow-ups required):
    - Create the follow-up Tasks (linked to the Epic) per the normal task-creation flow using `${CLAUDE_PLUGIN_ROOT}/bin/dma issue create`.
    - Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue label <EPIC-KEY> --remove agent:team-lead` to remove the team-lead marker while leaving the Epic in `In Progress` (children are actively in their queues — the Epic is "in flight" again).
