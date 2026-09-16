@@ -12,6 +12,7 @@ claude plugin eval . --case triage-stale-rule --runs 3 --ablation none --scaffol
 - `--scaffold` runs the case's `fixture.sh` to seed the workspace; pass it only for cases you wrote.
 - `--ablation none` skips the no-plugin arm — the sentinel cases have no meaning without the plugin.
 - `--judge-model sonnet` — the default haiku judge is too loose for the prose rubrics.
+- Cases that edit files pass `--allow-tools Edit Write` (not gated by the Docker check).
 - No `--allow-tools Bash`: the sandbox refuses the grant on this machine (a symlink inside `~/.docker`); the agent uses Read/Glob/Grep instead. Team-lead cases therefore tell the agent to find the project root with `Glob` — its Bootstrap otherwise runs `pwd`.
 - `prompt.md` and `results/` are generated and gitignored. Re-run `build.py` after editing the charter.
 
@@ -22,6 +23,7 @@ claude plugin eval . --case triage-stale-rule --runs 3 --ablation none --scaffol
 | `triage-stale-rule` | `dma:sentinel-triage` on one RULE-CONTRADICTION flag in a fictional `notify` area: priming, report format, Fix derived from code, checklist (`Checked:` line) | the flag suggests deleting the rule; the fix must rewrite it from the code |
 | `tl-current-state` | `dma:team-lead-current-state` on a fictional `members` screen: user-terms description, no mechanics, open points marked, no preamble | the removal path has no authorization check — surface it, do not design it |
 | `tl-on-hold-drift` | `dma:team-lead-on-hold` on an `ARCH-EPIC-SYNC drift` handoff: whole-epic read, reconcile task with labels / Blocks / files / SHAs, hold until Done, wait for approval | `schemas.py` is an `arch.yml` escalation trigger — the architect goes first |
+| `dev-rerun-selfreview` | `agents/dev.md` re-run after a reviewer block on a fictional `shipments` area: fix exactly the cited DEV-COMMENTS / DEV-FN-SHAPE findings, stay inside `dev.yml` write scope, hand off with a `## Self-review` block | four of `ship`'s parameters are unused — drop, do not group; a prior "Tests: 4 passed" is not this run's result (no Bash) |
 
 ## Reading results
 

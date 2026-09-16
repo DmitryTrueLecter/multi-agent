@@ -61,21 +61,13 @@ Two config values appear in the git commands below. They are values, not directo
 - **File search:** use `Grep` / `Glob` tools, not shell `find` / `grep`.
 - **Branch state:** you start on `<vcs.branch_prefix><ISSUE-KEY>` — stay on that branch (in that workspace) until QA handoff. Compare against other branches with `git diff <branch>...HEAD` or `git log <branch>..HEAD` — no checkout needed.
 
-## Long-running commands                                                                                                                                                              
-                                                                                                                                                                                        
-  When a command needs more than the default 2-minute Bash timeout to complete and                                                                                                      
-  you need to read its output:                                                                                                                                                          
-                                                                                                                                                                                        
-  - Run it foreground with an explicit `timeout` parameter on the Bash tool                                                                                                             
-    (the hard maximum is 600000 ms / 10 minutes).
-  - If a single command genuinely exceeds 10 minutes, use the Bash tool's                                                                                                               
-    `run_in_background=true` and poll the result via BashOutput. Document                                                                                                               
-    the reason in the handoff comment.                                                                                                                                                  
-  - NEVER background commands via shell operators — `&`, `nohup`, `disown`,                                                                                                             
-    or `cmd > file 2>&1 & tail -f file`. The agent won't get a reliable                                                                                                                 
-    completion signal and will exit while the command is still running,                                                                                                                 
-    leaving the workspace dirty. The Bash tool's `run_in_background=true`                                                                                                               
-    is the only correct backgrounding mechanism.       
+## Long-running commands
+
+When a command needs more than the default 2-minute Bash timeout and you need its output:
+
+- Run it foreground with an explicit `timeout` parameter on the Bash tool (hard maximum 600000 ms / 10 minutes).
+- If a single command genuinely exceeds 10 minutes, use the Bash tool's `run_in_background=true` and poll the result via BashOutput; state the reason in the handoff comment.
+- Never background via shell operators — `&`, `nohup`, `disown`, `cmd > file 2>&1 & tail -f file`: the agent gets no reliable completion signal and exits while the command still runs, leaving the workspace dirty. `run_in_background=true` is the only backgrounding mechanism.
 
 ## Code standards
 
@@ -137,21 +129,53 @@ Behavior is assembled by passing collaborators as parameters or attributes, not 
 Either raise a specific exception, or return an explicit type encoding the outcome (`Optional[T]` for "may not exist", a result dataclass for failure with reason). Forbidden: returning `None` / `-1` / `""` / `{}` as a failure marker; returning bare `bool` "ok / not ok" without details. The caller must be unable to confuse a real value with an error sentinel.
 
 **DEV-COMMENTS — Short, "why" only.**
-A comment is justified only when the reader cannot understand *why* without it: a non-obvious invariant, a workaround for a specific external bug, a reference to an external spec or RFC (with URL). One comment = one line. If you need more, the code is poorly named — rename or extract a function with a speaking name. Module/function docstrings: optional, one line of summary if present. Forbidden: multi-paragraph docstrings, restating the spec, parameter listings (types are in the signature), section dividers (`# === Config ===`), TODOs without a tracking issue, references to internal task/ticket IDs (readers will not open the ticket; explain the invariant inline — concrete tracker patterns belong in `area.yml.review_checks`), comments that paraphrase the name of the next expression (`# Stamp the review's extras` above `session.execute(...stamp_extras...)`). Mechanical floor reviewer greps for: **docstring or comment blocks >2 consecutive lines** — if you hit that, the comment is wrong by construction regardless of content; collapse to one why-line or delete. Your pre-handoff sweep (step 7 of `## Pre-handoff self-review`) uses this same grep, so apply it before handoff and reviewer's second pass will be empty.
+A comment is justified only when the reader cannot understand *why* without it: a non-obvious invariant, a workaround for a specific external bug, a reference to an external spec or RFC (with URL). One comment = one line. If you need more, the code is poorly named — rename or extract a function with a speaking name. Module/function docstrings: optional, one line of summary if present. Forbidden: multi-paragraph docstrings, restating the spec, parameter listings (types are in the signature), section dividers (`# === Config ===`), TODOs without a tracking issue, references to internal task/ticket IDs (readers will not open the ticket; explain the invariant inline — concrete tracker patterns belong in `area.yml.review_checks`), comments that paraphrase the name of the next expression (`# Stamp the review's extras` above `session.execute(...stamp_extras...)`). Mechanical floor reviewer greps for: **docstring or comment blocks >2 consecutive lines** — if you hit that, the comment is wrong by construction regardless of content; collapse to one why-line or delete. Your pre-handoff sweep (step 7 of `## Pre-handoff self-review
 
-## Pre-handoff self-review
+Before the handoff to QA, walk the diff with this checklist and write the result into the progress comment (`## Task workflow` step 6) as a `## Self-review` block — one line per item, in this order. Every line is a fact a tool produced — a grep and its hit count, a file:line, a test ID — never an assertion. QA and reviewer read the block first; a rule line missing from it is a sweep that did not happen, and reviewer treats it as one. Anything a line surfaces is fixed before the line is written.
 
-Before flipping the label to `agent:qa`, walk this checklist against your diff. Round-trips through QA → reviewer → dev cost more than the minutes this takes.
+1. **Rejection coverage** (re-run only). For each concrete point in the rejection comment from step 1 of the workflow (user decline / reviewer block / qa findings): `fixed <file:line>` or `not addressed — <reason>` (duplicate, ambiguous, covered by an earlier point). No point silently dropped.
+2. **Requirements walk.** Per item in `## Requirements`: `<requirement> → <file:line>; test <test id>`. A requirement citing an external doc: open the doc and confirm every constraint it lists is in the code, not only the summary in the issue.
+3. **Test contract walk.** Per invariant / scenario / boundary in `## Test contract`: `<item> (<level>) → <test id>`, the level matching the architect's.
+4. **Dead code sweep.** Every new parameter is read, every new helper has ≥1 real caller, every new abstraction has ≥2 concrete needs (`DEV-YAGNI`) — or it is inlined.
+5. **Edge-case sweep** on new boundary code — parser, validator, converter, coercion: the input shapes that fail silently in the chosen language, each with a test; or `none`.
+6. **Single source of truth.** Any new state — metric, counter, timer, cache, derived value — searched for an existing home; routed through it if one exists.
+7. **Mechanical-rules sweep.** One rule at a time, every changed file in one `Grep` pass — the same procedure reviewer applies (`agents/reviewer.md → ## What you check`, "Mechanical rules"). Visual inspection is banned: it leaves the sub-patterns reviewer's grep catches and forces a bounce. Per rule one line: `<RULE>: <grep or measure> → clean | <n> hits fixed | waived: <hit> — <reason>`. Rules: `DEV-COMMENTS` (≥3 consecutive comment-only lines, docstring blocks >2 lines, section dividers, ticket IDs), `DEV-FN-SHAPE`, `DEV-NAMING`, `DEV-SPLIT`, `DEV-FAIL-FAST`, `DEV-ERRORS`, `DEV-COMPOSITION`.
 
-1. **Rejection coverage** (re-run only — skip if this is a fresh task with no rejection comment). For each concrete point in the rejection comment you read in step 1 of the workflow (user-decline / reviewer block / qa findings) — list it explicitly and cite the file:line of your fix. Every point must have a fix, or an explicit note in your handoff comment explaining why it is not addressed (e.g. duplicate, ambiguous, addressed by an earlier point). No point silently dropped.
-2. **Requirements walk.** For each item in the issue's `## Requirements`, identify file:line of implementation and the test that covers it. If a requirement cites an external doc, open that doc and confirm every constraint it lists is reflected in code — not just the summary that landed in the issue.
-3. **Test contract walk.** For each invariant / scenario / boundary in `## Test contract`, identify the test and confirm the level matches (unit / integration / e2e).
-4. **Dead code sweep.** Every new parameter is read; every new helper has ≥1 real caller; every new abstraction has ≥2 concrete needs. Per DEV-YAGNI, otherwise inline.
-5. **Edge-case sweep on new boundary code.** Any new parser, validator, converter, or coercion: walk through input shapes that fail silently in the chosen language and add a test for each.
-6. **Single source of truth.** Any new state — metric, counter, timer, cache, derived value — search for whether it is already measured or stored elsewhere. If yes, route through the existing one instead of adding a parallel.
-7. **Mechanical-rules sweep.** Tool-driven sweep across the entire diff — one rule at a time, every changed file in one pass — for `DEV-COMMENTS`, `DEV-FN-SHAPE`, `DEV-NAMING`, `DEV-SPLIT`, `DEV-FAIL-FAST`, `DEV-ERRORS`, `DEV-COMPOSITION` (same procedure reviewer applies; see `reviewer.md` → `## Code standards`, "Mechanical rules" paragraph). Visual-only inspection is banned: it leaves the sub-patterns reviewer's grep catches and forces a bounce. For `DEV-COMMENTS` specifically: `grep` each changed file for ≥3 consecutive comment-only lines; collapse each hit to one why-line or delete.
+Block format — labels verbatim, one line per label:
 
-If any item flags something, fix it before handoff.
+```
+## Self-review
+Rejection: fresh task | <n> points — fixed <file:line>, fixed <file:line>, not addressed <point> — <reason>
+Requirements: <R1 short> → <file:line>; test <id> | <R2 short> → …
+Test contract: <item> (<level>) → <test id> | none in issue
+DEV-YAGNI: <n> new params/helpers/abstractions, callers <file:line>, … | none new
+Boundary code: none | <function> → tests for <shape>, <shape>
+Single source: none new | <state> routed through <existing>
+DEV-COMMENTS: grep -nE '<pattern>' <files> → clean | <n> hits fixed
+DEV-FN-SHAPE: <n> functions checked → clean | <n> fixed (<file:line> split into <a>/<b>) | waived: <hit> — <reason>
+DEV-NAMING: grep -nE '<pattern>' <files> → clean | <n> fixed
+DEV-SPLIT: LOC <file> <n>, <file> <n> → below look | <file> <n> ≥ must_justify, DON'T-SPLIT <rule> cited in commit
+DEV-FAIL-FAST: grep -nE 'except' <files> → clean | <n> fixed
+DEV-ERRORS: <n> return paths checked → clean | <n> fixed
+DEV-COMPOSITION: grep -nE 'class .*\(' <files> → clean | <n> fixed
+```
+
+<example>
+## Self-review
+Rejection: 3 points — fixed apps/catalog/service.py:41, fixed apps/catalog/service.py:58, fixed apps/catalog/tests/test_service.py:12
+Requirements: archive endpoint → apps/catalog/router.py:30; test test_archive_hides_item | archived items excluded from listing → apps/catalog/service.py:22; test test_list_excludes_archived
+Test contract: archive is idempotent (unit) → test_archive_twice_is_noop
+DEV-YAGNI: 1 new param `archived_at`, callers service.py:22, router.py:31
+Boundary code: none
+Single source: none new
+DEV-COMMENTS: grep -nE '^\s*(#|""")' apps/catalog/service.py apps/catalog/router.py → 2 hits fixed (service.py:40-44 docstring → one line; router.py:28 ticket ID dropped)
+DEV-FN-SHAPE: 4 functions checked → 1 fixed (service.py:19 `include_archived: bool` split into list_items / list_all_items)
+DEV-NAMING: grep -nE '\b(data|result|tmp|handle|process)\b' … → clean
+DEV-SPLIT: LOC service.py 118, router.py 64 → below look
+DEV-FAIL-FAST: grep -nE 'except' … → clean
+DEV-ERRORS: 3 return paths checked → clean
+DEV-COMPOSITION: grep -nE 'class .*\(' … → clean
+</example>
 
 ## Flag sentinel
 
@@ -224,11 +248,9 @@ Creates a Task issue in the tracker's Sentinel queue. Async — does not unblock
    Touches <files/areas>. Edge case <case> handled by <strategy>;
    errors in <path> are logged without stopping the batch.
    ```
-6. Add a progress comment via `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <body>`. **Start every comment with `🤖 dev (<area>):`** so it's clear which agent wrote it. Include: what you did, files created/modified, whether requirements are met, and the actual branch name (`<vcs.branch_prefix><ISSUE-KEY>`).
+6. Run `## Pre-handoff self-review`, fix what it surfaces, then add a progress comment via `${CLAUDE_PLUGIN_ROOT}/bin/dma issue comment <ISSUE-KEY> <body>`. **Start every comment with `🤖 dev (<area>):`.** Body: what you did, files created/modified, the branch name (`<vcs.branch_prefix><ISSUE-KEY>`), the runner's verbatim test summary line, and the `## Self-review` block.
 7. **If there are gaps, missing prerequisites, or decisions needed from team lead/other areas:**
    - Do NOT move to QA.
    - Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> team-lead <comment>` — the comment must clearly describe what's missing and what decision is needed. It sets labels `agent:team-lead` + `needs-decision` and transitions to `On Hold`.
    - This applies when Requirements quote a function/class shape that violates `DEV-*` rules (e.g., signature with >4 domain params and no value-type grouping, or a boolean flag argument). Do not silently implement the violating shape; escalate so team-lead either rewrites the Requirements or re-routes to architect.
-8. **If work is complete with no gaps:**
-   - Run the `## Pre-handoff self-review` checklist. Fix anything it surfaces.
-   - Run `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> qa` — it sets label `agent:qa` and transitions to `QA`.
+8. **If work is complete with no gaps:** the progress comment from step 6 carries the `## Self-review` block — then `${CLAUDE_PLUGIN_ROOT}/bin/dma issue handoff <ISSUE-KEY> qa`, which sets label `agent:qa` and transitions to `QA`. A handoff without the block in the preceding comment is a process defect QA bounces.

@@ -27,7 +27,7 @@ Every comment starts `🤖 <role> (<area>):` (sentinel and team-lead carry no ar
 
 | Comment | Writer @ stage | Body schema | Owner |
 |---|---|---|---|
-| dev progress | dev @ pre-handoff | what changed, files, requirements met, branch name | `dev.md → ## Task workflow` step 6 |
+| dev progress | dev @ pre-handoff | what changed, files, branch name, verbatim test summary, `## Self-review` block (`dev.md → ## Pre-handoff self-review`) | `dev.md → ## Task workflow` step 6 |
 | dev → qa handoff | dev @ done | handoff line only; the work summary is the progress comment | `dev.md → ## Task workflow` step 8 |
 | dev → team-lead escalation | dev @ blocked | epic-branch-missing / ARCH-EPIC-SYNC drift / gap-decision (fixed bodies) | `dev.md → ## Task workflow` steps 2a / 2c / 7 |
 | QA report | qa @ handoff | Coverage matrix / Findings / Runtime-checks-deferred | `qa.md → ## Task workflow` step 4 |

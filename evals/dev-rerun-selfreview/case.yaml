@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: dev-rerun-selfreview
+description: "Dev re-run after a reviewer block: fix exactly the cited DEV-COMMENTS / DEV-FN-SHAPE findings, then hand off with a progress comment carrying the Self-review block."
+tags: [dev, self-review]
+context:
+  scaffold_script: fixture.sh
