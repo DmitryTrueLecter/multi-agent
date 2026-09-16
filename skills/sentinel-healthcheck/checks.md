@@ -75,9 +75,6 @@ No check in this stage has an auto-fix — every value here carries user-choice 
   - Severity: CRITICAL. Detection: per-key integer non-zero.
   - Manual fix: run `/dma:sentinel-bootstrap-jira` — IDs come from the live Jira workflow.
 
-- **HC-CFG-007** — (WARN) `runtime.<key>` paths (if declared) point to existing executable files.
-  - Severity: WARN. Detection: `test -x <path>` per key. Manual fix: correct path or remove key.
-
 - **HC-CFG-008** — At least one area under `${CLAUDE_PROJECT_DIR}/.claude/dma/areas/<area>/` with both `area.yml` and `dev.yml`.
   - Severity: CRITICAL. Detection: glob + file presence. Manual fix: route through architect.
 
