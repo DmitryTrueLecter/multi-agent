@@ -3,7 +3,7 @@ max_turns: 60
 timeout_seconds: 1200
 allowed_tools: [Read, Glob, Grep, Edit, Write]
 append_system_prompt: |
-__CHARTER:dev__
+__CHARTER:dev,agent-common__
 ---
 
 Project: the current working directory — find it with `Glob` on `.claude/dma/config.yml` (the absolute path it returns is the prefix). Workspace: the same directory; it is already checked out on `ai/PROJ-301`. Area: shipments. Issue: PROJ-301.

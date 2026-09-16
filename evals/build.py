@@ -13,14 +13,23 @@ import pathlib
 import re
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-MARK = re.compile(r"__CHARTER:([a-z-]+)__")
+MARK = re.compile(r"__CHARTER:([a-z,-]+)__")
 
 
-def charter(agent: str) -> str:
+def _resolve(body: str) -> str:
+    return body.replace("${CLAUDE_PLUGIN_ROOT}", str(ROOT)).replace("${CLAUDE_PROJECT_DIR}", "<project-root>")
+
+
+def charter(spec: str) -> str:
+    """`<agent>[,<skill>,...]`: the agent's system prompt body plus the body of each named skill (the ones its Bootstrap invokes)."""
+    agent, *skills = spec.split(",")
     text = (ROOT / "agents" / f"{agent}.md").read_text()
-    body = re.sub(r"\A---\n.*?\n---\n", "", text, flags=re.S).strip()
-    body = body.replace("${CLAUDE_PLUGIN_ROOT}", str(ROOT)).replace("${CLAUDE_PROJECT_DIR}", "<project-root>")
-    return "\n".join(("  " + line) if line else "" for line in body.splitlines())
+    parts = [re.sub(r"\A---\n.*?\n---\n", "", text, flags=re.S).strip()]
+    for name in skills:
+        skill = (ROOT / "skills" / name / "SKILL.md").read_text()
+        parts.append("\n\n<skill name=\"dma:" + name + "\" note=\"invoked at Bootstrap step 0\">\n" + re.sub(r"\A---\n.*?\n---\n", "", skill, flags=re.S).strip() + "\n</skill>")
+    resolved = _resolve("".join(parts))
+    return "\n".join(("  " + line) if line else "" for line in resolved.splitlines())
 
 
 for template in sorted((ROOT / "evals").glob("*/prompt.template.md")):

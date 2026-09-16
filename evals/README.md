@@ -5,7 +5,7 @@ Behavioural tests for the dma skills, run with `claude plugin eval` (docs: code.
 ## Run
 
 ```
-python3 evals/build.py                       # render each case's prompt.md; the template's __CHARTER:<agent>__ marker picks which agents/<agent>.md is inlined
+python3 evals/build.py                       # render each case's prompt.md; the marker __CHARTER:<agent>[,<skill>,...]__ inlines agents/<agent>.md plus the skills its Bootstrap invokes
 claude plugin eval . --case triage-stale-rule --runs 3 --ablation none --scaffold --judge-model sonnet --max-cost-usd 6 --no-publish --json evals/results/<name>.json
 ```
 
@@ -29,3 +29,9 @@ claude plugin eval . --case triage-stale-rule --runs 3 --ablation none --scaffol
 ## Reading results
 
 `results/<name>.json` → `cases[].arms.with[].graders[]` has `passed` per grader per run; `evidence` holds the agent's final message. Compare per-grader pass counts across runs, not the aggregate score alone. Change one thing (charter, skill, or rubric) per iteration; to attribute an effect, run the previous version under the same rubrics (`git stash` the prompt files, `build.py`, run, `git stash pop`, `build.py`).
+
+## Harness limits found while building the suite
+
+- `skills:` in a plugin agent's frontmatter does **not** preload the skill (tried `dma:agent-common`, `agent-common`, with and without `user-invocable: false`, in a fresh `claude -p --agent dma:dev` process, Claude Code 2.1.273). Shared content therefore reaches an agent through an explicit `Skill` invocation the charter orders as Bootstrap step 0 — the mechanism the sentinel and team-lead modes use — and the `Skill` tool must be in the agent's `tools:`.
+- Agent definitions are cached for the session: an `Agent(subagent_type=…)` spawn from a running session sees the charter as it was at session start. Probe prompt changes in a fresh `claude -p --agent <name>` process.
+- Long eval runs can be killed under memory pressure on this machine; prefer `--runs 1` smoke passes and one case per invocation when the host is busy.
